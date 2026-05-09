@@ -26,6 +26,23 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         let userContent = WKUserContentController()
         userContent.add(self, name: "textChanged")
         userContent.add(self, name: "imageDropped")
+        userContent.add(self, name: "consoleLog")
+        // console.log를 Swift NSLog로 forward (inspector 없이 디버깅용)
+        let logScript = WKUserScript(source: """
+            (function() {
+              const orig = console.log;
+              console.log = function(...args) {
+                orig.apply(console, args);
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.consoleLog) {
+                  try {
+                    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+                    window.webkit.messageHandlers.consoleLog.postMessage(msg);
+                  } catch (e) {}
+                }
+              };
+            })();
+            """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        userContent.addUserScript(logScript)
         config.userContentController = userContent
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
         // file:// 페이지에서 다른 file:// 경로(폴더 안 attachments/) 이미지 로드 허용.
@@ -240,6 +257,10 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
            let dataURL = dict["dataURL"] as? String,
            let name = dict["name"] as? String {
             handleImageDrop(dataURL: dataURL, suggestedName: name)
+            return
+        }
+        if message.name == "consoleLog", let text = message.body as? String {
+            NSLog("[MD-JS] %@", text)
             return
         }
     }

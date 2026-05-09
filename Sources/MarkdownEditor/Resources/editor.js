@@ -145,20 +145,23 @@ const baseTheme = EditorView.theme({
 
   // 라인 gutter — 좌측에 h1/h2/¶/│ 등 작은 라벨
   ".cm-gutters": {
-    background: "transparent",
+    background: "var(--bg)",
     border: "none",
-    color: "var(--marker)",
-    display: "flex",
+    color: "var(--secondary)",
   },
-  ".cm-gutterElement": {
-    padding: "0 8px 0 12px",
+  ".cm-line-kind-gutter": {
+    minWidth: "44px",
+    width: "44px",
+  },
+  ".cm-line-kind-gutter .cm-gutterElement": {
+    padding: "0 12px 0 16px",
     fontFamily: 'ui-monospace, "SF Mono", monospace',
     fontSize: "10px",
-    lineHeight: "inherit",
-    minWidth: "20px",
+    lineHeight: "1.7",
     textAlign: "right",
-    color: "var(--marker)",
-    opacity: "0.55",
+    color: "var(--secondary)",
+    opacity: "0.7",
+    minWidth: "44px",
   },
   ".cm-line-kind": {
     display: "inline-block",
@@ -403,7 +406,6 @@ const M_LIST = new LineKindMarker("•");
 const lineKindGutter = gutter({
   class: "cm-line-kind-gutter",
   lineMarker(view, line) {
-    // line.text 기반으로 빠르게 분류 (syntaxTree보다 가벼움 + viewport에 한정)
     const t = view.state.doc.lineAt(line.from).text;
     if (/^\s*#{6}\s/.test(t)) return M_H6;
     if (/^\s*#{5}\s/.test(t)) return M_H5;
@@ -414,9 +416,8 @@ const lineKindGutter = gutter({
     if (/^\s*>+\s/.test(t)) return M_QUOTE;
     if (/^\s*([-*+]|\d+\.)\s/.test(t)) return M_LIST;
     if (/^\s*([-_*])(\s*\1){2,}\s*$/.test(t)) return M_HR;
-    if (t === "") return null;
     if (/^\s*```|^\s*~~~/.test(t)) return M_CODE;
-    return M_PARA;
+    return M_PARA;  // 빈 라인도 ¶ 표시
   },
   initialSpacer() { return M_H2; },  // 가장 넓은 라벨 기준 폭 예약
 });

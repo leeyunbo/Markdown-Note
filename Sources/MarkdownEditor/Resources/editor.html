@@ -42,6 +42,9 @@ body { overflow: hidden; height: 100vh; }
 .cm-editor .cm-scroller {
   font-family: inherit;
   line-height: 1.7;
+  padding: 0;  /* gutter는 화면 끝부터 시작, content는 자체 padding */
+}
+.cm-editor .cm-content {
   padding: 12px 24px;
 }
 .cm-editor.cm-focused {
@@ -49,7 +52,36 @@ body { overflow: hidden; height: 100vh; }
 }
 .cm-editor .cm-content {
   caret-color: var(--fg);
-  padding: 8px 0;
+}
+
+/* gutter width 강제 — CodeMirror가 spacer measurement로 inline style을 박는 경우
+   CSS가 무시되므로 !important로 덮어쓴다. */
+.cm-editor .cm-line-kind-gutter {
+  min-width: 44px !important;
+  width: 44px !important;
+  flex-shrink: 0;
+}
+.cm-editor .cm-line-kind-gutter .cm-gutterElement {
+  padding: 0 12px 0 16px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 10px;
+  color: var(--secondary);
+  opacity: 0.7;
+  min-width: 44px;
+  box-sizing: border-box;
+  /* 라인 글자(14px)와 baseline 어긋남 → flex로 라인 height 안에서 center */
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+}
+.cm-editor .cm-line-kind {
+  display: inline-block;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 10px;
+}
+.cm-editor .cm-gutters {
+  background: var(--bg);
+  border: none;
 }
 .cm-editor .cm-line {
   padding: 0;
@@ -63,7 +95,6 @@ body { overflow: hidden; height: 100vh; }
   background: rgba(0, 102, 204, 0.22) !important;
 }
 .cm-editor .cm-activeLine { background: transparent; }
-.cm-editor .cm-gutters { display: none; }
 
 /* List marker — depth별 색 cycle. ListMark만 색칠, 글자는 영향 없음 */
 .cm-content .md-list-mark { font-weight: 600; }
