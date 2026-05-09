@@ -19,6 +19,111 @@ const baseTheme = EditorView.theme({
   "&": { height: "100%" },
   ".cm-content": { fontFamily: "inherit", fontSize: "14px" },
   ".cm-line": { padding: "0" },
+
+  // Search panel — Apple HIG-ish 톤
+  ".cm-panels.cm-panels-top": {
+    borderBottom: "1px solid var(--marker)",
+    background: "var(--bg)",
+  },
+  ".cm-panel.cm-search": {
+    padding: "8px 14px",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "6px",
+    alignItems: "center",
+    fontSize: "12px",
+    background: "var(--bg)",
+    color: "var(--fg)",
+  },
+  ".cm-search .cm-textfield": {
+    background: "var(--bg)",
+    color: "var(--fg)",
+    border: "1px solid var(--marker)",
+    borderRadius: "5px",
+    padding: "3px 9px",
+    outline: "none",
+    minWidth: "180px",
+    height: "26px",
+    fontSize: "12px",
+    margin: "0",
+    transition: "border-color 0.12s ease, box-shadow 0.12s ease",
+  },
+  ".cm-search .cm-textfield:focus": {
+    borderColor: "var(--link)",
+    boxShadow: "0 0 0 3px rgba(0, 102, 204, 0.18)",
+  },
+  ".cm-search .cm-textfield::placeholder": {
+    color: "var(--secondary)",
+    opacity: "0.55",
+  },
+  ".cm-search .cm-button": {
+    background: "transparent",
+    backgroundImage: "none",
+    border: "1px solid transparent",
+    borderRadius: "5px",
+    padding: "3px 10px",
+    cursor: "pointer",
+    color: "var(--fg)",
+    fontSize: "12px",
+    fontWeight: "500",
+    height: "26px",
+    margin: "0",
+    fontFamily: "inherit",
+    boxShadow: "none",
+    textTransform: "none",
+  },
+  ".cm-search .cm-button:hover": { background: "var(--code-bg)" },
+  ".cm-search .cm-button:active": { background: "var(--marker)" },
+  ".cm-search label": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    fontSize: "11px",
+    color: "var(--secondary)",
+    cursor: "pointer",
+    margin: "0 4px",
+  },
+  ".cm-search label input[type=checkbox]": {
+    margin: "0 2px 0 0",
+    accentColor: "var(--link)",
+  },
+  ".cm-search [name=close]": {
+    position: "absolute",
+    right: "8px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: "24px",
+    height: "24px",
+    padding: "0",
+    fontSize: "16px",
+    color: "var(--secondary)",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+  },
+  ".cm-search [name=close]:hover": { color: "var(--fg)" },
+
+  // Table line — monospace + 약한 배경. 옵시디언 source mode 비슷한 시각화
+  ".cm-content .cm-table-line": {
+    fontFamily: 'ui-monospace, "SF Mono", monospace',
+    fontSize: "13px",
+    background: "var(--code-bg)",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    letterSpacing: "0.02em",
+  },
+  ".cm-content .cm-table-line.cm-table-first": {
+    borderTopLeftRadius: "6px",
+    borderTopRightRadius: "6px",
+    marginTop: "2px",
+    paddingTop: "2px",
+  },
+  ".cm-content .cm-table-line.cm-table-last": {
+    borderBottomLeftRadius: "6px",
+    borderBottomRightRadius: "6px",
+    marginBottom: "2px",
+    paddingBottom: "2px",
+  },
 });
 
 const mdHighlight = HighlightStyle.define([
@@ -113,6 +218,46 @@ class ImageWidget extends WidgetType {
 
 // docFolderURL 변경 시 image widget을 다시 빌드시키기 위한 effect.
 const docFolderEffect = StateEffect.define();
+
+// 마크다운 표 라인에 cm-table-line 클래스 부여 (monospace + 배경).
+// header / alignment / body 라인을 전부 same group으로 묶어 시각적으로 한 덩어리.
+const tableLinePlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.build(update.view);
+    }
+  }
+  build(view) {
+    const builder = [];
+    const doc = view.state.doc;
+    const isTableRow = (t) => /^\s*\|.*\|\s*$/.test(t);
+    const isAlignRow = (t) => /^\s*\|(\s*:?-{2,}:?\s*\|)+\s*$/.test(t);
+    let i = 1;
+    while (i <= doc.lines) {
+      const head = doc.line(i);
+      // header + alignment + bodies
+      if (isTableRow(head.text) && i + 1 <= doc.lines && isAlignRow(doc.line(i + 1).text)) {
+        let last = i + 1;
+        for (let j = i + 2; j <= doc.lines; j++) {
+          if (!isTableRow(doc.line(j).text)) break;
+          last = j;
+        }
+        for (let n = i; n <= last; n++) {
+          const line = doc.line(n);
+          const classes = ["cm-table-line"];
+          if (n === i) classes.push("cm-table-first");
+          if (n === last) classes.push("cm-table-last");
+          builder.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
+        }
+        i = last + 1;
+        continue;
+      }
+      i++;
+    }
+    return Decoration.set(builder, true);
+  }
+}, { decorations: v => v.decorations });
 
 // 코드 펜스 안 라인에 cm-codeblock-line 클래스 부여 (배경 + monospace).
 // 첫/마지막 라인엔 둥근 모서리용 클래스도 추가.
@@ -390,6 +535,7 @@ function makeExtensions() {
     imagePlugin,
     listMarkPlugin,
     codeBlockLinePlugin,
+    tableLinePlugin,
     themeCompartment.of(baseTheme),
     keymap.of([
       { key: "Enter", run: handleEnter },

@@ -102,78 +102,7 @@ body { overflow: hidden; height: 100vh; }
   margin-bottom: 2px;
 }
 
-/* Search panel — CodeMirror 기본을 우리 톤으로 (Apple HIG 비슷한 sleek 톤) */
-.cm-panels.cm-panels-top {
-  border-bottom: 1px solid var(--marker);
-  background: var(--bg);
-}
-.cm-search {
-  padding: 8px 14px !important;
-  display: flex !important;
-  flex-wrap: wrap;
-  gap: 6px !important;
-  align-items: center;
-  font-size: 12px;
-  background: var(--bg);
-}
-.cm-search [name=close] {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
-  padding: 0 !important;
-  font-size: 14px;
-  color: var(--secondary) !important;
-  background: transparent !important;
-  border: none !important;
-}
-.cm-search [name=close]:hover { color: var(--fg) !important; }
-.cm-search label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--secondary);
-  cursor: pointer;
-}
-.cm-search label input[type=checkbox] {
-  margin: 0 2px 0 0;
-  accent-color: var(--link);
-}
-.cm-search input, .cm-search button {
-  font: inherit;
-  color: var(--fg);
-  height: 24px;
-}
-.cm-search input[type="text"] {
-  background: var(--bg);
-  border: 1px solid var(--marker);
-  border-radius: 5px;
-  padding: 3px 9px;
-  outline: none;
-  min-width: 180px;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
-}
-.cm-search input[type="text"]:focus {
-  border-color: var(--link);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.18);
-}
-.cm-search input[type="text"]::placeholder {
-  color: var(--secondary);
-  opacity: 0.55;
-}
-.cm-search button {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  padding: 3px 9px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.cm-search button:hover { background: var(--code-bg); }
-.cm-search button:active { background: var(--marker); }
+/* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */
 .cm-searchMatch {
   background: rgba(255, 213, 0, 0.45);
   border-radius: 2px;
