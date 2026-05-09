@@ -5,6 +5,7 @@
 const {
   EditorState, Compartment, StateField, StateEffect,
   EditorView, keymap, drawSelection, dropCursor, Decoration, WidgetType, ViewPlugin,
+  gutter, GutterMarker, showPanel,
   defaultKeymap, history, historyKeymap, indentWithTab, undo, redo,
   HighlightStyle, syntaxHighlighting, defaultHighlightStyle, bracketMatching,
   indentOnInput, syntaxTree,
@@ -141,6 +142,50 @@ const baseTheme = EditorView.theme({
     color: "var(--marker)",
     opacity: "0.6",
   },
+
+  // 라인 gutter — 좌측에 h1/h2/¶/│ 등 작은 라벨
+  ".cm-gutters": {
+    background: "transparent",
+    border: "none",
+    color: "var(--marker)",
+    display: "flex",
+  },
+  ".cm-gutterElement": {
+    padding: "0 8px 0 12px",
+    fontFamily: 'ui-monospace, "SF Mono", monospace',
+    fontSize: "10px",
+    lineHeight: "inherit",
+    minWidth: "20px",
+    textAlign: "right",
+    color: "var(--marker)",
+    opacity: "0.55",
+  },
+  ".cm-line-kind": {
+    display: "inline-block",
+  },
+
+  // 하단 status bar
+  ".cm-panels.cm-panels-bottom": {
+    borderTop: "1px solid var(--marker)",
+    background: "var(--bg)",
+  },
+  ".cm-status-bar": {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "4px 14px",
+    fontFamily: 'ui-monospace, "SF Mono", monospace',
+    fontSize: "10.5px",
+    color: "var(--secondary)",
+    height: "22px",
+    letterSpacing: "0.02em",
+  },
+  ".cm-status-bar .cm-status-spacer": { flex: "1" },
+  ".cm-status-bar .cm-status-pos": { color: "var(--fg)" },
+  ".cm-status-bar .cm-status-meta": { opacity: "0.7" },
+  ".cm-status-bar .cm-status-format": { opacity: "0.6" },
+  ".cm-status-bar .cm-status-tasks": { opacity: "0.7" },
+  ".cm-status-bar .cm-status-size": { opacity: "0.7" },
 });
 
 const mdHighlight = HighlightStyle.define([
@@ -285,6 +330,96 @@ const tableLinePlugin = ViewPlugin.fromClass(class {
     return Decoration.set([...lineDecos, ...markDecos], true);
   }
 }, { decorations: v => v.decorations });
+
+// 하단 status bar — Ln/Col, 인코딩, format, tasks 진행, file size.
+function makeStatusPanel(view) {
+  const dom = document.createElement("div");
+  dom.className = "cm-status-bar";
+  const sel = document.createElement("span"); sel.className = "cm-status-pos";
+  const meta = document.createElement("span"); meta.className = "cm-status-meta";
+  const format = document.createElement("span"); format.className = "cm-status-format";
+  format.textContent = "UTF-8 · LF · Markdown";
+  const tasks = document.createElement("span"); tasks.className = "cm-status-tasks";
+  const spacer = document.createElement("span"); spacer.className = "cm-status-spacer";
+  const size = document.createElement("span"); size.className = "cm-status-size";
+  dom.append(sel, meta, format, tasks, spacer, size);
+
+  function refresh(state) {
+    const head = state.selection.main.head;
+    const line = state.doc.lineAt(head);
+    const col = head - line.from + 1;
+    sel.textContent = `Ln ${line.number}, Col ${col}`;
+
+    const text = state.doc.toString();
+    meta.textContent = `${(text.match(/\S+/g) || []).length}w · ${state.doc.lines}L`;
+
+    let total = 0, done = 0;
+    const re = /^\s*([-*+]|\d+\.)\s+\[([ xX])\]/gm;
+    let m;
+    while ((m = re.exec(text))) {
+      total++;
+      if (m[2].toLowerCase() === "x") done++;
+    }
+    tasks.textContent = total > 0 ? `${done} / ${total} tasks` : "";
+
+    const bytes = new TextEncoder().encode(text).byteLength;
+    size.textContent = bytes < 1024 ? `${bytes} B`
+      : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB`
+      : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  refresh(view.state);
+
+  return {
+    dom,
+    update(u) {
+      if (u.docChanged || u.selectionSet) refresh(u.state);
+    },
+  };
+}
+
+// 라인 gutter — 각 라인의 마크다운 종류(h1/h2/¶/│ 등)를 좌측에 작은 라벨로.
+class LineKindMarker extends GutterMarker {
+  constructor(label) { super(); this.label = label; }
+  eq(other) { return other.label === this.label; }
+  toDOM() {
+    const span = document.createElement("span");
+    span.className = "cm-line-kind";
+    span.textContent = this.label;
+    return span;
+  }
+}
+const M_H1 = new LineKindMarker("h1");
+const M_H2 = new LineKindMarker("h2");
+const M_H3 = new LineKindMarker("h3");
+const M_H4 = new LineKindMarker("h4");
+const M_H5 = new LineKindMarker("h5");
+const M_H6 = new LineKindMarker("h6");
+const M_PARA = new LineKindMarker("¶");
+const M_QUOTE = new LineKindMarker("│");
+const M_CODE = new LineKindMarker("─");
+const M_HR = new LineKindMarker("⎯");
+const M_LIST = new LineKindMarker("•");
+
+const lineKindGutter = gutter({
+  class: "cm-line-kind-gutter",
+  lineMarker(view, line) {
+    // line.text 기반으로 빠르게 분류 (syntaxTree보다 가벼움 + viewport에 한정)
+    const t = view.state.doc.lineAt(line.from).text;
+    if (/^\s*#{6}\s/.test(t)) return M_H6;
+    if (/^\s*#{5}\s/.test(t)) return M_H5;
+    if (/^\s*#{4}\s/.test(t)) return M_H4;
+    if (/^\s*#{3}\s/.test(t)) return M_H3;
+    if (/^\s*#{2}\s/.test(t)) return M_H2;
+    if (/^\s*#{1}\s/.test(t)) return M_H1;
+    if (/^\s*>+\s/.test(t)) return M_QUOTE;
+    if (/^\s*([-*+]|\d+\.)\s/.test(t)) return M_LIST;
+    if (/^\s*([-_*])(\s*\1){2,}\s*$/.test(t)) return M_HR;
+    if (t === "") return null;
+    if (/^\s*```|^\s*~~~/.test(t)) return M_CODE;
+    return M_PARA;
+  },
+  initialSpacer() { return M_H2; },  // 가장 넓은 라벨 기준 폭 예약
+});
 
 // 코드 펜스 안 라인에 cm-codeblock-line 클래스 부여 (배경 + monospace).
 // 첫/마지막 라인엔 둥근 모서리용 클래스도 추가.
@@ -562,6 +697,8 @@ function makeExtensions() {
       autocorrect: "off",
       autocapitalize: "off",
     }),
+    lineKindGutter,
+    showPanel.of(makeStatusPanel),
     imageField,
     listMarkPlugin,
     codeBlockLinePlugin,

@@ -12,10 +12,13 @@ export {
   crosshairCursor,
   dropCursor,
   lineNumbers,
+  gutter,
+  GutterMarker,
   Decoration,
   WidgetType,
   ViewPlugin,
   ViewUpdate,
+  showPanel,
 } from "@codemirror/view";
 export {
   defaultKeymap,
