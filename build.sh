@@ -1,6 +1,7 @@
 #!/bin/bash
-# SwiftPM 빌드 → MarkdownEditor.app 번들 패키징
-# Xcode 없이 Command Line Tools 만으로 동작
+# 1. esbuild로 CodeMirror 번들 생성
+# 2. swiftc로 직접 컴파일 (SwiftPM 매니페스트가 일부 toolchain에서 ABI 충돌하는 이슈 회피)
+# 3. .app 번들 + ad-hoc codesign
 
 set -euo pipefail
 
@@ -11,32 +12,44 @@ APP_NAME="MarkdownEditor"
 BUNDLE_ID="com.daou.markdowneditor"
 VERSION="1.0.0"
 
-echo "▸ swift build -c $CONFIG"
-swift build -c "$CONFIG"
+# CodeMirror 번들이 없거나 entry보다 오래되면 다시 만들기
+if [[ ! -f Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
+   || [[ Sources/cm-bundle/index.js -nt Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
+   || [[ package.json -nt Sources/MarkdownEditor/Resources/cm.bundle.js ]]; then
+    echo "▸ npm install (필요 시)"
+    if [[ ! -d node_modules ]]; then
+        npm install
+    fi
+    echo "▸ esbuild Sources/cm-bundle/index.js → Resources/cm.bundle.js"
+    npm run build
+fi
 
-BIN_DIR=$(swift build -c "$CONFIG" --show-bin-path)
-BIN="$BIN_DIR/$APP_NAME"
-
-if [[ ! -x "$BIN" ]]; then
-    echo "✗ 빌드된 실행 파일을 찾을 수 없습니다: $BIN"
-    exit 1
+# Swift 컴파일 옵션 — release면 -O, debug면 -Onone
+if [[ "$CONFIG" == "release" ]]; then
+    OPT_FLAG="-O"
+else
+    OPT_FLAG="-Onone"
 fi
 
 APP_ROOT="build/$APP_NAME.app"
 echo "▸ 번들 생성: $APP_ROOT"
-
 rm -rf "$APP_ROOT"
 mkdir -p "$APP_ROOT/Contents/MacOS"
 mkdir -p "$APP_ROOT/Contents/Resources"
 
-cp "$BIN" "$APP_ROOT/Contents/MacOS/$APP_NAME"
+# Sources에서 .swift 자동 수집 (새 파일 추가해도 그대로 동작)
+SWIFT_FILES=(Sources/MarkdownEditor/*.swift)
 
-# SwiftPM 리소스 번들 (.bundle 폴더) 복사
-shopt -s nullglob
-for bundle in "$BIN_DIR"/*.bundle; do
-    cp -R "$bundle" "$APP_ROOT/Contents/Resources/"
-done
-shopt -u nullglob
+echo "▸ swiftc $OPT_FLAG → $APP_ROOT/Contents/MacOS/$APP_NAME"
+swiftc "$OPT_FLAG" \
+    -target arm64-apple-macosx13.0 \
+    -sdk "$(xcrun --show-sdk-path 2>/dev/null || echo /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)" \
+    -emit-executable \
+    -o "$APP_ROOT/Contents/MacOS/$APP_NAME" \
+    "${SWIFT_FILES[@]}"
+
+# 리소스 복사
+cp Sources/MarkdownEditor/Resources/* "$APP_ROOT/Contents/Resources/"
 
 cat > "$APP_ROOT/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -76,11 +89,9 @@ cat > "$APP_ROOT/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-# ad-hoc 코드 사인 (Gatekeeper 처음 실행 경고 회피)
 echo "▸ 코드 사인 (ad-hoc)"
 codesign --force --deep --sign - "$APP_ROOT" 2>/dev/null || true
 
-# 격리 속성 제거
 xattr -cr "$APP_ROOT" 2>/dev/null || true
 
 echo ""

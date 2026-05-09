@@ -3,7 +3,7 @@
 "use strict";
 
 const {
-  EditorState, Compartment,
+  EditorState, Compartment, StateField, StateEffect,
   EditorView, keymap, drawSelection, dropCursor, Decoration, WidgetType, ViewPlugin,
   defaultKeymap, history, historyKeymap, indentWithTab, undo, redo,
   HighlightStyle, syntaxHighlighting, defaultHighlightStyle, bracketMatching,
@@ -110,10 +110,15 @@ class ImageWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
+// docFolderURL 변경 시 image widget을 다시 빌드시키기 위한 effect.
+const docFolderEffect = StateEffect.define();
+
 const imagePlugin = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = this.build(view); }
   update(update) {
-    if (update.docChanged || update.viewportChanged) {
+    const folderChanged = update.transactions.some(t =>
+      t.effects.some(e => e.is(docFolderEffect)));
+    if (update.docChanged || update.viewportChanged || folderChanged) {
       this.decorations = this.build(update.view);
     }
   }
@@ -297,37 +302,38 @@ const updateListener = EditorView.updateListener.of((update) => {
   }
 });
 
+function makeExtensions() {
+  return [
+    history(),
+    drawSelection(),
+    dropCursor(),
+    EditorState.allowMultipleSelections.of(true),
+    bracketMatching(),
+    indentOnInput(),
+    markdown({ base: markdownLanguage, codeLanguages: languages }),
+    syntaxHighlighting(mdHighlight),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    search({ top: true }),
+    EditorView.lineWrapping,
+    imagePlugin,
+    themeCompartment.of(baseTheme),
+    keymap.of([
+      { key: "Enter", run: handleEnter },
+      { key: "Mod-b", run: wrapSelection("**", "**") },
+      { key: "Mod-i", run: wrapSelection("*", "*") },
+      { key: "Mod-k", run: insertLinkCmd },
+      indentWithTab,
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap,
+    ]),
+    updateListener,
+  ];
+}
+
 const view = new EditorView({
   parent: document.getElementById("editor-host"),
-  state: EditorState.create({
-    doc: "",
-    extensions: [
-      history(),
-      drawSelection(),
-      dropCursor(),
-      EditorState.allowMultipleSelections.of(true),
-      bracketMatching(),
-      indentOnInput(),
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
-      syntaxHighlighting(mdHighlight),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-      search({ top: true }),
-      EditorView.lineWrapping,
-      imagePlugin,
-      themeCompartment.of(baseTheme),
-      keymap.of([
-        { key: "Enter", run: handleEnter },
-        { key: "Mod-b", run: wrapSelection("**", "**") },
-        { key: "Mod-i", run: wrapSelection("*", "*") },
-        { key: "Mod-k", run: insertLinkCmd },
-        indentWithTab,
-        ...defaultKeymap,
-        ...historyKeymap,
-        ...searchKeymap,
-      ]),
-      updateListener,
-    ],
-  }),
+  state: EditorState.create({ doc: "", extensions: makeExtensions() }),
 });
 
 // ----- Swift bridge -----
@@ -337,14 +343,10 @@ window.appBridge = {
     if (text === lastAppliedText) return;
     isApplyingExternal = true;
     try {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: text },
-        // history reset: 외부에서 들어온 새 문서는 새 history 시작
-        annotations: [],
-      });
+      // setState로 새 state 생성 → history도 reset (이전 파일의 ⌘Z 이력 안 따라옴)
+      view.setState(EditorState.create({ doc: text, extensions: makeExtensions() }));
       lastAppliedText = text;
     } finally {
-      // microtask 후 false (dispatch가 동기지만 update notify가 비동기 가능)
       setTimeout(() => { isApplyingExternal = false; }, 0);
     }
   },
@@ -354,9 +356,8 @@ window.appBridge = {
   },
   setDocFolder(url) {
     docFolderURL = url || "";
-    // 이미지 widget 다시 그리도록 강제 update
-    view.dispatch({ effects: [] });
-    view.requestMeasure();
+    // imagePlugin이 이 effect를 보고 widget을 다시 빌드한다
+    view.dispatch({ effects: docFolderEffect.of(url || "") });
   },
   scrollToLine(lineIdx) {
     const lineNum = Math.max(1, Math.min(view.state.doc.lines, lineIdx + 1));
