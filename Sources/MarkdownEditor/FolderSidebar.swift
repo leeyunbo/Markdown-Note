@@ -150,6 +150,16 @@ private struct Header: View {
             .help("새로고침")
 
             Button {
+                state.createFolder(in: nil)
+            } label: {
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("새 폴더")
+
+            Button {
                 state.newFile()
             } label: {
                 Image(systemName: "square.and.pencil")
@@ -257,6 +267,9 @@ private struct NodeBranch: View {
                                 AppDelegate.shared?.openNewTab(with: node.url)
                             }
                         }
+                        Divider()
+                    } else {
+                        Button("새 폴더") { state.createFolder(in: node.url) }
                         Divider()
                     }
                     Button("이름 변경") { startRename() }

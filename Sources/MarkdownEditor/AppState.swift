@@ -229,6 +229,25 @@ final class AppState: ObservableObject {
         selectFile(url)
     }
 
+    /// parent 안에 "새 폴더" / "새 폴더 2" 형태로 빈 폴더 생성. parent nil이면 root.
+    func createFolder(in parent: URL? = nil) {
+        guard let p = parent ?? rootFolder else { pickFolder(); return }
+        var idx = 1
+        var name = "새 폴더"
+        var url = p.appendingPathComponent(name)
+        while FileManager.default.fileExists(atPath: url.path) {
+            idx += 1
+            name = "새 폴더 \(idx)"
+            url = p.appendingPathComponent(name)
+        }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+            refreshTree()
+        } catch {
+            reportError("폴더 생성 실패", detail: error.localizedDescription)
+        }
+    }
+
     func textChanged(_ newValue: String) {
         documentText = newValue
         isDirty = true
