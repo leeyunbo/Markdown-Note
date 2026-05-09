@@ -68,13 +68,22 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         handleImageData(data: data, suggestedName: name)
     }
 
-    /// 드래그된 file URL — attachments/ 안이면 그대로 link만, 아니면 복사 후 link.
-    func acceptDroppedImageURL(_ url: URL) {
-        if state.isInsideAttachments(url) {
-            insertImageLinkForExisting(url)
-        } else {
-            guard let data = try? Data(contentsOf: url) else { return }
-            handleImageData(data: data, suggestedName: url.lastPathComponent)
+    /// 드래그된 file URL을 종류별로 분기:
+    /// - 이미지: attachments/ 안이면 link만, 외부면 복사 후 link
+    /// - .md: 새 탭에서 열기
+    /// - 기타: 무시
+    func acceptDroppedFileURL(_ url: URL) {
+        let ext = url.pathExtension.lowercased()
+        let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "svg"]
+        if imageExts.contains(ext) {
+            if state.isInsideAttachments(url) {
+                insertImageLinkForExisting(url)
+            } else {
+                guard let data = try? Data(contentsOf: url) else { return }
+                handleImageData(data: data, suggestedName: url.lastPathComponent)
+            }
+        } else if ext == "md" || ext == "markdown" {
+            AppDelegate.shared?.openNewTab(with: url)
         }
     }
 
@@ -315,14 +324,15 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     }
 }
 
-private let editorImageExts: Set<String> = [
+private let editorAcceptedExts: Set<String> = [
     "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "svg",
+    "md", "markdown",
 ]
 
-private func imageURLs(from info: NSDraggingInfo) -> [URL] {
+private func acceptableURLs(from info: NSDraggingInfo) -> [URL] {
     guard let urls = info.draggingPasteboard.readObjects(
             forClasses: [NSURL.self], options: nil) as? [URL] else { return [] }
-    return urls.filter { editorImageExts.contains($0.pathExtension.lowercased()) }
+    return urls.filter { editorAcceptedExts.contains($0.pathExtension.lowercased()) }
 }
 
 // WKWebView 위에서 drop이 일어나면 hit test상 우리 container까지 안 가므로
@@ -331,20 +341,20 @@ final class DragForwardingWebView: WKWebView {
     weak var controller: EditorViewController?
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        if !imageURLs(from: sender).isEmpty { return .copy }
+        if !acceptableURLs(from: sender).isEmpty { return .copy }
         return super.draggingEntered(sender)
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        if !imageURLs(from: sender).isEmpty { return .copy }
+        if !acceptableURLs(from: sender).isEmpty { return .copy }
         return super.draggingUpdated(sender)
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let urls = imageURLs(from: sender)
+        let urls = acceptableURLs(from: sender)
         if !urls.isEmpty, let ctrl = controller {
             for url in urls {
-                ctrl.acceptDroppedImageURL(url)
+                ctrl.acceptDroppedFileURL(url)
             }
             return true
         }
@@ -352,19 +362,19 @@ final class DragForwardingWebView: WKWebView {
     }
 }
 
-// 컨테이너는 fallback (WKWebView 외부 영역에 drop 떨어지는 경우 — 거의 없지만 보험)
+// 컨테이너는 fallback (WKWebView 외부 영역에 drop 떨어지는 경우)
 final class ImageDropContainerView: NSView {
     weak var controller: EditorViewController?
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        return imageURLs(from: sender).isEmpty ? [] : .copy
+        return acceptableURLs(from: sender).isEmpty ? [] : .copy
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let urls = imageURLs(from: sender)
+        let urls = acceptableURLs(from: sender)
         guard !urls.isEmpty, let ctrl = controller else { return false }
         for url in urls {
-            ctrl.acceptDroppedImageURL(url)
+            ctrl.acceptDroppedFileURL(url)
         }
         return true
     }

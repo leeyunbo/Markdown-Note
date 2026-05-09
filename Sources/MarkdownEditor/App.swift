@@ -12,11 +12,20 @@ struct MarkdownEditorApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// SwiftUI NSApplicationDelegateAdaptor wrapping이 NSApp.delegate cast를 깨뜨리는 케이스가 있어
+    /// static reference로 직접 접근.
+    static private(set) weak var shared: AppDelegate?
+
     let state = AppState()
     private var mainController: MainWindowController?
     /// 추가 탭/윈도우는 자체 AppState를 가진 별도 controller로 운영.
     /// macOS native window tabbing이 이들을 자동으로 탭으로 묶음.
     private var extraControllers: [MainWindowController] = []
+
+    override init() {
+        super.init()
+        Self.shared = self
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [
@@ -45,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         openNewTab(with: nil)
     }
 
-    /// 특정 파일을 새 탭에서 연다. 사이드바 contextMenu의 "새 탭에서 열기"가 사용.
+    /// 특정 파일을 새 탭에서 연다. 사이드바 contextMenu / 에디터 drop이 사용.
     func openNewTab(with url: URL?) {
         let newState = AppState()
         let newController = MainWindowController(state: newState)
@@ -59,9 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         newWindow.makeKeyAndOrderFront(nil)
         extraControllers.append(newController)
         if let url {
-            // 새 controller의 viewDidLoad가 끝난 직후 selectFile 호출되도록
-            // 다음 runloop에 dispatch (state Combine sink가 attach된 후)
-            DispatchQueue.main.async {
+            // 새 controller의 view 로드 + Combine sinks attach 후 selectFile.
+            // 한 runloop으로는 부족하므로 살짝 지연.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 newState.selectFile(url)
             }
         }

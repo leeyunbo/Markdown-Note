@@ -254,9 +254,7 @@ private struct NodeBranch: View {
                         if node.kind == .markdown {
                             Button("열기") { state.selectFile(node.url) }
                             Button("새 탭에서 열기") {
-                                if let app = NSApp.delegate as? AppDelegate {
-                                    app.openNewTab(with: node.url)
-                                }
+                                AppDelegate.shared?.openNewTab(with: node.url)
                             }
                         }
                         Divider()
