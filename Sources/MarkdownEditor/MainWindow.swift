@@ -22,7 +22,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.titleVisibility = .hidden
         window.title = "Markdown Editor"
         window.minSize = NSSize(width: 720, height: 480)
-        window.setFrameAutosaveName("MainEditorWindow")
+        // setFrameAutosaveName은 첫 윈도우(메인)에만 부여한다.
+        // 모든 탭이 같은 name을 쓰면 마지막에 닫힌 윈도우의 frame이 다른 윈도우를 덮어쓰는
+        // 문제가 있어 AppDelegate가 메인 한 곳에서만 호출.
         super.init(window: window)
         setup()
     }
@@ -52,11 +54,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
 
         // 이미지 미리보기는 EditorViewController 안에서 자체 처리한다 (에디터 영역만 차지).
 
-        // Toolbar
+        // Toolbar — autosavesConfiguration로 사용자 customization 보존
         let toolbar = NSToolbar(identifier: "MainToolbar")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
+        toolbar.allowsUserCustomization = true
+        toolbar.autosavesConfiguration = true
         toolbar.showsBaselineSeparator = false
         window.toolbar = toolbar
         window.toolbarStyle = .unified
