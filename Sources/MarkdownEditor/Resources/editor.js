@@ -103,7 +103,7 @@ const baseTheme = EditorView.theme({
   },
   ".cm-search [name=close]:hover": { color: "var(--fg)" },
 
-  // Table line — monospace + 약한 배경. 옵시디언 source mode 비슷한 시각화
+  // Table line — monospace + 배경. header/alignment/zebra 구분.
   ".cm-content .cm-table-line": {
     fontFamily: 'ui-monospace, "SF Mono", monospace',
     fontSize: "13px",
@@ -111,6 +111,18 @@ const baseTheme = EditorView.theme({
     paddingLeft: "12px",
     paddingRight: "12px",
     letterSpacing: "0.02em",
+    color: "var(--fg)",
+  },
+  ".cm-content .cm-table-line.cm-table-header": {
+    fontWeight: "600",
+    background: "var(--code-bg)",
+  },
+  ".cm-content .cm-table-line.cm-table-align": {
+    color: "var(--marker)",
+    fontSize: "11px",
+  },
+  ".cm-content .cm-table-line.cm-table-zebra": {
+    background: "rgba(0, 0, 0, 0.025)",
   },
   ".cm-content .cm-table-line.cm-table-first": {
     borderTopLeftRadius: "6px",
@@ -123,6 +135,11 @@ const baseTheme = EditorView.theme({
     borderBottomRightRadius: "6px",
     marginBottom: "2px",
     paddingBottom: "2px",
+  },
+  // pipe(|)는 흐리게 — 보는 데 거슬리지 않음
+  ".cm-content .cm-table-pipe": {
+    color: "var(--marker)",
+    opacity: "0.6",
   },
 });
 
@@ -219,8 +236,8 @@ class ImageWidget extends WidgetType {
 // docFolderURL 변경 시 image widget을 다시 빌드시키기 위한 effect.
 const docFolderEffect = StateEffect.define();
 
-// 마크다운 표 라인에 cm-table-line 클래스 부여 (monospace + 배경).
-// header / alignment / body 라인을 전부 same group으로 묶어 시각적으로 한 덩어리.
+// 마크다운 표 라인 — header / alignment / body 라인 그룹화 + role 클래스.
+// pipe(|)는 별도 mark decoration으로 흐리게 색칠.
 const tableLinePlugin = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = this.build(view); }
   update(update) {
@@ -229,14 +246,14 @@ const tableLinePlugin = ViewPlugin.fromClass(class {
     }
   }
   build(view) {
-    const builder = [];
+    const lineDecos = [];
+    const markDecos = [];
     const doc = view.state.doc;
     const isTableRow = (t) => /^\s*\|.*\|\s*$/.test(t);
     const isAlignRow = (t) => /^\s*\|(\s*:?-{2,}:?\s*\|)+\s*$/.test(t);
     let i = 1;
     while (i <= doc.lines) {
       const head = doc.line(i);
-      // header + alignment + bodies
       if (isTableRow(head.text) && i + 1 <= doc.lines && isAlignRow(doc.line(i + 1).text)) {
         let last = i + 1;
         for (let j = i + 2; j <= doc.lines; j++) {
@@ -246,16 +263,26 @@ const tableLinePlugin = ViewPlugin.fromClass(class {
         for (let n = i; n <= last; n++) {
           const line = doc.line(n);
           const classes = ["cm-table-line"];
-          if (n === i) classes.push("cm-table-first");
+          if (n === i) classes.push("cm-table-header", "cm-table-first");
+          else if (n === i + 1) classes.push("cm-table-align");
+          else if ((n - i) % 2 === 0) classes.push("cm-table-zebra");
           if (n === last) classes.push("cm-table-last");
-          builder.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
+          lineDecos.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
+          // pipe 위치마다 mark decoration
+          for (let k = 0; k < line.text.length; k++) {
+            if (line.text[k] === "|") {
+              markDecos.push(Decoration.mark({ class: "cm-table-pipe" })
+                .range(line.from + k, line.from + k + 1));
+            }
+          }
         }
         i = last + 1;
         continue;
       }
       i++;
     }
-    return Decoration.set(builder, true);
+    // line + mark 합쳐서 하나의 set. line decoration은 항상 mark보다 먼저 와야 sort 보장.
+    return Decoration.set([...lineDecos, ...markDecos], true);
   }
 }, { decorations: v => v.decorations });
 
