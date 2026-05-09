@@ -338,6 +338,22 @@ final class AppState: ObservableObject {
         return name
     }
 
+    /// 현재 .md 파일 기준 상대 경로 (없으면 attachments/<name>). NFC 정규화.
+    func markdownLinkPath(for url: URL) -> String {
+        if let docURL = selectedFile {
+            return relativePath(from: docURL, to: url)
+        }
+        return "attachments/\(url.lastPathComponent)".precomposedStringWithCanonicalMapping
+    }
+
+    /// url이 현재 폴더의 attachments/ 안에 있는지.
+    func isInsideAttachments(_ url: URL) -> Bool {
+        guard let root = rootFolder else { return false }
+        let attDir = root.appendingPathComponent("attachments", isDirectory: true)
+            .standardizedFileURL.path
+        return url.standardizedFileURL.path.hasPrefix(attDir + "/")
+    }
+
     private func relativePath(from source: URL, to target: URL) -> String {
         let srcComp = source.deletingLastPathComponent().standardizedFileURL.pathComponents
         let tgtComp = target.standardizedFileURL.pathComponents

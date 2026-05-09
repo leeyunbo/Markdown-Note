@@ -217,6 +217,14 @@ private struct NodeBranch: View {
                         state.revealInFinder(node.url)
                     }
                 }
+                .onDrag {
+                    // 이미지 파일만 드래그 가능. fileURL 형태로 NSItemProvider 제공 →
+                    // 에디터의 DragForwardingWebView가 받는다.
+                    if node.kind == .image {
+                        return NSItemProvider(object: node.url as NSURL)
+                    }
+                    return NSItemProvider()
+                }
                 .contextMenu {
                     if !node.isDirectory {
                         Button("열기") { state.selectFile(node.url) }

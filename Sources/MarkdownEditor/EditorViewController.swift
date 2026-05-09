@@ -68,6 +68,29 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         handleImageData(data: data, suggestedName: name)
     }
 
+    /// 드래그된 file URL — attachments/ 안이면 그대로 link만, 아니면 복사 후 link.
+    func acceptDroppedImageURL(_ url: URL) {
+        if state.isInsideAttachments(url) {
+            insertImageLinkForExisting(url)
+        } else {
+            guard let data = try? Data(contentsOf: url) else { return }
+            handleImageData(data: data, suggestedName: url.lastPathComponent)
+        }
+    }
+
+    private func insertImageLinkForExisting(_ url: URL) {
+        let relPath = state.markdownLinkPath(for: url)
+        let urlEncoded = relPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? relPath
+        let alt = url.deletingPathExtension().lastPathComponent
+        let escaped = urlEncoded.replacingOccurrences(of: "\\", with: "\\\\")
+                                .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedAlt = alt.replacingOccurrences(of: "\\", with: "\\\\")
+                            .replacingOccurrences(of: "\"", with: "\\\"")
+        web.evaluateJavaScript(
+            "window.appBridge.insertImage(\"\(escapedAlt)\", \"\(escaped)\");",
+            completionHandler: nil)
+    }
+
     private func handleImageData(data: Data, suggestedName: String) {
         guard let relPath = state.saveDroppedImage(data: data, suggestedName: suggestedName) else {
             return
@@ -321,8 +344,7 @@ final class DragForwardingWebView: WKWebView {
         let urls = imageURLs(from: sender)
         if !urls.isEmpty, let ctrl = controller {
             for url in urls {
-                guard let data = try? Data(contentsOf: url) else { continue }
-                ctrl.acceptNativeImageDrop(data: data, name: url.lastPathComponent)
+                ctrl.acceptDroppedImageURL(url)
             }
             return true
         }
@@ -342,8 +364,7 @@ final class ImageDropContainerView: NSView {
         let urls = imageURLs(from: sender)
         guard !urls.isEmpty, let ctrl = controller else { return false }
         for url in urls {
-            guard let data = try? Data(contentsOf: url) else { continue }
-            ctrl.acceptNativeImageDrop(data: data, name: url.lastPathComponent)
+            ctrl.acceptDroppedImageURL(url)
         }
         return true
     }
