@@ -14,6 +14,9 @@ struct MarkdownEditorApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let state = AppState()
     private var mainController: MainWindowController?
+    /// 추가 탭/윈도우는 자체 AppState를 가진 별도 controller로 운영.
+    /// macOS native window tabbing이 이들을 자동으로 탭으로 묶음.
+    private var extraControllers: [MainWindowController] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [
@@ -26,11 +29,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
 
         let controller = MainWindowController(state: state)
+        controller.window?.tabbingMode = .preferred
+        controller.window?.tabbingIdentifier = "MarkdownEditorMain"
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         mainController = controller
         installMenuBarItems()
+    }
+
+    /// ⌘T — 같은 폴더를 공유하는 새 탭. AppState는 별도 인스턴스라 file selection /
+    /// documentText / undo history는 탭마다 독립. UserDefaults bookmark가 init에서
+    /// 자동 복원되므로 폴더 트리는 동일하게 보임.
+    @objc func menuNewTab() {
+        let newState = AppState()
+        let newController = MainWindowController(state: newState)
+        guard let newWindow = newController.window else { return }
+        newWindow.tabbingMode = .preferred
+        newWindow.tabbingIdentifier = "MarkdownEditorMain"
+        if let keyWindow = NSApp.keyWindow {
+            keyWindow.addTabbedWindow(newWindow, ordered: .above)
+        }
+        newController.showWindow(nil)
+        newWindow.makeKeyAndOrderFront(nil)
+        extraControllers.append(newController)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -60,6 +82,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                      action: #selector(menuNewFile),
                                      keyEquivalent: "n")
             newFile.target = self
+            let newTab = NSMenuItem(title: "New Tab",
+                                    action: #selector(menuNewTab),
+                                    keyEquivalent: "t")
+            newTab.target = self
             let saveFile = NSMenuItem(title: "Save",
                                       action: #selector(menuSave),
                                       keyEquivalent: "s")
@@ -68,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fileMenu.insertItem(NSMenuItem.separator(), at: 0)
             fileMenu.insertItem(saveFile, at: 0)
             fileMenu.insertItem(NSMenuItem.separator(), at: 0)
+            fileMenu.insertItem(newTab, at: 0)
             fileMenu.insertItem(newFile, at: 0)
             fileMenu.insertItem(openFolder, at: 0)
         }
