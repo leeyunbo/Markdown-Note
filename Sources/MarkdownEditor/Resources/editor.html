@@ -265,8 +265,10 @@ body {
 #editor .line.image-line img.md-image {
   display: block;
   margin: 4px auto 0;
-  max-width: 100%;
-  max-height: 480px;
+  /* width 속성(alt|숫자)이 있으면 그 값, 없으면 자연 크기. 컨테이너 70% 한도 */
+  max-width: 70%;
+  height: auto;
+  max-height: 400px;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   background: var(--code-bg);

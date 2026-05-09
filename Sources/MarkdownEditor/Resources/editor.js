@@ -344,16 +344,38 @@ function styleLine(lineDiv, opts) {
 // 우리는 JS에서 docFolder를 모르기 때문에 Swift가 setDocFolder로 알려준다.
 let docFolderURL = '';  // file://... ending with /
 
+// Obsidian 사이즈 문법 분리: "alt|600" → {alt:"alt", w:600, h:null},
+// "alt|600x400" → {alt:"alt", w:600, h:400}. 사이즈 없으면 둘 다 null.
+function parseAltAndSize(rawAlt) {
+  const m = rawAlt.match(/^(.*)\|(\d+)(?:x(\d+))?$/);
+  if (m) {
+    return {
+      alt: m[1],
+      width: parseInt(m[2], 10),
+      height: m[3] ? parseInt(m[3], 10) : null,
+    };
+  }
+  return { alt: rawAlt, width: null, height: null };
+}
+
 // image-line 내부 HTML — raw 마크다운(흐리게 작게) + 그 아래 렌더된 이미지.
 // raw 부분만 흐려야 하므로 별도 wrapper에 styling. img는 line의 직속 child라
 // wrapper opacity 영향 없음.
-function imageLineHTML(alt, src, rawLine) {
+function imageLineHTML(rawAlt, src, rawLine) {
   const safeSrc = imageSrcForRender(src);
+  const { alt, width, height } = parseAltAndSize(rawAlt);
   const inner = highlightInline(rawLine) || '<br>';
-  return `<span class="image-line-raw">${inner}</span>`
-    + `<img class="md-image" src="${escapeHTML(safeSrc)}" alt="${escapeHTML(alt)}" `
-    + `loading="lazy" draggable="false" `
-    + `onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;">`;
+  const attrs = [
+    `class="md-image"`,
+    `src="${escapeHTML(safeSrc)}"`,
+    `alt="${escapeHTML(alt)}"`,
+    width ? `width="${width}"` : '',
+    height ? `height="${height}"` : '',
+    `loading="lazy"`,
+    `draggable="false"`,
+    `onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;"`,
+  ].filter(Boolean).join(' ');
+  return `<span class="image-line-raw">${inner}</span><img ${attrs}>`;
 }
 function imageSrcForRender(src) {
   if (/^(https?:|file:|data:)/i.test(src)) return src;
@@ -750,8 +772,9 @@ editor.addEventListener('compositionend', () => {
 
 editor.addEventListener('input', () => {
   if (isApplyingExternal) return;
-  // 표 셀 input 핸들러는 별도 (rebuildTableRaw). codeblock은 즉시 re-highlight,
-  // blockquote-line 클래스도 입력 시점에 토글 (vertical bar가 한 박자 늦지 않게)
+  // codeblock 즉시 re-highlight + blockquote 클래스만 토글.
+  // image-line 갱신은 input 시 안 함 — DOM 직접 변경은 native undo stack과 어긋나
+  // ⌘Z가 엉킨다. 라인 떠날 때 styleLine이 자연스럽게 다시 그린다.
   if (!composing) {
     const cur = getCurrentLineDiv();
     if (cur) {
