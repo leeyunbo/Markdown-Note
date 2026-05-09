@@ -616,6 +616,142 @@ editor.addEventListener('keydown', (e) => {
   }
 });
 
+// ----- Markdown shortcuts (⌘B / ⌘I / ⌘K) -----
+
+// selection이 line div 안에서 차지하는 char offset 범위를 계산.
+// styled span이 섞여 있어도 textContent 기준 offset이라 raw markdown과 일치.
+function getLineCharRange(lineDiv, range) {
+  const pre = document.createRange();
+  pre.selectNodeContents(lineDiv);
+  pre.setEnd(range.startContainer, range.startOffset);
+  const startOff = pre.toString().length;
+  pre.setEnd(range.endContainer, range.endOffset);
+  const endOff = pre.toString().length;
+  return { startOff, endOff };
+}
+
+// lineDiv를 새 텍스트로 통째로 교체 + char offset으로 selection 복원.
+// execCommand를 쓰는 이유: native undo stack 등록 (⌘Z 동작). styled span이 섞여
+// 있어도 selectNodeContents + insertText가 단일 textnode로 평탄화시킨다.
+function replaceLineText(lineDiv, newText, selStart, selEnd) {
+  const sel = window.getSelection();
+  const lineRange = document.createRange();
+  lineRange.selectNodeContents(lineDiv);
+  sel.removeAllRanges();
+  sel.addRange(lineRange);
+  document.execCommand('insertText', false, newText);
+
+  const tn = lineDiv.firstChild;
+  if (tn && tn.nodeType === Node.TEXT_NODE) {
+    const len = tn.nodeValue.length;
+    const r = document.createRange();
+    r.setStart(tn, Math.max(0, Math.min(selStart, len)));
+    r.setEnd(tn, Math.max(0, Math.min(selEnd, len)));
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+}
+
+function wrapOrToggleSelection(left, right) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return;
+
+  const lineDiv = getCurrentLineDiv();
+  if (!lineDiv) return;
+  if (lineDiv.classList.contains('table-block')) return;
+  // 라인 경계를 넘는 selection은 안전하게 무시
+  if (!lineDiv.contains(range.endContainer)) return;
+
+  const { startOff, endOff } = getLineCharRange(lineDiv, range);
+  const lineText = lineDiv.textContent;
+  const selText = lineText.slice(startOff, endOff);
+
+  let newText, newStart, newEnd;
+
+  if (selText.length === 0) {
+    // collapsed: 마커 + 커서 가운데
+    newText = lineText.slice(0, startOff) + left + right + lineText.slice(endOff);
+    newStart = newEnd = startOff + left.length;
+  } else if (selText.startsWith(left) && selText.endsWith(right)
+             && selText.length >= left.length + right.length) {
+    // unwrap A: selection 자체가 마커 포함
+    const inner = selText.slice(left.length, selText.length - right.length);
+    newText = lineText.slice(0, startOff) + inner + lineText.slice(endOff);
+    newStart = startOff;
+    newEnd = startOff + inner.length;
+  } else if (startOff >= left.length
+             && lineText.slice(startOff - left.length, startOff) === left
+             && lineText.slice(endOff, endOff + right.length) === right) {
+    // unwrap B: selection은 inner이고 주변에 마커 (wrap 직후 ⌘B 다시 누르는 케이스)
+    newText = lineText.slice(0, startOff - left.length)
+            + selText
+            + lineText.slice(endOff + right.length);
+    newStart = startOff - left.length;
+    newEnd = newStart + selText.length;
+  } else {
+    // wrap
+    newText = lineText.slice(0, startOff) + left + selText + right + lineText.slice(endOff);
+    newStart = startOff + left.length;
+    newEnd = newStart + selText.length;
+  }
+
+  replaceLineText(lineDiv, newText, newStart, newEnd);
+  // execCommand의 input 이벤트가 notifySwift를 trigger하지만 명시적으로도 부른다.
+  notifySwift();
+}
+
+function insertLinkShortcut() {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return;
+
+  const lineDiv = getCurrentLineDiv();
+  if (!lineDiv) return;
+  if (lineDiv.classList.contains('table-block')) return;
+  if (!lineDiv.contains(range.endContainer)) return;
+
+  const { startOff, endOff } = getLineCharRange(lineDiv, range);
+  const lineText = lineDiv.textContent;
+  const selText = lineText.slice(startOff, endOff);
+
+  const labelText = selText || 'text';
+  const placeholder = 'url';
+  const replacement = `[${labelText}](${placeholder})`;
+  const newText = lineText.slice(0, startOff) + replacement + lineText.slice(endOff);
+
+  // selection 있었으면 url 부분, 없었으면 text 부분 선택
+  let newStart, newEnd;
+  if (selText) {
+    newStart = startOff + `[${labelText}](`.length;
+    newEnd = newStart + placeholder.length;
+  } else {
+    newStart = startOff + 1;  // '[' 다음
+    newEnd = newStart + labelText.length;
+  }
+
+  replaceLineText(lineDiv, newText, newStart, newEnd);
+  notifySwift();
+}
+
+editor.addEventListener('keydown', (e) => {
+  // 순수 ⌘ + 단일키만 (Shift/Alt/Ctrl 조합 제외)
+  if (!e.metaKey || e.shiftKey || e.altKey || e.ctrlKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'b') {
+    e.preventDefault();
+    wrapOrToggleSelection('**', '**');
+  } else if (k === 'i') {
+    e.preventDefault();
+    wrapOrToggleSelection('*', '*');
+  } else if (k === 'k') {
+    e.preventDefault();
+    insertLinkShortcut();
+  }
+});
+
 editor.addEventListener('blur', () => {
   if (composing || !lastLineDiv) return;
   if (editor.contains(lastLineDiv)) {

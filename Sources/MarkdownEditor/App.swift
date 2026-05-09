@@ -38,6 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installMenuBarItems() {
         guard let mainMenu = NSApp.mainMenu else { return }
 
+        installEditMenu(mainMenu)
+
         // File 메뉴: Open Folder, New, Save 추가
         if let fileMenuItem = mainMenu.items.first(where: { ($0.submenu?.title ?? $0.title) == "File" }) ?? mainMenu.items.first(where: { $0.title.contains("File") }),
            let fileMenu = fileMenuItem.submenu {
@@ -91,6 +93,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             mainMenu.insertItem(themeMenuItem, at: viewIdx + 1)
         } else {
             mainMenu.addItem(themeMenuItem)
+        }
+    }
+
+    // Edit 메뉴 — Undo/Redo/Cut/Copy/Paste/Select All. target=nil로 두면
+    // responder chain을 따라 first responder(WKWebView)에 selector가 dispatch되고,
+    // contenteditable 내부에선 WebKit의 자체 undo manager가 처리한다.
+    private func installEditMenu(_ mainMenu: NSMenu) {
+        // 이미 있으면 skip
+        if mainMenu.items.contains(where: {
+            ($0.submenu?.title ?? $0.title) == "Edit"
+        }) { return }
+
+        let editMenu = NSMenu(title: "Edit")
+        let undo = NSMenuItem(title: "Undo",
+                              action: NSSelectorFromString("undo:"),
+                              keyEquivalent: "z")
+        editMenu.addItem(undo)
+        let redo = NSMenuItem(title: "Redo",
+                              action: NSSelectorFromString("redo:"),
+                              keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(redo)
+        editMenu.addItem(.separator())
+        editMenu.addItem(NSMenuItem(title: "Cut",
+                                    action: NSSelectorFromString("cut:"),
+                                    keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: "Copy",
+                                    action: NSSelectorFromString("copy:"),
+                                    keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: "Paste",
+                                    action: NSSelectorFromString("paste:"),
+                                    keyEquivalent: "v"))
+        editMenu.addItem(.separator())
+        editMenu.addItem(NSMenuItem(title: "Select All",
+                                    action: NSSelectorFromString("selectAll:"),
+                                    keyEquivalent: "a"))
+
+        let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        editMenuItem.submenu = editMenu
+
+        // File 다음에 삽입 (없으면 끝에)
+        let fileIdx = mainMenu.items.firstIndex(where: {
+            ($0.submenu?.title ?? $0.title) == "File"
+        })
+        if let idx = fileIdx {
+            mainMenu.insertItem(editMenuItem, at: idx + 1)
+        } else {
+            mainMenu.addItem(editMenuItem)
         }
     }
 
