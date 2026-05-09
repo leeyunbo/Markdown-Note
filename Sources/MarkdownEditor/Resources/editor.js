@@ -22,8 +22,10 @@ function highlightInline(rawLine) {
 
   html = html.replace(/^(\s*)(&gt;+\s?)(.*)$/, (_, sp, mark, rest) =>
     `${sp}<span class="marker">${mark}</span><span class="blockquote">${rest}</span>`);
-  html = html.replace(/^(\s*)([-*+]|\d+\.)(\s)/, (_, sp, mk, rest) =>
-    `${sp}<span class="list-marker">${mk}</span>${rest}`);
+  html = html.replace(/^(\s*)([-*+]|\d+\.)(\s)/, (_, sp, mk, rest) => {
+    const depth = Math.min(Math.floor(sp.length / 2), 4);
+    return `${sp}<span class="list-marker depth-${depth}">${mk}</span>${rest}`;
+  });
   html = html.replace(/(\[)( |x|X)(\])/, (_, l, c, r) =>
     `<span class="marker">${l}</span><span class="list-marker">${c}</span><span class="marker">${r}</span>`);
   html = html.replace(/(!\[)([^\]]*)(\]\()([^)]+)(\))/g,

@@ -245,6 +245,11 @@ body {
 #editor .link { color: var(--link); text-decoration: underline; }
 #editor .blockquote { color: var(--secondary); font-style: italic; }
 #editor .list-marker { color: var(--list); font-weight: 600; }
+#editor .list-marker.depth-0 { color: var(--list); }
+#editor .list-marker.depth-1 { color: #b14ad6; }
+#editor .list-marker.depth-2 { color: #c69829; }
+#editor .list-marker.depth-3 { color: #c14b4b; }
+#editor .list-marker.depth-4 { color: #4a8fd6; }
 #editor .hr { color: var(--marker); }
 #editor .html-tag { color: var(--marker); }
 ::selection { background: rgba(0,102,204,0.22); }
