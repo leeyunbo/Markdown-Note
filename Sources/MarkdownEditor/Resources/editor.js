@@ -505,25 +505,73 @@ editor.addEventListener('keydown', (e) => {
   lastLineDiv = newLine;
 });
 
-// Tab 키: 다음 셀로 이동
+// Tab 키: 표 셀 → 다음 셀, 리스트 라인 → indent/outdent, 그 외 → default 막기만
 editor.addEventListener('keydown', (e) => {
   if (e.key !== 'Tab') return;
+  if (composing) return;
+
+  // 표 셀: 다음 셀로 이동
   const cell = e.target.closest && e.target.closest('th, td');
-  if (!cell) return;
-  e.preventDefault();
-  const cells = cell.closest('table').querySelectorAll('th, td');
-  const arr = Array.from(cells);
-  const idx = arr.indexOf(cell);
-  const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
-  if (nextIdx >= 0 && nextIdx < arr.length) {
-    arr[nextIdx].focus();
-    // 셀 전체 선택
-    const r = document.createRange();
-    r.selectNodeContents(arr[nextIdx]);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(r);
+  if (cell) {
+    e.preventDefault();
+    const cells = cell.closest('table').querySelectorAll('th, td');
+    const arr = Array.from(cells);
+    const idx = arr.indexOf(cell);
+    const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+    if (nextIdx >= 0 && nextIdx < arr.length) {
+      arr[nextIdx].focus();
+      const r = document.createRange();
+      r.selectNodeContents(arr[nextIdx]);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    return;
   }
+
+  // 일반 라인
+  const cur = getCurrentLineDiv();
+  if (!cur || cur.classList.contains('table-block')) return;
+
+  // 리스트 라인이 아니면 focus 이동만 차단하고 아무것도 안 함
+  // (마크다운에서 4-space 들여쓰기는 코드블록이 되어버려서 일반 라인 indent는 위험)
+  const text = cur.textContent;
+  const listInfo = detectListPrefix(text);
+  if (!listInfo) {
+    e.preventDefault();
+    return;
+  }
+
+  e.preventDefault();
+
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const { startOff, endOff } = getLineCharRange(cur, range);
+
+  let newText, newStart, newEnd;
+  if (e.shiftKey) {
+    // outdent: leading whitespace 최대 2칸 제거
+    if (text.startsWith('  ')) {
+      newText = text.slice(2);
+      newStart = Math.max(0, startOff - 2);
+      newEnd = Math.max(0, endOff - 2);
+    } else if (text.startsWith(' ')) {
+      newText = text.slice(1);
+      newStart = Math.max(0, startOff - 1);
+      newEnd = Math.max(0, endOff - 1);
+    } else {
+      return;  // 더 outdent 할 게 없음
+    }
+  } else {
+    // indent: 2칸 추가
+    newText = '  ' + text;
+    newStart = startOff + 2;
+    newEnd = endOff + 2;
+  }
+
+  replaceLineText(cur, newText, newStart, newEnd);
+  notifySwift();
 });
 
 function rebuildTableRaw(block) {
