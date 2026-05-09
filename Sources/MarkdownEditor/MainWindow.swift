@@ -29,6 +29,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         }
         super.init(window: window)
         setup()
+        // window.contentViewController = splitVC가 splitVC.view의 fittingSize로 frame을 reset하므로
+        // setup() 후 saved frame을 다시 강제 적용한다.
+        if let name = frameAutosaveName {
+            window.setFrameUsingName(name)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
