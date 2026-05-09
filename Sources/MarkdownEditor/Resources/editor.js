@@ -364,11 +364,17 @@ editor.addEventListener('input', () => {
 // 떠난 라인만 styled로. 진입 라인은 그대로 둬서 layout shift 방지.
 function handleLineFocusChange() {
   if (composing || isApplyingExternal) return;
+
+  // lastLineDiv가 DOM에서 분리된 경우(backspace 라인 합치기, 외부 setText 등) 트래킹 리셋
+  if (lastLineDiv && !editor.contains(lastLineDiv)) {
+    lastLineDiv = null;
+  }
+
   const cur = getCurrentLineDiv();
   if (!cur) return;
   if (cur === lastLineDiv) return;
 
-  if (lastLineDiv && editor.contains(lastLineDiv) && lastLineDiv !== cur) {
+  if (lastLineDiv && lastLineDiv !== cur) {
     styleLine(lastLineDiv);
   }
   ensureCaretSafe(cur);
@@ -532,11 +538,18 @@ function rebuildTableRaw(block) {
   block.dataset.raw = btoa(unescape(encodeURIComponent(lines.join('\n'))));
 }
 
-// selectionchange는 너무 자주 발동 — 명시적 이동(방향키/클릭/포커스)에만 처리
+// selectionchange로 모든 selection 이동을 잡는다(IME 조합 후, backspace 라인 합치기, ⌘A 등 단축키 포함).
+// keyup/mouseup/focus는 안전망으로 유지.
 const NAV_KEYS = new Set([
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'Home', 'End', 'PageUp', 'PageDown', 'Tab'
 ]);
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  if (!editor.contains(sel.getRangeAt(0).startContainer)) return;
+  handleLineFocusChange();
+});
 editor.addEventListener('keyup', (e) => {
   if (NAV_KEYS.has(e.key)) handleLineFocusChange();
 });
