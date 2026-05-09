@@ -138,6 +138,51 @@ final class AppState: ObservableObject {
         return out
     }
 
+    /// 여러 파일을 folder로 이동. 자기 자신 또는 자기 안으로 이동은 무시.
+    /// 열린 파일이 함께 이동하면 selectedFile / file watcher도 따라가게.
+    func moveFiles(_ urls: [URL], into folder: URL) {
+        let isDir = (try? folder.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+        guard isDir else { return }
+        let folderPath = folder.standardizedFileURL.path
+        var failed: [String] = []
+        var newSelectedFile: URL?
+        var newSelectedFiles: Set<URL> = []
+
+        for url in urls {
+            let urlPath = url.standardizedFileURL.path
+            // 자기 자신 또는 자기 안으로 이동은 skip
+            if folderPath == urlPath || folderPath.hasPrefix(urlPath + "/") { continue }
+            let dest = folder.appendingPathComponent(url.lastPathComponent)
+            if dest.standardizedFileURL == url.standardizedFileURL { continue }
+            if FileManager.default.fileExists(atPath: dest.path) {
+                failed.append("\(url.lastPathComponent): 이미 같은 이름 존재")
+                continue
+            }
+            do {
+                let isOpen = (selectedFile == url)
+                if isOpen { stopFileWatcher() }
+                try FileManager.default.moveItem(at: url, to: dest)
+                newSelectedFiles.insert(dest)
+                if isOpen { newSelectedFile = dest }
+            } catch {
+                failed.append("\(url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+
+        if let moved = newSelectedFile {
+            selectedFile = moved
+            lastKnownMTime = currentMTime(of: moved)
+            startFileWatcher(for: moved)
+        }
+        if !newSelectedFiles.isEmpty {
+            selectedFiles = newSelectedFiles
+        }
+        refreshTree()
+        if !failed.isEmpty {
+            reportError("일부 이동 실패", detail: failed.joined(separator: "\n"))
+        }
+    }
+
     /// 다중 삭제. selectedFiles의 모든 항목을 휴지통으로.
     func deleteSelectedFiles() {
         let urls = Array(selectedFiles)

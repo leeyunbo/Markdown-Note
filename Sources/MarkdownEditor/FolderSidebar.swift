@@ -192,6 +192,7 @@ private struct NodeBranch: View {
     @State private var isRenaming = false
     @State private var renameText = ""
     @State private var showingDelete = false
+    @State private var dropTargeted = false
     @FocusState private var renameFocused: Bool
 
     var body: some View {
@@ -231,12 +232,17 @@ private struct NodeBranch: View {
                     }
                 }
                 .onDrag {
-                    // 이미지 파일만 드래그 가능. fileURL 형태로 NSItemProvider 제공 →
-                    // 에디터의 DragForwardingWebView가 받는다.
-                    if node.kind == .image {
+                    // 모든 파일/폴더가 drag source가 될 수 있다.
+                    // 에디터 drop은 image만 처리, 폴더 drop은 모든 file을 이동.
+                    if !node.isDirectory {
                         return NSItemProvider(object: node.url as NSURL)
                     }
                     return NSItemProvider()
+                }
+                .onDrop(of: [.fileURL], isTargeted: nodeIsDirectory ? $dropTargeted : .constant(false)) { providers in
+                    if !node.isDirectory { return false }
+                    handleFolderDrop(providers: providers, target: node.url)
+                    return true
                 }
                 .contextMenu {
                     if !node.isDirectory {
@@ -324,7 +330,9 @@ private struct NodeBranch: View {
     }
 
     private var rowBackground: some View {
-        if state.selectedFiles.contains(node.url) {
+        if dropTargeted {
+            return AnyView(Color.accentColor.opacity(0.30))
+        } else if state.selectedFiles.contains(node.url) {
             return AnyView(Color.accentColor.opacity(0.18))
         } else if hovering && !isRenaming {
             return AnyView(Color.primary.opacity(0.06))
@@ -348,6 +356,32 @@ private struct NodeBranch: View {
 
     private func cancelRename() {
         isRenaming = false
+    }
+
+    private var nodeIsDirectory: Bool { node.isDirectory }
+
+    /// drop된 file URL들을 비동기로 모은 뒤 selectedFiles 동반 이동까지 결정.
+    private func handleFolderDrop(providers: [NSItemProvider], target: URL) {
+        var dropped: [URL] = []
+        let group = DispatchGroup()
+        for p in providers {
+            group.enter()
+            _ = p.loadObject(ofClass: URL.self) { url, _ in
+                if let url = url { dropped.append(url) }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            // drop된 항목 중 첫 url이 사용자의 multi-selection 안에 있으면
+            // selectedFiles 전체를 같이 이동 (SwiftUI .onDrag가 한 번에 1개만 보내는 한계 우회).
+            var toMove = Set(dropped)
+            if let first = dropped.first,
+               state.selectedFiles.contains(first),
+               state.selectedFiles.count > 1 {
+                toMove = state.selectedFiles
+            }
+            state.moveFiles(Array(toMove), into: target)
+        }
     }
 
     /// 현재 노드가 다중 선택의 일부면 그 전체 set, 아니면 [node.url] 단일.
