@@ -325,6 +325,7 @@ function styleLine(lineDiv, opts) {
   }
   lineDiv.className = 'line';
   lineDiv.innerHTML = highlightInline(text) || '<br>';
+  if (/^\s*>+\s/.test(text)) lineDiv.classList.add('blockquote-line');
 }
 
 // lineDiv 주변의 연속 table-row를 찾아서 table로 합치고, lineDiv를 새 wrapper로 교체.
@@ -508,7 +509,8 @@ function buildContent(text) {
       i = j;
       continue;
     }
-    html += `<div class="line">${highlightInline(line) || '<br>'}</div>`;
+    const bq = /^\s*>+\s/.test(line) ? ' blockquote-line' : '';
+    html += `<div class="line${bq}">${highlightInline(line) || '<br>'}</div>`;
     i++;
   }
   return html;
@@ -605,11 +607,17 @@ editor.addEventListener('compositionend', () => {
 
 editor.addEventListener('input', () => {
   if (isApplyingExternal) return;
-  // 표 셀 input 핸들러는 별도 (rebuildTableRaw). codeblock 라인은 즉시 re-highlight.
+  // 표 셀 input 핸들러는 별도 (rebuildTableRaw). codeblock은 즉시 re-highlight,
+  // blockquote-line 클래스도 입력 시점에 토글 (vertical bar가 한 박자 늦지 않게)
   if (!composing) {
     const cur = getCurrentLineDiv();
-    if (cur && cur.classList.contains('codeblock') && cur.dataset && cur.dataset.lang) {
-      rehighlightCodeLine(cur);
+    if (cur) {
+      if (cur.classList.contains('codeblock') && cur.dataset && cur.dataset.lang) {
+        rehighlightCodeLine(cur);
+      }
+      const text = cur.textContent || '';
+      if (/^\s*>+\s/.test(text)) cur.classList.add('blockquote-line');
+      else cur.classList.remove('blockquote-line');
     }
   }
   notifySwift();
@@ -686,9 +694,13 @@ function unstyleLineKeepCaret(lineDiv) {
     return;
   }
 
-  // codeblock 라인은 raw로 풀되 클래스를 유지(떠날 때 highlight 다시 적용 가능하게)
+  // codeblock / blockquote-line은 클래스 유지
   const wasCodeblock = lineDiv.classList && lineDiv.classList.contains('codeblock');
-  lineDiv.className = wasCodeblock ? 'line codeblock' : 'line';
+  const wasBlockquote = lineDiv.classList && lineDiv.classList.contains('blockquote-line');
+  const cls = ['line'];
+  if (wasCodeblock) cls.push('codeblock');
+  if (wasBlockquote) cls.push('blockquote-line');
+  lineDiv.className = cls.join(' ');
   if (text === '') {
     lineDiv.innerHTML = '<br>';
     return;

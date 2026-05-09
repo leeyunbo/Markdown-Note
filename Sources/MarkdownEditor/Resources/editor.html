@@ -244,6 +244,22 @@ body {
 }
 #editor .link { color: var(--link); text-decoration: underline; }
 #editor .blockquote { color: var(--secondary); font-style: italic; }
+#editor .line.blockquote-line {
+  border-left: 3px solid var(--secondary);
+  padding-left: 11px;
+  background: rgba(110, 110, 115, 0.05);
+}
+#editor .line.blockquote-line + .line.blockquote-line { border-top: none; }
+#editor .line:not(.blockquote-line) + .line.blockquote-line {
+  margin-top: 2px;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+#editor .line.blockquote-line:has(+ .line:not(.blockquote-line)) {
+  margin-bottom: 2px;
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
 #editor .list-marker { color: var(--list); font-weight: 600; }
 #editor .list-marker.depth-0 { color: var(--list); }
 #editor .list-marker.depth-1 { color: #b14ad6; }
