@@ -320,7 +320,7 @@ final class AppState: ObservableObject {
         if let docURL = selectedFile {
             return relativePath(from: docURL, to: targetURL)
         }
-        return "attachments/\(targetURL.lastPathComponent)"
+        return "attachments/\(targetURL.lastPathComponent)".precomposedStringWithCanonicalMapping
     }
 
     private func sanitizeImageFilename(_ raw: String) -> String {
@@ -346,7 +346,9 @@ final class AppState: ObservableObject {
         let upCount = srcComp.count - i
         let downComps = tgtComp[i..<tgtComp.count]
         let parts = Array(repeating: "..", count: upCount) + downComps
-        return parts.joined(separator: "/")
+        // standardizedFileURL이 path를 NFD(자모 분리)로 정규화하므로 결과 문자열을
+        // 다시 NFC로 합쳐서 percent-encode 시 짧게 나오게 한다.
+        return parts.joined(separator: "/").precomposedStringWithCanonicalMapping
     }
 
 
