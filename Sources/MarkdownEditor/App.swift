@@ -16,9 +16,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainController: MainWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // macOS의 텍스트 자동 변환 (대문자/스마트 인용/대시/마침표/맞춤법/완성)을
-        // 우리 앱에서만 비활성화. register(defaults:)는 사용자가 명시적으로 설정한
-        // 값을 덮어쓰지 않으니, 다른 앱이나 시스템 설정엔 영향이 없다.
         UserDefaults.standard.register(defaults: [
             "NSAutomaticCapitalizationEnabled": false,
             "NSAutomaticDashSubstitutionEnabled": false,

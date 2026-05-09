@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct FolderSidebar: View {
     @EnvironmentObject var state: AppState
@@ -208,8 +209,12 @@ private struct NodeBranch: View {
                     if isRenaming { return }
                     if node.isDirectory {
                         withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
-                    } else {
+                    } else if node.kind == .markdown {
                         state.selectFile(node.url)
+                    } else if node.kind == .image {
+                        state.previewImageURL = node.url
+                    } else {
+                        state.revealInFinder(node.url)
                     }
                 }
                 .contextMenu {
@@ -252,9 +257,9 @@ private struct NodeBranch: View {
             }
             .frame(width: 10)
 
-            Image(systemName: node.isDirectory ? "folder.fill" : "doc.text")
+            Image(systemName: iconName)
                 .font(.system(size: 11))
-                .foregroundStyle(node.isDirectory ? Color.accentColor.opacity(0.85) : .secondary)
+                .foregroundStyle(iconColor)
                 .frame(width: 14)
 
             if isRenaming {
@@ -314,6 +319,84 @@ private struct NodeBranch: View {
             return String(node.name.dropLast(3))
         }
         return node.name
+    }
+
+    private var iconName: String {
+        if node.isDirectory { return "folder.fill" }
+        switch node.kind {
+        case .image: return "photo"
+        case .markdown: return "doc.text"
+        case .other: return "doc"
+        }
+    }
+
+    private var iconColor: Color {
+        if node.isDirectory { return Color.accentColor.opacity(0.85) }
+        switch node.kind {
+        case .image: return Color.accentColor.opacity(0.6)
+        default: return .secondary
+        }
+    }
+}
+
+// MARK: - In-app image preview overlay
+
+struct ImagePreviewOverlay: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        if let url = state.previewImageURL {
+            ZStack {
+                // 배경: 클릭하면 닫힘
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture { state.previewImageURL = nil }
+
+                if let img = NSImage(contentsOf: url) {
+                    Image(nsImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(40)
+                        .shadow(radius: 16)
+                        .onTapGesture { /* 이미지 자체 클릭은 닫힘 차단 */ }
+                } else {
+                    Text("이미지를 불러올 수 없습니다")
+                        .foregroundStyle(.white)
+                        .padding()
+                        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                }
+
+                // 좌상단 닫기 버튼 + 파일명
+                VStack {
+                    HStack(spacing: 12) {
+                        Button {
+                            state.previewImageURL = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(.black.opacity(0.55), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.escape, modifiers: [])
+
+                        Text(url.lastPathComponent)
+                            .font(.callout)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.black.opacity(0.55), in: Capsule())
+
+                        Spacer()
+                    }
+                    .padding(20)
+                    Spacer()
+                }
+            }
+            .transition(.opacity)
+        }
     }
 }
 

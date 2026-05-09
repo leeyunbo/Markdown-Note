@@ -12,6 +12,7 @@ final class AppState: ObservableObject {
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
     @Published var outline: [Heading] = []
+    @Published var previewImageURL: URL?
 
     struct Heading: Identifiable, Equatable {
         let id = UUID()
@@ -265,6 +266,80 @@ final class AppState: ObservableObject {
 
     func revealInFinder(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    // MARK: - Image attach
+
+    /// 드래그/붙여넣기로 들어온 이미지 데이터를 attachments/에 저장하고
+    /// 현재 마크다운 파일에서 본 상대 경로(예: "attachments/foo.png")를 반환.
+    /// 실패 시 nil.
+    func saveDroppedImage(data: Data, suggestedName: String) -> String? {
+        guard let root = rootFolder else {
+            reportError("이미지 저장 실패", detail: "먼저 폴더를 열어주세요.")
+            return nil
+        }
+        let attachmentsDir = root.appendingPathComponent("attachments", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: attachmentsDir,
+                                                    withIntermediateDirectories: true)
+        } catch {
+            reportError("이미지 저장 실패",
+                        detail: "attachments 폴더 생성 실패: \(error.localizedDescription)")
+            return nil
+        }
+
+        // 충돌 회피: 원본 이름, 그 다음 -2, -3 ...
+        let cleaned = sanitizeImageFilename(suggestedName)
+        let base = (cleaned as NSString).deletingPathExtension
+        let ext = (cleaned as NSString).pathExtension
+        var attempt = 0
+        var targetURL = attachmentsDir.appendingPathComponent(cleaned)
+        while FileManager.default.fileExists(atPath: targetURL.path) {
+            attempt += 1
+            let name = ext.isEmpty ? "\(base)-\(attempt + 1)" : "\(base)-\(attempt + 1).\(ext)"
+            targetURL = attachmentsDir.appendingPathComponent(name)
+            if attempt > 9999 { break }
+        }
+
+        do {
+            try data.write(to: targetURL)
+        } catch {
+            reportError("이미지 저장 실패",
+                        detail: "\(targetURL.lastPathComponent): \(error.localizedDescription)")
+            return nil
+        }
+
+        refreshTree()  // 사이드바에 attachments/ + 새 이미지 보이게
+
+        // 현재 .md 파일 기준 상대 경로 계산. 같은 폴더 또는 하위면 그대로,
+        // 다른 곳이면 root 기준 절대 경로 폴백.
+        if let docURL = selectedFile {
+            return relativePath(from: docURL, to: targetURL)
+        }
+        return "attachments/\(targetURL.lastPathComponent)"
+    }
+
+    private func sanitizeImageFilename(_ raw: String) -> String {
+        var name = raw.isEmpty ? "image.png" : raw
+        // 경로 구분자 제거
+        name = name.replacingOccurrences(of: "/", with: "_")
+                   .replacingOccurrences(of: "\\", with: "_")
+        // 확장자 없으면 png 추가
+        if (name as NSString).pathExtension.isEmpty {
+            name += ".png"
+        }
+        return name
+    }
+
+    private func relativePath(from source: URL, to target: URL) -> String {
+        let srcComp = source.deletingLastPathComponent().standardizedFileURL.pathComponents
+        let tgtComp = target.standardizedFileURL.pathComponents
+        var i = 0
+        while i < srcComp.count && i < tgtComp.count && srcComp[i] == tgtComp[i] { i += 1 }
+        let upCount = srcComp.count - i
+        let downComps = tgtComp[i..<tgtComp.count]
+        let parts = Array(repeating: "..", count: upCount) + downComps
+        return parts.joined(separator: "/")
     }
 
     // MARK: - File watcher (외부 변경 감지)

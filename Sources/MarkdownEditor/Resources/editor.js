@@ -323,9 +323,36 @@ function styleLine(lineDiv, opts) {
     lineDiv.innerHTML = tableRowHTML(text);
     return;
   }
+  // 단독 이미지 라인 — 라인 전체가 ![alt](path) 하나면 <img> 박스로
+  const imgMatch = text.match(/^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/);
+  if (imgMatch) {
+    const alt = imgMatch[1];
+    const src = imgMatch[2];
+    lineDiv.className = 'line image-line';
+    lineDiv.dataset.raw = btoa(unescape(encodeURIComponent(text)));
+    const safeSrc = imageSrcForRender(src);
+    lineDiv.innerHTML = `<img class="md-image" src="${escapeHTML(safeSrc)}" alt="${escapeHTML(alt)}" loading="lazy" onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;">`;
+    return;
+  }
+
   lineDiv.className = 'line';
   lineDiv.innerHTML = highlightInline(text) || '<br>';
   if (/^\s*>+\s/.test(text)) lineDiv.classList.add('blockquote-line');
+}
+
+// 마크다운 src → <img src> 변환. 절대 URL / data: / file:는 그대로,
+// 상대 경로면 현재 마크다운 파일 위치 기준으로 file://...로 풀어낸다 — 단,
+// 우리는 JS에서 docFolder를 모르기 때문에 Swift가 setDocFolder로 알려준다.
+let docFolderURL = '';  // file://... ending with /
+function imageSrcForRender(src) {
+  if (/^(https?:|file:|data:)/i.test(src)) return src;
+  // 사용자가 직접 입력한 한글/공백 경로 대비 — 이미 %xx 있으면 그대로, 아니면 encode.
+  // encodeURI는 디렉토리 구분(/)과 이미 인코딩된 % 시퀀스를 보존.
+  const looksEncoded = /%[0-9A-Fa-f]{2}/.test(src);
+  const encoded = looksEncoded ? src : encodeURI(src);
+  if (encoded.startsWith('/')) return 'file://' + encoded;
+  if (!docFolderURL) return encoded;
+  return docFolderURL + encoded;
 }
 
 // lineDiv 주변의 연속 table-row를 찾아서 table로 합치고, lineDiv를 새 wrapper로 교체.
@@ -509,6 +536,16 @@ function buildContent(text) {
       i = j;
       continue;
     }
+    const imgM = line.match(/^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/);
+    if (imgM) {
+      const alt = imgM[1];
+      const src = imgM[2];
+      const raw = btoa(unescape(encodeURIComponent(line)));
+      const safeSrc = imageSrcForRender(src);
+      html += `<div class="line image-line" data-raw="${raw}"><img class="md-image" src="${escapeHTML(safeSrc)}" alt="${escapeHTML(alt)}" loading="lazy" onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;"></div>`;
+      i++;
+      continue;
+    }
     const bq = /^\s*>+\s/.test(line) ? ' blockquote-line' : '';
     html += `<div class="line${bq}">${highlightInline(line) || '<br>'}</div>`;
     i++;
@@ -551,6 +588,20 @@ window.appBridge = {
     Object.entries(vars).forEach(([k, v]) =>
       document.documentElement.style.setProperty('--' + k, v));
   },
+  setDocFolder: function(url) {
+    docFolderURL = url || '';
+    // 이미 렌더된 image-line의 src를 새 base로 다시 풀기
+    for (const child of editor.children) {
+      if (child.classList && child.classList.contains('image-line') && child.dataset && child.dataset.raw) {
+        const raw = decodeRaw(child.dataset.raw);
+        const m = raw.match(/^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/);
+        if (m) {
+          const img = child.querySelector('img');
+          if (img) img.src = imageSrcForRender(m[2]);
+        }
+      }
+    }
+  },
   getOutline: function() {
     // textContent 기반으로 ATX 헤딩 추출. fence 안 라인은 제외.
     const out = [];
@@ -572,6 +623,31 @@ window.appBridge = {
       lineIdx++;
     }
     return out;
+  },
+  insertImage: function(alt, path) {
+    // 현재 라인의 caret 위치에 ![alt](path) 삽입. 실패하면 마지막 라인 끝.
+    const sel = window.getSelection();
+    let lineDiv = getCurrentLineDiv();
+    if (!lineDiv) {
+      lineDiv = editor.lastElementChild;
+      if (!lineDiv) return false;
+      const r = document.createRange();
+      r.selectNodeContents(lineDiv);
+      r.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    if (lineDiv.classList.contains('table-block')) return false;
+
+    const range = sel.getRangeAt(0);
+    const { startOff } = getLineCharRange(lineDiv, range);
+    const lineText = lineDiv.textContent;
+    const insertion = `![${alt}](${path})`;
+    const newText = lineText.slice(0, startOff) + insertion + lineText.slice(startOff);
+    const caret = startOff + insertion.length;
+    replaceLineText(lineDiv, newText, caret, caret);
+    notifySwift();
+    return true;
   },
   scrollToLine: function(targetIdx) {
     let lineIdx = 0;
@@ -618,11 +694,14 @@ window.__mdPerf = { lastGetPlainText: 0, sampleCount: 0, maxMs: 0 };
 
 function getPlainText() {
   const t0 = performance.now();
-  // table-block은 dataset.raw에 raw markdown을 보존 (innerText는 cell 텍스트만)
+  // table-block / image-line은 dataset.raw에 raw markdown을 보존 (innerText는 cell/img 텍스트만)
   const out = [];
   for (const child of editor.children) {
     if (child.classList && child.classList.contains('table-block')) {
       out.push(decodeRaw(child.dataset.raw || ''));
+    } else if (child.classList && child.classList.contains('image-line')
+               && child.dataset && child.dataset.raw) {
+      out.push(decodeRaw(child.dataset.raw));
     } else {
       out.push(child.textContent || '');
     }
@@ -699,6 +778,13 @@ function handleLineFocusChange() {
     styleLine(lastLineDiv);
     // 떠난 라인이 fence marker였거나 fence 안 라인이었을 수 있음 — 다음 라인들 재계산
     reflowFences();
+  }
+  // 이미지 라인에 진입하면 raw markdown으로 풀어서 편집 가능하게
+  if (cur.classList && cur.classList.contains('image-line') && cur.dataset && cur.dataset.raw) {
+    const raw = decodeRaw(cur.dataset.raw);
+    cur.classList.remove('image-line');
+    cur.textContent = raw;
+    delete cur.dataset.raw;
   }
   // codeblock은 token span을 유지한다. 입력 시 input 핸들러가 즉시 re-highlight.
   ensureCaretSafe(cur);
@@ -1427,6 +1513,66 @@ findNextBtn.addEventListener('click', findNext);
 findReplaceOneBtn.addEventListener('click', replaceCurrent);
 findReplaceAllBtn.addEventListener('click', replaceAll);
 findCloseBtn.addEventListener('click', closeFind);
+
+// ----- Image drop / paste -----
+
+function postImageToSwift(file) {
+  if (!window.webkit || !window.webkit.messageHandlers
+      || !window.webkit.messageHandlers.imageDropped) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    window.webkit.messageHandlers.imageDropped.postMessage({
+      dataURL: reader.result,
+      name: file.name || 'image.png',
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+editor.addEventListener('dragover', (e) => {
+  // 이미지 또는 파일이 들어오면 drop 허용
+  if (e.dataTransfer && (e.dataTransfer.types.includes('Files')
+                       || e.dataTransfer.types.includes('public.file-url'))) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+});
+
+editor.addEventListener('drop', (e) => {
+  if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+  // drop 위치로 caret 이동
+  const range = document.caretRangeFromPoint
+    ? document.caretRangeFromPoint(e.clientX, e.clientY)
+    : null;
+  if (range) {
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  let handled = false;
+  for (const f of e.dataTransfer.files) {
+    if (f.type && f.type.startsWith('image/')) {
+      postImageToSwift(f);
+      handled = true;
+    }
+  }
+  if (handled) e.preventDefault();
+});
+
+editor.addEventListener('paste', (e) => {
+  if (!e.clipboardData) return;
+  // 클립보드 안 image (스크린샷 등)
+  for (const item of e.clipboardData.items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) {
+        e.preventDefault();
+        postImageToSwift(file);
+        return;
+      }
+    }
+  }
+});
 
 // 외부에서 setText로 문서가 갈리면 매치 캐시 무효화 (refreshFind는 활성 시에만)
 const _origSetText = window.appBridge.setText;
