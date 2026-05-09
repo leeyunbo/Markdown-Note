@@ -23,9 +23,67 @@ html, body {
   line-height: 1.65;
   -webkit-text-size-adjust: 100%;
 }
-body { overflow: hidden; height: 100vh; }
+body {
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-#editor-wrap { overflow: auto; height: 100%; }
+#editor-wrap { flex: 1; overflow: auto; min-height: 0; }
+
+#find-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--marker);
+  align-items: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+#find-bar.hidden { display: none; }
+#find-bar input[type="text"] {
+  background: var(--code-bg);
+  color: var(--fg);
+  border: 1px solid var(--marker);
+  border-radius: 4px;
+  padding: 3px 8px;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  min-width: 140px;
+}
+#find-bar input[type="text"]:focus { border-color: var(--link); }
+#find-bar button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+#find-bar button:hover { background: var(--code-bg); }
+#find-bar button.active { background: var(--code-bg); border-color: var(--marker); }
+#find-count {
+  color: var(--secondary);
+  font-size: 11px;
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#find-bar .spacer { flex: 1; }
+#editor mark.find-hit {
+  background: rgba(255, 213, 0, 0.45);
+  color: inherit;
+  border-radius: 2px;
+}
+#editor mark.find-current {
+  background: rgba(255, 145, 0, 0.85);
+  color: var(--bg);
+}
 
 #editor {
   padding: 28px 36px;
@@ -130,8 +188,20 @@ body { overflow: hidden; height: 100vh; }
 </style>
 </head>
 <body>
+<div id="find-bar" class="hidden">
+  <input type="text" id="find-input" placeholder="찾기" autocomplete="off">
+  <button id="find-case" title="대소문자 구분">Aa</button>
+  <span id="find-count">0/0</span>
+  <button id="find-prev" title="이전 (⇧↩)">↑</button>
+  <button id="find-next" title="다음 (↩)">↓</button>
+  <input type="text" id="find-replace" placeholder="치환" autocomplete="off">
+  <button id="find-replace-one" title="현재 치환">치환</button>
+  <button id="find-replace-all" title="모두 치환">모두</button>
+  <span class="spacer"></span>
+  <button id="find-close" title="닫기 (Esc)">✕</button>
+</div>
 <div id="editor-wrap">
-  <div id="editor" contenteditable="true" spellcheck="false"></div>
+  <div id="editor" contenteditable="true" spellcheck="false" autocapitalize="off" autocorrect="off"></div>
 </div>
 <script src="editor.js"></script>
 </body>
