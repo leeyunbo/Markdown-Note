@@ -29,6 +29,9 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         web.setValue(false, forKey: "drawsBackground")
         web.navigationDelegate = self
         web.allowsBackForwardNavigationGestures = false
+        if #available(macOS 13.3, *) {
+            web.isInspectable = true
+        }
 
         loadEditorPage()
         view = web

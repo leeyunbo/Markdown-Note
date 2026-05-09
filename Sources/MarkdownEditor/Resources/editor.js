@@ -128,22 +128,188 @@ function isFenceMarker(line) {
   return t.startsWith('```') || t.startsWith('~~~');
 }
 
+function extractFenceLang(line) {
+  const m = line.match(/^\s*(?:```|~~~)\s*([\w+-]+)?/);
+  return m && m[1] ? m[1].toLowerCase() : '';
+}
+
+// ----- Syntax highlight (라인 단위 — multi-line string/comment는 끊길 수 있음) -----
+
+const _LANG_JS = {
+  keywords: ['const','let','var','function','return','if','else','for','while','do','class','extends','new','this','super','null','undefined','true','false','try','catch','finally','throw','async','await','import','export','from','as','default','typeof','instanceof','in','of','break','continue','switch','case','void','yield','static','get','set','delete'],
+  builtins: ['console','window','document','Array','Object','String','Number','Boolean','Promise','Map','Set','JSON','Math','Date','RegExp','Error','Symbol'],
+  comments: /\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+  strings: /(['"`])(?:\\.|(?!\1)[\s\S])*?\1/g,
+  numbers: /\b\d+(?:\.\d+)?\b/g,
+};
+const _LANG_PY = {
+  keywords: ['def','class','if','elif','else','for','while','return','import','from','as','try','except','finally','raise','with','pass','lambda','None','True','False','and','or','not','in','is','yield','async','await','global','nonlocal','break','continue'],
+  builtins: ['print','len','range','list','dict','set','tuple','str','int','float','bool','open','input','enumerate','zip','map','filter','isinstance','type'],
+  comments: /#[^\n]*/g,
+  strings: /(['"])(?:\\.|(?!\1).)*\1/g,
+  numbers: /\b\d+(?:\.\d+)?\b/g,
+};
+const _LANG_SWIFT = {
+  keywords: ['func','let','var','class','struct','enum','protocol','extension','if','else','for','while','do','switch','case','default','return','guard','defer','throw','throws','try','catch','as','is','nil','true','false','self','Self','init','deinit','public','private','internal','fileprivate','open','static','final','mutating','nonmutating','async','await','some','any','where','import','typealias','associatedtype','inout','rethrows','indirect','convenience','required','override','lazy','weak','unowned'],
+  builtins: ['print','String','Int','Double','Float','Bool','Array','Dictionary','Set','Optional','Range','Error'],
+  comments: /\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+  strings: /"(?:\\.|[^"\\])*"/g,
+  numbers: /\b\d+(?:\.\d+)?\b/g,
+};
+const _LANG_JSON = {
+  keywords: ['true','false','null'],
+  comments: null,
+  strings: /"(?:\\.|[^"\\])*"/g,
+  numbers: /-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g,
+};
+const _LANG_BASH = {
+  keywords: ['if','then','else','elif','fi','for','while','do','done','case','esac','function','in','return','export','source','echo','exit','set','unset','local','readonly'],
+  builtins: ['cd','ls','grep','sed','awk','cat','tail','head','find','curl','wget','rm','cp','mv','mkdir','chmod','chown','sudo'],
+  comments: /#[^\n]*/g,
+  strings: /(['"])(?:\\.|(?!\1).)*\1/g,
+  numbers: /\b\d+\b/g,
+};
+const _LANG_JAVA = {
+  keywords: ['abstract','assert','boolean','break','byte','case','catch','char','class','const','continue','default','do','double','else','enum','extends','false','final','finally','float','for','goto','if','implements','import','instanceof','int','interface','long','native','new','null','package','private','protected','public','return','short','static','strictfp','super','switch','synchronized','this','throw','throws','transient','true','try','void','volatile','while','var','yield','record','sealed','permits'],
+  builtins: ['String','Integer','Long','Double','Float','Boolean','Byte','Short','Character','Object','Class','System','Math','Arrays','List','ArrayList','Map','HashMap','Set','HashSet','Collection','Optional','Stream','Exception','RuntimeException','Thread','Override','Deprecated','SuppressWarnings','FunctionalInterface'],
+  comments: /\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+  strings: /"(?:\\.|[^"\\])*"/g,
+  numbers: /\b\d+(?:\.\d+)?[LlFfDd]?\b|\b0x[0-9a-fA-F]+\b/g,
+};
+const _LANG_KOTLIN = {
+  keywords: ['fun','val','var','class','object','interface','if','else','for','while','do','when','return','import','package','as','is','in','out','by','lazy','null','true','false','this','super','companion','data','sealed','open','final','abstract','override','private','protected','public','internal','suspend','typealias','where'],
+  builtins: ['String','Int','Long','Double','Float','Boolean','Char','Byte','Short','Any','Unit','Nothing','List','Map','Set','Array','MutableList','MutableMap','MutableSet'],
+  comments: /\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+  strings: /"(?:\\.|[^"\\])*"/g,
+  numbers: /\b\d+(?:\.\d+)?[LlFf]?\b/g,
+};
+const SYNTAX_LANGS = {
+  js: _LANG_JS, javascript: _LANG_JS, jsx: _LANG_JS,
+  ts: _LANG_JS, typescript: _LANG_JS, tsx: _LANG_JS,
+  python: _LANG_PY, py: _LANG_PY,
+  swift: _LANG_SWIFT,
+  java: _LANG_JAVA,
+  kotlin: _LANG_KOTLIN, kt: _LANG_KOTLIN,
+  json: _LANG_JSON,
+  bash: _LANG_BASH, sh: _LANG_BASH, shell: _LANG_BASH, zsh: _LANG_BASH,
+};
+
+// codeblock 라인의 token span을 유지한 채 입력될 때마다 다시 highlight하고
+// 사용자 cursor 위치를 textContent offset 기준으로 복원한다.
+function rehighlightCodeLine(lineDiv) {
+  const lang = lineDiv.dataset && lineDiv.dataset.lang;
+  if (!lang) return;
+
+  const sel = window.getSelection();
+  let offset = -1;
+  if (sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    if (lineDiv.contains(range.startContainer)) {
+      const pre = document.createRange();
+      pre.selectNodeContents(lineDiv);
+      pre.setEnd(range.startContainer, range.startOffset);
+      offset = pre.toString().length;
+    }
+  }
+
+  const text = lineDiv.textContent;
+  lineDiv.innerHTML = highlightCodeLine(text, lang) || '<br>';
+
+  if (offset >= 0) {
+    let remaining = offset;
+    const walker = document.createTreeWalker(lineDiv, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walker.nextNode())) {
+      const len = node.nodeValue.length;
+      if (remaining <= len) {
+        const r = document.createRange();
+        r.setStart(node, remaining);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        return;
+      }
+      remaining -= len;
+    }
+    // walker가 못 잡으면 라인 끝
+    const r = document.createRange();
+    r.selectNodeContents(lineDiv);
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+}
+
+function highlightCodeLine(text, lang) {
+  const def = SYNTAX_LANGS[lang];
+  if (!def || !text) return escapeHTML(text);
+
+  const tokens = [];
+  function pushIfFree(start, end, cls) {
+    for (const t of tokens) {
+      if (start < t.end && end > t.start) return false;
+    }
+    tokens.push({ start, end, cls });
+    return true;
+  }
+  function tryMatch(re, cls) {
+    if (!re) return;
+    const r = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+    let m;
+    while ((m = r.exec(text)) !== null) {
+      pushIfFree(m.index, m.index + m[0].length, cls);
+      if (m[0].length === 0) r.lastIndex++;
+    }
+  }
+
+  // 우선순위: comment > string > keyword > builtin > number
+  tryMatch(def.comments, 'tok-comment');
+  tryMatch(def.strings, 'tok-string');
+  if (def.keywords && def.keywords.length) {
+    tryMatch(new RegExp(`\\b(?:${def.keywords.join('|')})\\b`, 'g'), 'tok-keyword');
+  }
+  if (def.builtins && def.builtins.length) {
+    tryMatch(new RegExp(`\\b(?:${def.builtins.join('|')})\\b`, 'g'), 'tok-builtin');
+  }
+  tryMatch(def.numbers, 'tok-number');
+
+  tokens.sort((a, b) => a.start - b.start);
+
+  let html = '';
+  let cursor = 0;
+  for (const t of tokens) {
+    if (t.start < cursor) continue;
+    html += escapeHTML(text.slice(cursor, t.start));
+    html += `<span class="${t.cls}">${escapeHTML(text.slice(t.start, t.end))}</span>`;
+    cursor = t.end;
+  }
+  html += escapeHTML(text.slice(cursor));
+  return html;
+}
+
 // 라인 하나만 styled로 (in-place). 단, 떠난 라인이 표 그룹의 일부면 그룹 전체를 table로 합침.
 function styleLine(lineDiv, opts) {
   // table-block은 이미 렌더된 표이므로 절대 건드리지 않음
   if (lineDiv.classList && lineDiv.classList.contains('table-block')) return;
   opts = opts || {};
   const text = (opts.text !== undefined) ? opts.text : lineDiv.textContent;
-  const inFence = !!opts.inFence;
+  // 명시적 inFence가 없으면 현재 className으로 추론. 호출자(클릭 후 떠난 라인 등)는
+  // 라인이 fence 안인지 알 길이 없으므로, 라인 자신의 codeblock 클래스를 신뢰한다.
+  const inFence = (opts.inFence !== undefined)
+    ? !!opts.inFence
+    : (lineDiv.classList && lineDiv.classList.contains('codeblock'));
 
   if (isFenceMarker(text)) {
     lineDiv.className = 'line';
     lineDiv.innerHTML = `<span class="marker">${escapeHTML(text)}</span>`;
+    if (lineDiv.dataset) delete lineDiv.dataset.lang;
     return;
   }
   if (inFence) {
+    const lang = (lineDiv.dataset && lineDiv.dataset.lang) || '';
     lineDiv.className = 'line codeblock';
-    lineDiv.innerHTML = escapeHTML(text) || '<br>';
+    if (lang) lineDiv.dataset.lang = lang;
+    lineDiv.innerHTML = (lang ? highlightCodeLine(text, lang) : escapeHTML(text)) || '<br>';
     return;
   }
   if (isTableRow(text)) {
@@ -237,6 +403,58 @@ function expandTableBlock(tableBlock) {
   return fragments;
 }
 
+// fence 컨텍스트를 위에서 한 번 훑으며 codeblock 클래스/lang을 라인별로 다시 부여.
+// 라인 단위 입력만으로는 fence marker 변경이 다른 라인에 자동 반영되지 않으므로
+// 떠난 라인 처리 직후, 그리고 Enter 후 호출한다.
+function reflowFences() {
+  let inFence = false;
+  let fenceLang = '';
+  for (const lineDiv of editor.children) {
+    if (!lineDiv.classList || !lineDiv.classList.contains('line')) continue;
+    if (lineDiv.classList.contains('table-block')) continue;
+    const text = lineDiv.textContent;
+
+    // fence marker 토글
+    if (isFenceMarker(text)) {
+      if (!inFence) {
+        fenceLang = extractFenceLang(text);
+        inFence = true;
+      } else {
+        inFence = false;
+        fenceLang = '';
+      }
+      // fence marker 자체는 codeblock 클래스 X. 떠난 라인이면 styleLine으로 다시 그림
+      if (lineDiv.classList.contains('codeblock')) {
+        lineDiv.classList.remove('codeblock');
+        if (lineDiv.dataset) delete lineDiv.dataset.lang;
+        if (lineDiv !== lastLineDiv) styleLine(lineDiv);
+      }
+      continue;
+    }
+
+    if (inFence) {
+      // codeblock으로 표시. 편집 중인 라인은 raw 유지(클래스만 부여), 떠난 라인은 highlight 적용
+      const wasCodeblock = lineDiv.classList.contains('codeblock');
+      lineDiv.classList.add('codeblock');
+      if (fenceLang) lineDiv.dataset.lang = fenceLang;
+      else if (lineDiv.dataset) delete lineDiv.dataset.lang;
+      if (lineDiv !== lastLineDiv && !wasCodeblock) {
+        styleLine(lineDiv, { inFence: true });
+      } else if (lineDiv !== lastLineDiv) {
+        // 이미 codeblock이지만 lang이 바뀌었거나 다시 그려야 할 수 있음
+        styleLine(lineDiv, { inFence: true });
+      }
+    } else {
+      // fence 밖. 이전에 codeblock이었다면 해제
+      if (lineDiv.classList.contains('codeblock')) {
+        lineDiv.classList.remove('codeblock');
+        if (lineDiv.dataset) delete lineDiv.dataset.lang;
+        if (lineDiv !== lastLineDiv) styleLine(lineDiv);
+      }
+    }
+  }
+}
+
 // 라인 하나만 raw text로 (편집 중인 라인)
 function unstyleLine(lineDiv) {
   const text = lineDiv.textContent;
@@ -253,17 +471,26 @@ function buildContent(text) {
   const rawLines = text.split('\n');
   let html = '';
   let inFence = false;
+  let fenceLang = '';
   let i = 0;
   while (i < rawLines.length) {
     const line = rawLines[i];
     if (isFenceMarker(line)) {
-      inFence = !inFence;
+      if (!inFence) {
+        fenceLang = extractFenceLang(line);
+        inFence = true;
+      } else {
+        inFence = false;
+        fenceLang = '';
+      }
       html += `<div class="line"><span class="marker">${escapeHTML(line)}</span></div>`;
       i++;
       continue;
     }
     if (inFence) {
-      html += `<div class="line codeblock">${escapeHTML(line) || '<br>'}</div>`;
+      const inner = fenceLang ? highlightCodeLine(line, fenceLang) : escapeHTML(line);
+      const attr = fenceLang ? ` data-lang="${escapeHTML(fenceLang)}"` : '';
+      html += `<div class="line codeblock"${attr}>${inner || '<br>'}</div>`;
       i++;
       continue;
     }
@@ -366,17 +593,34 @@ function notifySwift() {
 editor.addEventListener('compositionstart', () => { composing = true; });
 editor.addEventListener('compositionend', () => {
   composing = false;
+  // IME 조합 끝났을 때 codeblock 라인이면 re-highlight
+  const cur = getCurrentLineDiv();
+  if (cur && cur.classList.contains('codeblock') && cur.dataset && cur.dataset.lang) {
+    rehighlightCodeLine(cur);
+  }
   notifySwift();
 });
 
 editor.addEventListener('input', () => {
   if (isApplyingExternal) return;
+  // 표 셀 input 핸들러는 별도 (rebuildTableRaw). codeblock 라인은 즉시 re-highlight.
+  if (!composing) {
+    const cur = getCurrentLineDiv();
+    if (cur && cur.classList.contains('codeblock') && cur.dataset && cur.dataset.lang) {
+      rehighlightCodeLine(cur);
+    }
+  }
   notifySwift();
 });
 
 // 떠난 라인만 styled로. 진입 라인은 그대로 둬서 layout shift 방지.
 function handleLineFocusChange() {
   if (composing || isApplyingExternal) return;
+
+  // multi-character selection(드래그 / Shift+화살표 확장)이면 styling을 손대면
+  // 라인의 innerHTML이 다시 그려지면서 selection이 무효화된다 — 그냥 통과.
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) return;
 
   // lastLineDiv가 DOM에서 분리된 경우(backspace 라인 합치기, 외부 setText 등) 트래킹 리셋
   if (lastLineDiv && !editor.contains(lastLineDiv)) {
@@ -389,7 +633,10 @@ function handleLineFocusChange() {
 
   if (lastLineDiv && lastLineDiv !== cur) {
     styleLine(lastLineDiv);
+    // 떠난 라인이 fence marker였거나 fence 안 라인이었을 수 있음 — 다음 라인들 재계산
+    reflowFences();
   }
+  // codeblock은 token span을 유지한다. 입력 시 input 핸들러가 즉시 re-highlight.
   ensureCaretSafe(cur);
   lastLineDiv = cur;
 }
@@ -437,7 +684,9 @@ function unstyleLineKeepCaret(lineDiv) {
     return;
   }
 
-  lineDiv.className = 'line';
+  // codeblock 라인은 raw로 풀되 클래스를 유지(떠날 때 highlight 다시 적용 가능하게)
+  const wasCodeblock = lineDiv.classList && lineDiv.classList.contains('codeblock');
+  lineDiv.className = wasCodeblock ? 'line codeblock' : 'line';
   if (text === '') {
     lineDiv.innerHTML = '<br>';
     return;
@@ -711,6 +960,8 @@ editor.addEventListener('keydown', (e) => {
     newLine.scrollIntoView({ block: 'nearest' });
 
     lastLineDiv = newLine;
+    // 새 라인이 fence 안에 있을 수 있으므로 codeblock 클래스/lang 부여
+    reflowFences();
     notifySwift();
   }
 });

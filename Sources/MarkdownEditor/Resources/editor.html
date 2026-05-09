@@ -155,11 +155,32 @@ body {
   font-family: ui-monospace, "SF Mono", monospace; font-size: 13px;
 }
 #editor .codeblock {
-  background: var(--code-bg); color: var(--secondary);
-  font-family: ui-monospace, "SF Mono", monospace; font-size: 13px;
-  padding: 0 8px;
+  background: var(--code-bg);
+  color: var(--fg);
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 13px;
+  padding: 0 12px;
+  letter-spacing: -0.01em;
 }
 #editor .codeblock .marker { color: var(--marker); }
+#editor .codeblock .tok-keyword { color: #ad3da4; font-weight: 500; }
+#editor .codeblock .tok-builtin { color: #5c2699; }
+#editor .codeblock .tok-string  { color: #c41a16; }
+#editor .codeblock .tok-comment { color: #707070; font-style: italic; }
+#editor .codeblock .tok-number  { color: #1c00cf; }
+/* fence 직후 첫 코드 줄 / 직전 마지막 코드 줄에 여유 + 둥근 모서리 */
+#editor .line:not(.codeblock) + .codeblock {
+  padding-top: 4px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  margin-top: 2px;
+}
+#editor .codeblock:has(+ .line:not(.codeblock)) {
+  padding-bottom: 4px;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  margin-bottom: 2px;
+}
 #editor .table-row {
   font-family: ui-monospace, "SF Mono", monospace;
   font-size: 13px;
