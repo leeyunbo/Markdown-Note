@@ -75,7 +75,8 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var codeForegroundNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.78, green: 0.21, blue: 0.42, alpha: 1) // pink
+        // mock A spec: #c71f3a
+        case .light: return NSColor(srgbRed: 0.78, green: 0.12, blue: 0.23, alpha: 1)
         case .dark:  return NSColor(srgbRed: 0.95, green: 0.55, blue: 0.66, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.55, green: 0.20, blue: 0.10, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.62, green: 0.18, blue: 0.36, alpha: 1)

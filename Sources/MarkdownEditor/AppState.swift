@@ -9,9 +9,13 @@ final class AppState: ObservableObject {
     @Published var selectedFile: URL?
     @Published var documentText: String = ""
     @Published var theme: Theme = .light
+    @Published var editorFont: EditorFont = .system
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
     @Published var outline: [Heading] = []
+    @Published var selectedFileMtime: Date? = nil
+    /// 현재 cursor가 속한 heading의 outline 내 인덱스. inline TOC가 active 행 강조에 사용.
+    @Published var activeOutlineIndex: Int? = nil
     @Published var previewImageURL: URL?
     /// 새 파일 열기 시 emit. 에디터가 history/state 를 reset 하기 위한 신호.
     @Published var documentResetTick: Int = 0
@@ -47,6 +51,10 @@ final class AppState: ObservableObject {
         if let raw = UserDefaults.standard.string(forKey: "theme"),
            let t = Theme(rawValue: raw) {
             self.theme = t
+        }
+        if let raw = UserDefaults.standard.string(forKey: "editorFont"),
+           let f = EditorFont(rawValue: raw) {
+            self.editorFont = f
         }
     }
 
@@ -105,9 +113,14 @@ final class AppState: ObservableObject {
         documentText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         isDirty = false
         lastKnownMTime = currentMTime(of: url)
+        selectedFileMtime = fileModificationDate(url)
         recomputeOutline()
         startFileWatcher(for: url)
         documentResetTick &+= 1  // 에디터 history reset
+    }
+
+    private func fileModificationDate(_ url: URL) -> Date? {
+        (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
     }
 
     /// 다중 선택 보조 — 파일 토글 (cmd+click).
@@ -311,6 +324,7 @@ final class AppState: ObservableObject {
             isDirty = false
             lastSaveFailureKey = nil
             lastKnownMTime = currentMTime(of: url)
+            selectedFileMtime = fileModificationDate(url)
         } catch {
             // isDirty는 유지 — 다음 autosave/수동 save가 다시 시도하도록
             // 같은 (파일, 에러코드) 조합엔 첫 1회만 alert (autosave 800ms 폭탄 방지)
@@ -332,6 +346,11 @@ final class AppState: ObservableObject {
     func setTheme(_ t: Theme) {
         theme = t
         UserDefaults.standard.set(t.rawValue, forKey: "theme")
+    }
+
+    func setEditorFont(_ f: EditorFont) {
+        editorFont = f
+        UserDefaults.standard.set(f.rawValue, forKey: "editorFont")
     }
 
     func cycleTheme() {

@@ -27,6 +27,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         userContent.add(self, name: "textChanged")
         userContent.add(self, name: "imageDropped")
         userContent.add(self, name: "consoleLog")
+        userContent.add(self, name: "cursorLine")
         // console.log를 Swift NSLog로 forward (inspector 없이 디버깅용)
         let logScript = WKUserScript(source: """
             (function() {
@@ -165,6 +166,13 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             }
             .store(in: &cancellables)
 
+        state.$editorFont
+            .receive(on: RunLoop.main)
+            .sink { [weak self] font in
+                self?.applyEditorFont(font)
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: .outlineNavigateRequested)
             .receive(on: RunLoop.main)
             .sink { [weak self] note in
@@ -172,6 +180,11 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
                     self?.scrollToLine(lineIdx)
                 }
             }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .openSearchRequested)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.openSearch() }
             .store(in: &cancellables)
 
         state.$previewImageURL
@@ -226,6 +239,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
         applyTheme(state.theme)
+        applyEditorFont(state.editorFont)
         applyDocFolder(for: state.selectedFile)
         applyText(pendingText ?? state.documentText)
         pendingText = nil
@@ -263,6 +277,24 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             NSLog("[MD-JS] %@", text)
             return
         }
+        if message.name == "cursorLine", let line = message.body as? Int {
+            updateActiveOutlineIndex(forCursorLine: line)
+            return
+        }
+    }
+
+    /// cursor line 기준으로 outline 안에서 가장 가까운(같거나 앞선) 헤딩 인덱스를 찾는다.
+    private func updateActiveOutlineIndex(forCursorLine line: Int) {
+        let outline = state.outline
+        guard !outline.isEmpty else {
+            if state.activeOutlineIndex != nil { state.activeOutlineIndex = nil }
+            return
+        }
+        var found: Int? = nil
+        for (i, h) in outline.enumerated() {
+            if h.lineIdx <= line { found = i } else { break }
+        }
+        if state.activeOutlineIndex != found { state.activeOutlineIndex = found }
     }
 
     private func handleImageDrop(dataURL: String, suggestedName: String) {
@@ -312,9 +344,21 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         web.evaluateJavaScript("window.appBridge.setTheme(\(json));", completionHandler: nil)
     }
 
+    private func applyEditorFont(_ font: EditorFont) {
+        guard ready else { return }
+        let escaped = font.cssFontFamily.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        web.evaluateJavaScript("window.appBridge.setFontFamily(\"\(escaped)\");", completionHandler: nil)
+    }
+
     func scrollToLine(_ lineIdx: Int) {
         guard ready else { return }
         web.evaluateJavaScript("window.appBridge.scrollToLine(\(lineIdx));", completionHandler: nil)
+    }
+
+    func openSearch() {
+        guard ready else { return }
+        web.evaluateJavaScript("window.appBridge.openSearch();", completionHandler: nil)
     }
 
     private func resetEditor(text: String) {

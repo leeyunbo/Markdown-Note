@@ -2,6 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <style>
 :root {
   --bg: #ffffff;
@@ -12,14 +16,16 @@
   --code-fg: #c71f3a;
   --link: #0066cc;
   --list: #34a89c;
+  --editor-font: -apple-system, "Helvetica Neue", "Apple SD Gothic Neo", sans-serif;
 }
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
   height: 100%; width: 100%;
   background: var(--bg); color: var(--fg);
-  font-family: -apple-system, "Helvetica Neue", "Apple SD Gothic Neo", sans-serif;
-  font-size: 14px;
+  font-family: var(--editor-font);
+  font-size: 13px;
+  letter-spacing: -0.005em;
   line-height: 1.65;
   -webkit-text-size-adjust: 100%;
 }
@@ -36,8 +42,9 @@ body { overflow: hidden; height: 100vh; }
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font-family: -apple-system, "Helvetica Neue", "Apple SD Gothic Neo", sans-serif;
-  font-size: 14px;
+  font-family: var(--editor-font);
+  font-size: 13px;
+  letter-spacing: -0.005em;
 }
 .cm-editor .cm-scroller {
   font-family: inherit;
@@ -45,7 +52,8 @@ body { overflow: hidden; height: 100vh; }
   padding: 0;  /* gutter는 화면 끝부터 시작, content는 자체 padding */
 }
 .cm-editor .cm-content {
-  padding: 12px 24px;
+  padding: 12px 20px;  /* Mock A: padTop 12, padX 20 */
+  max-width: 720px;     /* Mock A measure 720 */
 }
 .cm-editor.cm-focused {
   outline: none;
@@ -63,10 +71,9 @@ body { overflow: hidden; height: 100vh; }
 }
 .cm-editor .cm-line-kind-gutter .cm-gutterElement {
   padding: 0 12px 0 16px;
-  font-family: ui-monospace, "SF Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   font-size: 10px;
-  color: var(--secondary);
-  opacity: 0.7;
+  color: var(--marker);
   min-width: 44px;
   box-sizing: border-box;
   /* 라인 글자(14px)와 baseline 어긋남 → flex로 라인 height 안에서 center */
@@ -76,7 +83,7 @@ body { overflow: hidden; height: 100vh; }
 }
 .cm-editor .cm-line-kind {
   display: inline-block;
-  font-family: ui-monospace, "SF Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   font-size: 10px;
 }
 .cm-editor .cm-gutters {
@@ -111,26 +118,26 @@ body { overflow: hidden; height: 100vh; }
 .cm-line.cm-codeblock-line {
   background: var(--code-bg);
 }
-/* lang-markdown은 CodeText / CodeMark 노드 단위. 노드별 inline style이 들어가지만
-   라인 배경은 따로 안 주므로 ViewPlugin에서 라인 데코레이션을 부여한다. */
+/* Mock A: code block 4px radius, 6/12 padding, 2px vertical margin */
 .cm-content .cm-codeblock-line {
   background: var(--code-bg);
-  font-family: ui-monospace, "SF Mono", monospace;
-  font-size: 13px;
-  letter-spacing: -0.01em;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-size: 12px;
+  line-height: 18px;
   padding-left: 12px;
   padding-right: 12px;
 }
-/* 코드블록 라인의 첫/마지막은 부드럽게 */
 .cm-content .cm-codeblock-line.cm-codeblock-first {
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
   margin-top: 2px;
+  padding-top: 6px;
 }
 .cm-content .cm-codeblock-line.cm-codeblock-last {
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
   margin-bottom: 2px;
+  padding-bottom: 6px;
 }
 
 /* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */
@@ -160,7 +167,7 @@ body { overflow: hidden; height: 100vh; }
   cursor: default;
 }
 .md-image-wrap.md-image-error {
-  font-family: ui-monospace, "SF Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   font-size: 11px;
   text-align: left;
   padding: 8px 12px;

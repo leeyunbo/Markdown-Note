@@ -5,11 +5,11 @@
 const {
   EditorState, Compartment, StateField, StateEffect,
   EditorView, keymap, drawSelection, dropCursor, Decoration, WidgetType, ViewPlugin,
-  gutter, GutterMarker, showPanel,
+  gutter, GutterMarker, showPanel, highlightActiveLine,
   defaultKeymap, history, historyKeymap, indentWithTab, undo, redo,
   HighlightStyle, syntaxHighlighting, defaultHighlightStyle, bracketMatching,
   indentOnInput, syntaxTree,
-  searchKeymap, search, openSearchPanel, findNext, findPrevious,
+  searchKeymap, search, openSearchPanel, closeSearchPanel, findNext, findPrevious,
   markdown, markdownLanguage, languages, tags,
 } = window.CM;
 
@@ -18,8 +18,18 @@ const {
 
 const baseTheme = EditorView.theme({
   "&": { height: "100%" },
-  ".cm-content": { fontFamily: "inherit", fontSize: "14px" },
+  // Mock A: body 13.5px / lh 22px, padTop 12 / padX 20, max line ~720
+  ".cm-content": {
+    fontFamily: "inherit",
+    fontSize: "13.5px",
+    lineHeight: "22px",
+    letterSpacing: "-0.005em",
+  },
   ".cm-line": { padding: "0" },
+
+  // cursor line 강조는 비활성화 (사용자 요청)
+  ".cm-activeLine": { backgroundColor: "transparent" },
+  ".cm-activeLineGutter": { backgroundColor: "transparent" },
 
   // Search panel — Apple HIG-ish 톤
   ".cm-panels.cm-panels-top": {
@@ -106,7 +116,7 @@ const baseTheme = EditorView.theme({
 
   // Table line — monospace + 배경. header/alignment/zebra 구분.
   ".cm-content .cm-table-line": {
-    fontFamily: 'ui-monospace, "SF Mono", monospace',
+    fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", monospace',
     fontSize: "13px",
     background: "var(--code-bg)",
     paddingLeft: "12px",
@@ -143,6 +153,20 @@ const baseTheme = EditorView.theme({
     opacity: "0.6",
   },
 
+  // done task line — strikethrough + muted
+  ".cm-content .cm-task-done": {
+    color: "var(--secondary)",
+    textDecoration: "line-through",
+  },
+  // task checkbox — [x] / [ ] inline mark
+  ".cm-content .cm-task-checked": {
+    color: "var(--link)",
+    fontWeight: "600",
+  },
+  ".cm-content .cm-task-unchecked": {
+    color: "var(--marker)",
+  },
+
   // 라인 gutter — 좌측에 h1/h2/¶/│ 등 작은 라벨
   ".cm-gutters": {
     background: "var(--bg)",
@@ -155,7 +179,7 @@ const baseTheme = EditorView.theme({
   },
   ".cm-line-kind-gutter .cm-gutterElement": {
     padding: "0 12px 0 16px",
-    fontFamily: 'ui-monospace, "SF Mono", monospace',
+    fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", monospace',
     fontSize: "10px",
     lineHeight: "1.7",
     textAlign: "right",
@@ -177,7 +201,7 @@ const baseTheme = EditorView.theme({
     alignItems: "center",
     gap: "12px",
     padding: "4px 14px",
-    fontFamily: 'ui-monospace, "SF Mono", monospace',
+    fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", monospace',
     fontSize: "10.5px",
     color: "var(--secondary)",
     height: "22px",
@@ -191,14 +215,18 @@ const baseTheme = EditorView.theme({
   ".cm-status-bar .cm-status-size": { opacity: "0.7" },
 });
 
+// Mock A 토큰 (Variant A — Safe):
+//   body 13.5/22, h1 22/36, h2 17/30, h3 14.5/24, h4 13.5, h5 13, h6 13/secondary
+//   accent #0066cc, list #34a89c, code-bg #f3f3f5, code-fg #c71f3a, code-kw #9a23a3,
+//   code-type #1e7d8c
 const mdHighlight = HighlightStyle.define([
-  // 헤딩 — 크기/굵기
-  { tag: tags.heading1, fontSize: "24px", fontWeight: "700", lineHeight: "1.4" },
-  { tag: tags.heading2, fontSize: "20px", fontWeight: "700", lineHeight: "1.4" },
-  { tag: tags.heading3, fontSize: "17px", fontWeight: "600" },
-  { tag: tags.heading4, fontSize: "15px", fontWeight: "600" },
-  { tag: tags.heading5, fontSize: "14px", fontWeight: "600" },
-  { tag: tags.heading6, fontSize: "14px", fontWeight: "600", color: "var(--secondary)" },
+  // 헤딩 — Mock A 정확값
+  { tag: tags.heading1, fontSize: "22px", fontWeight: "700", lineHeight: "36px" },
+  { tag: tags.heading2, fontSize: "17px", fontWeight: "700", lineHeight: "30px" },
+  { tag: tags.heading3, fontSize: "14.5px", fontWeight: "600", lineHeight: "24px" },
+  { tag: tags.heading4, fontSize: "13.5px", fontWeight: "600" },
+  { tag: tags.heading5, fontSize: "13px", fontWeight: "600" },
+  { tag: tags.heading6, fontSize: "13px", fontWeight: "600", color: "var(--secondary)" },
 
   // 인라인
   { tag: tags.strong, fontWeight: "700" },
@@ -210,25 +238,25 @@ const mdHighlight = HighlightStyle.define([
   { tag: tags.url, color: "var(--secondary)" },
 
   // 코드 / 코드 블록
-  { tag: tags.monospace, fontFamily: 'ui-monospace, "SF Mono", monospace' },
-  { tag: tags.processingInstruction, color: "var(--marker)" },
+  { tag: tags.monospace, fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", monospace' },
 
-  // 마크다운 마커 (#, **, _, > 등)
-  { tag: tags.meta, color: "var(--marker)" },
-  { tag: tags.contentSeparator, color: "var(--marker)" },
-  // tags.list는 lang-markdown에서 BulletList/OrderedList 전체에 부여되어 자식 글자
-  // 색까지 영향을 주므로 highlight style에선 안 잡고, ListMark만 별도 ViewPlugin으로 색칠.
+  // 마크다운 마커 (#, **, _, > 등) — mock spec: opacity 0.35로 흐림
+  { tag: tags.meta, color: "var(--marker)", opacity: "0.35" },
+  { tag: tags.contentSeparator, color: "var(--marker)", opacity: "0.35" },
+  // 코드 fence "```" 는 mock A처럼 muted 풀톤 (다른 마커보다 강하게)
+  { tag: tags.processingInstruction, color: "var(--marker)" },
   { tag: tags.quote, color: "var(--secondary)", fontStyle: "italic" },
 
-  // 코드 syntax 안 token들
-  { tag: tags.keyword, color: "#ad3da4", fontWeight: "500" },
-  { tag: tags.string, color: "#c41a16" },
+  // 코드 syntax 안 token들 — mock A 정확값
+  { tag: tags.keyword, color: "#9a23a3", fontWeight: "500" },
+  { tag: tags.string, color: "#c71f3a" },
   { tag: tags.number, color: "#1c00cf" },
   { tag: tags.comment, color: "#707070", fontStyle: "italic" },
   { tag: tags.operator, color: "var(--fg)" },
   { tag: tags.variableName, color: "var(--fg)" },
-  { tag: tags.function(tags.variableName), color: "#5c2699" },
-  { tag: tags.className, color: "#5c2699" },
+  { tag: tags.function(tags.variableName), color: "#1e7d8c" },
+  { tag: tags.className, color: "#1e7d8c" },
+  { tag: tags.typeName, color: "#1e7d8c" },
 ]);
 
 // ----- Image widget: ![alt](path) 또는 ![alt|N](path) 라인 다음에 inline img 표시 -----
@@ -283,6 +311,36 @@ class ImageWidget extends WidgetType {
 
 // docFolderURL 변경 시 image widget을 다시 빌드시키기 위한 effect.
 const docFolderEffect = StateEffect.define();
+
+// done task line: strikethrough + muted (mock A spec).
+// task marker `[x]` 자체엔 별도 인라인 클래스 (filled accent + white check 시각화 — CSS).
+const taskLinePlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.build(update.view);
+    }
+  }
+  build(view) {
+    const builder = [];
+    const doc = view.state.doc;
+    for (let i = 1; i <= doc.lines; i++) {
+      const line = doc.line(i);
+      const m = line.text.match(/^(\s*[-*+]\s+\[)([ xX])(\])/);
+      if (!m) continue;
+      const checkClass = m[2].toLowerCase() === "x" ? "cm-task-checked" : "cm-task-unchecked";
+      // 라인 자체 (done 시 strikethrough 등)
+      if (m[2].toLowerCase() === "x") {
+        builder.push(Decoration.line({ class: "cm-task-done" }).range(line.from));
+      }
+      // 마커 [x]/[ ] 부분에 inline mark
+      const start = line.from + m[1].length - 1;  // [
+      const end = start + 3;
+      builder.push(Decoration.mark({ class: checkClass }).range(start, end));
+    }
+    return Decoration.set(builder, true);
+  }
+}, { decorations: v => v.decorations });
 
 // 마크다운 표 라인 — header / alignment / body 라인 그룹화 + role 클래스.
 // pipe(|)는 별도 mark decoration으로 흐리게 색칠.
@@ -402,6 +460,8 @@ const M_QUOTE = new LineKindMarker("│");
 const M_CODE = new LineKindMarker("─");
 const M_HR = new LineKindMarker("⎯");
 const M_LIST = new LineKindMarker("•");
+const M_TASK_DONE = new LineKindMarker("✓");
+const M_TASK_TODO = new LineKindMarker("☐");
 
 const lineKindGutter = gutter({
   class: "cm-line-kind-gutter",
@@ -414,10 +474,13 @@ const lineKindGutter = gutter({
     if (/^\s*#{2}\s/.test(t)) return M_H2;
     if (/^\s*#{1}\s/.test(t)) return M_H1;
     if (/^\s*>+\s/.test(t)) return M_QUOTE;
+    // 체크박스 (mock A: ✓ done, ☐ todo) — list보다 먼저 체크해야 매칭됨
+    let cb = t.match(/^\s*[-*+]\s+\[([ xX])\]/);
+    if (cb) return cb[1].toLowerCase() === "x" ? M_TASK_DONE : M_TASK_TODO;
     if (/^\s*([-*+]|\d+\.)\s/.test(t)) return M_LIST;
     if (/^\s*([-_*])(\s*\1){2,}\s*$/.test(t)) return M_HR;
     if (/^\s*```|^\s*~~~/.test(t)) return M_CODE;
-    return M_PARA;  // 빈 라인도 ¶ 표시
+    return null;  // 본문 paragraph는 마커 없음
   },
   initialSpacer() { return M_H2; },  // 가장 넓은 라벨 기준 폭 예약
 });
@@ -678,7 +741,23 @@ const updateListener = EditorView.updateListener.of((update) => {
     lastAppliedText = text;
     notifySwift(text);
   }
+  // cursor line이 바뀔 때마다 inline TOC active 행 갱신용으로 Swift에 전달
+  if (update.selectionSet || update.docChanged) {
+    const head = update.state.selection.main.head;
+    const line = update.state.doc.lineAt(head).number - 1;  // 0-based
+    notifyCursorLine(line);
+  }
 });
+
+let lastNotifiedCursorLine = -1;
+function notifyCursorLine(line) {
+  if (line === lastNotifiedCursorLine) return;
+  lastNotifiedCursorLine = line;
+  if (window.webkit && window.webkit.messageHandlers
+      && window.webkit.messageHandlers.cursorLine) {
+    window.webkit.messageHandlers.cursorLine.postMessage(line);
+  }
+}
 
 function makeExtensions() {
   return [
@@ -698,12 +777,14 @@ function makeExtensions() {
       autocorrect: "off",
       autocapitalize: "off",
     }),
+    highlightActiveLine(),
     lineKindGutter,
     showPanel.of(makeStatusPanel),
     imageField,
     listMarkPlugin,
     codeBlockLinePlugin,
     tableLinePlugin,
+    taskLinePlugin,
     themeCompartment.of(baseTheme),
     keymap.of([
       { key: "Enter", run: handleEnter },
@@ -754,10 +835,25 @@ window.appBridge = {
     Object.entries(vars).forEach(([k, v]) =>
       document.documentElement.style.setProperty("--" + k, v));
   },
+  /// 본문 폰트만 변경 — CSS variable로 적용해 .cm-editor가 상속.
+  /// 코드 블록(.cm-codeblock-line, gutter 등)은 자체 fontFamily가 명시돼 영향 없음.
+  setFontFamily(family) {
+    document.documentElement.style.setProperty("--editor-font", family);
+  },
   setDocFolder(url) {
     docFolderURL = url || "";
     // imagePlugin이 이 effect를 보고 widget을 다시 빌드한다
     view.dispatch({ effects: docFolderEffect.of(url || "") });
+  },
+  openSearch() {
+    // 토글: 이미 열려있으면 닫기, 아니면 열기.
+    const existing = view.dom.querySelector(".cm-search");
+    if (existing) {
+      closeSearchPanel(view);
+    } else {
+      openSearchPanel(view);
+    }
+    return true;
   },
   scrollToLine(lineIdx) {
     const lineNum = Math.max(1, Math.min(view.state.doc.lines, lineIdx + 1));

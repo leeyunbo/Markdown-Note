@@ -58,7 +58,7 @@ cat > "$APP_ROOT/Contents/Info.plist" <<EOF
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>ko</string>
     <key>CFBundleExecutable</key><string>$APP_NAME</string>
-    <key>CFBundleIconFile</key><string></string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>$APP_NAME</string>

@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 추가 탭/윈도우는 자체 AppState를 가진 별도 controller로 운영.
     /// macOS native window tabbing이 이들을 자동으로 탭으로 묶음.
     private var extraControllers: [MainWindowController] = []
+    private var presentationController: PresentationWindowController?
 
     override init() {
         super.init()
@@ -28,6 +29,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Stage Manager / Mission Control 카드의 overlay 아이콘은 NSApp.applicationIconImage를 사용.
+        // Info.plist + .icns만으로 인식 안 되는 경우가 있어 명시적으로 set.
+        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let img = NSImage(contentsOf: iconURL) {
+            NSApp.applicationIconImage = img
+        }
+
         UserDefaults.standard.register(defaults: [
             "NSAutomaticCapitalizationEnabled": false,
             "NSAutomaticDashSubstitutionEnabled": false,
@@ -45,6 +53,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         mainController = controller
         installMenuBarItems()
+        // SwiftUI Settings scene이 menu를 늦게 빌드하는 케이스가 있어 한 번 더 시도
+        DispatchQueue.main.async { [weak self] in
+            self?.installMenuBarItems()
+            self?.dumpMenuTree()
+        }
+    }
+
+    private func dumpMenuTree() {
+        guard let main = NSApp.mainMenu else { NSLog("[MD] mainMenu nil"); return }
+        NSLog("[MD] === mainMenu (\(main.items.count) top items) ===")
+        for top in main.items {
+            let t = top.title.isEmpty ? (top.submenu?.title ?? "?") : top.title
+            NSLog("[MD]   ▸ \(t)")
+            if let sub = top.submenu {
+                for s in sub.items {
+                    let key = s.keyEquivalent.isEmpty ? "" : "  [\(s.keyEquivalentModifierMask.rawValue)+\(s.keyEquivalent)]"
+                    NSLog("[MD]       . \(s.title)\(key)")
+                }
+            }
+        }
     }
 
     /// ⌘T — 같은 폴더를 공유하는 새 탭. AppState는 별도 인스턴스라 file selection /
@@ -95,6 +123,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // File 메뉴: 시스템 locale에 따라 "File" / "파일"이거나 아예 없을 수 있어
         // (Settings scene만 있는 SwiftUI App). 없으면 직접 추가한다.
         let fileMenu = ensureFileMenu(mainMenu)
+        if fileMenu.items.contains(where: { $0.action == #selector(menuPresent) }) {
+            return  // 이미 박혔음 — 중복 추가 방지
+        }
         do {
             let openFolder = NSMenuItem(title: "Open Folder…",
                                         action: #selector(menuOpenFolder),
@@ -113,6 +144,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                       keyEquivalent: "s")
             saveFile.target = self
 
+            let present = NSMenuItem(title: "Present",
+                                     action: #selector(menuPresent),
+                                     keyEquivalent: "p")
+            present.target = self
+            present.keyEquivalentModifierMask = [.command, .shift]
+
+            fileMenu.insertItem(present, at: 0)
             fileMenu.insertItem(NSMenuItem.separator(), at: 0)
             fileMenu.insertItem(saveFile, at: 0)
             fileMenu.insertItem(NSMenuItem.separator(), at: 0)
@@ -135,12 +173,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             viewMenu.addItem(NSMenuItem.separator())
             viewMenu.addItem(toggle)
 
-            let outline = NSMenuItem(title: "Show Outline",
-                                     action: #selector(menuToggleOutline),
-                                     keyEquivalent: "o")
-            outline.target = self
-            outline.keyEquivalentModifierMask = [.command, .shift]
-            viewMenu.addItem(outline)
         }
 
         // Theme 메뉴 (View 다음에 삽입)
@@ -162,7 +194,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             mainMenu.addItem(themeMenuItem)
         }
+
+        // Format > Font 서브메뉴
+        let fontMenu = NSMenu(title: "Font")
+        fontMenu.autoenablesItems = false
+        for f in EditorFont.allCases {
+            let mi = NSMenuItem(title: f.displayName,
+                                action: #selector(menuSetFont(_:)),
+                                keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = f.rawValue
+            mi.state = (state.editorFont == f) ? .on : .off
+            fontMenu.addItem(mi)
+        }
+        fontMenuRef = fontMenu
+
+        let formatMenu = NSMenu(title: "Format")
+        let fontSubItem = NSMenuItem(title: "Font", action: nil, keyEquivalent: "")
+        fontSubItem.submenu = fontMenu
+        formatMenu.addItem(fontSubItem)
+
+        let formatMenuItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
+        formatMenuItem.submenu = formatMenu
+        // Theme 메뉴 직후에 삽입
+        if let themeIdx = mainMenu.items.firstIndex(of: themeMenuItem) {
+            mainMenu.insertItem(formatMenuItem, at: themeIdx + 1)
+        } else {
+            mainMenu.addItem(formatMenuItem)
+        }
     }
+
+    private weak var fontMenuRef: NSMenu?
 
     /// "File" / "파일" 메뉴를 찾거나, 없으면 새로 만들어서 mainMenu에 삽입.
     private func ensureFileMenu(_ mainMenu: NSMenu) -> NSMenu {
@@ -234,16 +296,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func menuOpenFolder() { state.pickFolder() }
     @objc func menuNewFile() { state.newFile() }
     @objc func menuSave() { state.saveCurrent() }
+    @objc func menuPresent() {
+        NSLog("[MD] menuPresent fired")
+        let s = activeState()
+        let md = s.documentText.isEmpty ? "# Empty\n\n현재 파일이 비어있음" : s.documentText
+        // 이전 윈도우가 살아있으면 먼저 닫고 새로 띄움 (재사용 안 함 — markdown이 다를 수 있음)
+        if let prev = presentationController, prev.window?.isVisible == true {
+            prev.window?.close()
+        }
+        presentationController = nil
+        // 풀스크린 transition 충돌 방지를 위해 짧게 지연
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self else { return }
+            let pc = PresentationWindowController(markdown: md) { [weak self] in
+                self?.presentationController = nil
+            }
+            pc.presentFullscreen()
+            self.presentationController = pc
+        }
+    }
+
+    private func activeState() -> AppState {
+        if let key = NSApp.keyWindow,
+           let mc = (extraControllers + [mainController].compactMap { $0 })
+                    .first(where: { $0.window === key }) {
+            return mc.state
+        }
+        return state
+    }
     @objc func menuToggleSidebar() {
         NotificationCenter.default.post(name: .toggleSidebarRequested, object: nil)
-    }
-    @objc func menuToggleOutline() {
-        NotificationCenter.default.post(name: .toggleOutlinePopoverRequested, object: nil)
     }
     @objc func menuSetTheme(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String,
            let t = Theme(rawValue: raw) {
             state.setTheme(t)
+        }
+    }
+
+    @objc func menuSetFont(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let f = EditorFont(rawValue: raw) else { return }
+        state.setEditorFont(f)
+        // 메뉴 체크 표시 갱신
+        fontMenuRef?.items.forEach { item in
+            if let r = item.representedObject as? String {
+                item.state = (r == f.rawValue) ? .on : .off
+            }
         }
     }
 }

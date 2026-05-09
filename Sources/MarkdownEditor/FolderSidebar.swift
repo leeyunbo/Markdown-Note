@@ -7,9 +7,9 @@ struct FolderSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let root = state.rootFolder {
-                Header(name: root.lastPathComponent)
-                Divider().opacity(0.4)
+                Header(rootURL: root)
                 TreeView()
+                FolderFooter()
             } else {
                 EmptyFolderState()
             }
@@ -18,160 +18,112 @@ struct FolderSidebar: View {
     }
 }
 
-// MARK: - Outline popover (toolbar + ⌘⇧O)
-
-struct OutlinePopover: View {
+// 사이드바 하단 — N items · X KB (Mock A spec)
+private struct FolderFooter: View {
     @EnvironmentObject var state: AppState
-    let onSelect: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: "list.bullet.indent")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                Text("Outline")
-                    .font(.system(.caption, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(state.outline.count)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.primary.opacity(0.06))
-                    .clipShape(Capsule())
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
+        let stats = countFiles(state.fileTree)
+        HStack(spacing: 6) {
+            Text("\(stats.count) items")
+            Text("·").foregroundStyle(Color(red: 0.78, green: 0.78, blue: 0.81))
+            Text(formatBytes(stats.bytes))
+        }
+        .font(.system(size: 10, weight: .regular, design: .monospaced))
+        .foregroundStyle(Color(red: 0.63, green: 0.63, blue: 0.65))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            Divider().opacity(0.4)
-
-            if state.outline.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "number")
-                        .font(.system(size: 18, weight: .light))
-                        .foregroundStyle(.tertiary)
-                    Text("No headings")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    private func countFiles(_ nodes: [FileNode]) -> (count: Int, bytes: Int) {
+        var count = 0; var bytes = 0
+        func walk(_ ns: [FileNode]) {
+            for n in ns {
+                if n.isDirectory { if let c = n.children { walk(c) } }
+                else {
+                    count += 1
+                    if let attrs = try? FileManager.default.attributesOfItem(atPath: n.url.path),
+                       let size = attrs[.size] as? Int { bytes += size }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 28)
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 1) {
-                        ForEach(state.outline) { h in
-                            OutlineRow(heading: h, onSelect: onSelect)
-                        }
-                    }
-                    .padding(6)
-                }
-                .frame(maxHeight: 380)
             }
         }
-        .frame(width: 280)
+        walk(nodes)
+        return (count, bytes)
+    }
+
+    private func formatBytes(_ b: Int) -> String {
+        if b < 1024 { return "\(b) B" }
+        if b < 1024 * 1024 { return String(format: "%.1f KB", Double(b) / 1024) }
+        return String(format: "%.1f MB", Double(b) / 1024 / 1024)
     }
 }
 
-private struct OutlineRow: View {
+// MARK: - Theme swatch picker (toolbar 우상단)
+
+struct ThemeSwatchPicker: View {
     @EnvironmentObject var state: AppState
-    let heading: AppState.Heading
-    let onSelect: () -> Void
-    @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text("H\(heading.level)")
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .frame(width: 18, alignment: .leading)
-                .opacity(0.7)
-            Text(heading.text)
-                .font(.system(size: fontSize(for: heading.level), weight: weight(for: heading.level)))
-                .foregroundStyle(heading.level <= 2 ? Color.primary : .secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+        HStack(spacing: 1) {
+            ForEach(Theme.allCases) { t in
+                Button { state.setTheme(t) } label: {
+                    Text(label(t))
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color(nsColor: t.foregroundNS))
+                        .frame(width: 22, height: 22)
+                        .background(Color(nsColor: t.editorBackgroundNS))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(state.theme == t
+                                    ? Color(red: 0, green: 0.4, blue: 0.8)
+                                    : Color.primary.opacity(0.10),
+                                    lineWidth: state.theme == t ? 1.5 : 0.5)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+                .help("\(t.displayName) (⌘⇧\(Theme.allCases.firstIndex(of: t)! + 1))")
+            }
         }
-        .padding(.leading, CGFloat(heading.level - 1) * 10 + 6)
-        .padding(.trailing, 8)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .background(hovering ? Color.accentColor.opacity(0.18) : Color.clear)
+        .padding(1)
+        .background(Color.primary.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 5))
-        .onHover { hovering = $0 }
-        .onTapGesture {
-            NotificationCenter.default.post(name: .outlineNavigateRequested,
-                                            object: heading.lineIdx)
-            onSelect()
-        }
     }
 
-    private func fontSize(for level: Int) -> CGFloat {
-        switch level {
-        case 1: return 13
-        case 2: return 12.5
-        default: return 12
-        }
-    }
-    private func weight(for level: Int) -> Font.Weight {
-        switch level {
-        case 1: return .semibold
-        case 2: return .medium
-        default: return .regular
+    private func label(_ t: Theme) -> String {
+        switch t {
+        case .light: return "L"
+        case .dark:  return "D"
+        case .sepia: return "S"
+        case .paper: return "P"
         }
     }
 }
 
 private struct Header: View {
-    @EnvironmentObject var state: AppState
-    let name: String
+    let rootURL: URL
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "folder.fill")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 11))
-            Text(name)
-                .font(.system(.callout, weight: .semibold))
+            Text(pathLabel)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(red: 0.63, green: 0.63, blue: 0.65))
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .tracking(0.5)
             Spacer()
-            Button {
-                state.refreshTree()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("새로고침")
-
-            Button {
-                state.createFolder(in: nil)
-            } label: {
-                Image(systemName: "folder.badge.plus")
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("새 폴더")
-
-            Button {
-                state.newFile()
-            } label: {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("새 파일 (⌘N)")
         }
         .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
+    }
+
+    private var pathLabel: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var path = rootURL.path
+        if path.hasPrefix(home) { path = "~" + path.dropFirst(home.count) }
+        return path.uppercased()
     }
 }
 
@@ -180,13 +132,14 @@ private struct TreeView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 1) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(state.fileTree) { node in
                     NodeBranch(node: node, depth: 0)
                 }
             }
             .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.top, 0)
+            .padding(.bottom, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -206,11 +159,11 @@ private struct NodeBranch: View {
     @FocusState private var renameFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 0) {
             row
                 .padding(.leading, CGFloat(depth) * 12 + 6)
                 .padding(.trailing, 8)
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .background(rowBackground)
@@ -316,23 +269,21 @@ private struct NodeBranch: View {
 
     @ViewBuilder
     private var row: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Group {
                 if node.isDirectory {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(state.selectedFile == node.url ? .primary : .secondary)
+                    DesignIconView(image: DesignIcon.chevron, size: 9)
+                        .foregroundStyle(Color(red: 0.78, green: 0.78, blue: 0.81))
                         .rotationEffect(.degrees(expanded ? 90 : 0))
                 } else {
                     Color.clear
                 }
             }
-            .frame(width: 10)
+            .frame(width: 12)
 
-            Image(systemName: iconName)
-                .font(.system(size: 11))
+            iconView
                 .foregroundStyle(iconColor)
-                .frame(width: 14)
+                .frame(width: 16, height: 13)
 
             if isRenaming {
                 TextField("", text: $renameText)
@@ -350,7 +301,8 @@ private struct NodeBranch: View {
                     }
             } else {
                 Text(displayName)
-                    .font(.system(.callout, weight: state.selectedFiles.contains(node.url) ? .semibold : .regular))
+                    .font(.system(.callout, weight: nameWeight))
+                    .foregroundStyle(nameColor)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -424,26 +376,36 @@ private struct NodeBranch: View {
     }
 
     private var displayName: String {
-        if !node.isDirectory, node.name.lowercased().hasSuffix(".md") {
-            return String(node.name.dropLast(3))
-        }
-        return node.name
+        node.name
     }
 
-    private var iconName: String {
-        if node.isDirectory { return "folder.fill" }
-        switch node.kind {
-        case .image: return "photo"
-        case .markdown: return "doc.text"
-        case .other: return "doc"
+    private var nameWeight: Font.Weight {
+        if state.selectedFiles.contains(node.url) { return .semibold }
+        return node.isDirectory ? .semibold : .regular
+    }
+
+    private var nameColor: Color {
+        node.isDirectory
+            ? Color(red: 0.05, green: 0.05, blue: 0.07)
+            : Color(red: 0.11, green: 0.11, blue: 0.12)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        if node.isDirectory {
+            DesignIconView(image: expanded ? DesignIcon.folderOpen : DesignIcon.folder, size: 13)
+        } else {
+            DesignIconView(image: DesignIcon.file, size: 12)
         }
     }
 
     private var iconColor: Color {
-        if node.isDirectory { return Color.accentColor.opacity(0.85) }
+        if node.isDirectory {
+            return Color(red: 0.42, green: 0.42, blue: 0.45)
+        }
         switch node.kind {
-        case .image: return Color.accentColor.opacity(0.6)
-        default: return .secondary
+        case .image: return Color(red: 0.42, green: 0.42, blue: 0.45).opacity(0.7)
+        default: return Color(red: 0.55, green: 0.55, blue: 0.58)
         }
     }
 }
