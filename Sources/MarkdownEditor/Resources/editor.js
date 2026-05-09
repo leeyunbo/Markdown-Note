@@ -327,7 +327,12 @@ window.appBridge = {
 let composing = false;
 let notifyTimer = null;
 
+// 측정 훅: 큰 문서에서 실제로 느려질 때 콘솔로 확인하기 위함.
+// 임계 초과 시에만 로그 (잡음 방지). window.__mdPerf로 기록도 남김.
+window.__mdPerf = { lastGetPlainText: 0, sampleCount: 0, maxMs: 0 };
+
 function getPlainText() {
+  const t0 = performance.now();
   // table-block은 dataset.raw에 raw markdown을 보존 (innerText는 cell 텍스트만)
   const out = [];
   for (const child of editor.children) {
@@ -337,7 +342,15 @@ function getPlainText() {
       out.push(child.textContent || '');
     }
   }
-  return out.join('\n');
+  const result = out.join('\n');
+  const dt = performance.now() - t0;
+  window.__mdPerf.lastGetPlainText = dt;
+  window.__mdPerf.sampleCount++;
+  if (dt > window.__mdPerf.maxMs) window.__mdPerf.maxMs = dt;
+  if (dt > 16) {
+    console.warn(`getPlainText slow: ${dt.toFixed(1)}ms (${editor.children.length} blocks)`);
+  }
+  return result;
 }
 
 function notifySwift() {
