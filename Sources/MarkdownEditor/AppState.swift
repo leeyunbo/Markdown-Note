@@ -14,6 +14,10 @@ final class AppState: ObservableObject {
 
     private var saveDebounceTask: Task<Void, Never>?
     private var lastSaveFailureKey: String?
+    private var fileWatcher: DispatchSourceFileSystemObject?
+    private var fileWatcherFD: Int32 = -1
+    private var lastKnownMTime: Date?
+    private var externalChangeAlertVisible = false
 
     init() {
         if let bookmark = UserDefaults.standard.data(forKey: "rootFolderBookmark") {
@@ -74,9 +78,12 @@ final class AppState: ObservableObject {
 
     func selectFile(_ url: URL) {
         flushPendingSave()
+        stopFileWatcher()
         selectedFile = url
         documentText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         isDirty = false
+        lastKnownMTime = currentMTime(of: url)
+        startFileWatcher(for: url)
     }
 
     func newFile() {
@@ -114,10 +121,18 @@ final class AppState: ObservableObject {
 
     func saveCurrent() {
         guard let url = selectedFile else { return }
+        // atomically write는 rename(temp, original)이라 원본 inode가 unlink된다 →
+        // 우리 watcher가 자기 저장을 .delete로 보고 reload prompt를 띄우는 걸 막기 위해
+        // save 동안만 잠시 끈다.
+        stopFileWatcher()
+        defer {
+            if selectedFile == url { startFileWatcher(for: url) }
+        }
         do {
             try documentText.write(to: url, atomically: true, encoding: .utf8)
             isDirty = false
             lastSaveFailureKey = nil
+            lastKnownMTime = currentMTime(of: url)
         } catch {
             // isDirty는 유지 — 다음 autosave/수동 save가 다시 시도하도록
             // 같은 (파일, 에러코드) 조합엔 첫 1회만 alert (autosave 800ms 폭탄 방지)
@@ -161,27 +176,38 @@ final class AppState: ObservableObject {
             newURL = parent.appendingPathComponent(trimmed)
         }
         guard newURL != url else { return }
+        let wasSelected = (selectedFile == url)
+        if wasSelected { stopFileWatcher() }
         do {
             flushPendingSave()
             try FileManager.default.moveItem(at: url, to: newURL)
-            if selectedFile == url { selectedFile = newURL }
+            if wasSelected {
+                selectedFile = newURL
+                lastKnownMTime = currentMTime(of: newURL)
+                startFileWatcher(for: newURL)
+            }
             refreshTree()
         } catch {
+            if wasSelected, let cur = selectedFile { startFileWatcher(for: cur) }
             reportError("이름 변경 실패",
                         detail: "\(url.lastPathComponent) → \(newURL.lastPathComponent): \(error.localizedDescription)")
         }
     }
 
     func deleteFile(_ url: URL) {
+        let wasSelected = (selectedFile == url)
+        if wasSelected { stopFileWatcher() }
         do {
             try FileManager.default.trashItem(at: url, resultingItemURL: nil)
-            if selectedFile == url {
+            if wasSelected {
                 selectedFile = nil
                 documentText = ""
                 isDirty = false
+                lastKnownMTime = nil
             }
             refreshTree()
         } catch {
+            if wasSelected, let cur = selectedFile { startFileWatcher(for: cur) }
             reportError("삭제 실패",
                         detail: "\(url.lastPathComponent): \(error.localizedDescription)")
         }
@@ -203,9 +229,99 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
+    // MARK: - File watcher (외부 변경 감지)
+
+    private func currentMTime(of url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
+
+    private func startFileWatcher(for url: URL) {
+        stopFileWatcher()
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let src = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .extend, .delete, .rename, .attrib],
+            queue: .main)
+        src.setEventHandler { [weak self] in
+            // DispatchQueue.main에서 발동 — MainActor와 동일 thread.
+            // 캡처한 src에서 events를 직접 읽어 race-free하게 사용.
+            let events = src.data
+            Task { @MainActor in
+                self?.handleFileSystemEvent(for: url, events: events)
+            }
+        }
+        src.setCancelHandler {
+            close(fd)
+        }
+        src.resume()
+        fileWatcher = src
+        fileWatcherFD = fd
+    }
+
+    private func stopFileWatcher() {
+        fileWatcher?.cancel()
+        fileWatcher = nil
+        fileWatcherFD = -1
+    }
+
+    private func handleFileSystemEvent(for url: URL,
+                                       events: DispatchSource.FileSystemEvent) {
+        // 다른 파일로 이미 옮겨갔다면 무시
+        guard selectedFile == url else { return }
+
+        if events.contains(.delete) || events.contains(.rename) {
+            // 외부에서 파일이 사라지거나 옮겨짐. 우리 자체 저장은 saveCurrent에서 watcher를 끄므로
+            // 여기 도달했다는 건 외부 액션이라는 뜻.
+            stopFileWatcher()
+            refreshTree()
+            return
+        }
+
+        let diskMTime = currentMTime(of: url)
+        // 우리가 마지막으로 본 mtime과 같으면 attrib 정도의 잡음 — skip
+        if diskMTime == lastKnownMTime { return }
+
+        if isDirty {
+            promptExternalChange(for: url, diskMTime: diskMTime)
+        } else {
+            reloadFromDisk(url: url, diskMTime: diskMTime)
+        }
+    }
+
+    private func reloadFromDisk(url: URL, diskMTime: Date?) {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+        documentText = text
+        isDirty = false
+        lastKnownMTime = diskMTime
+    }
+
+    private func promptExternalChange(for url: URL, diskMTime: Date?) {
+        // 같은 alert이 연달아 뜨는 걸 막는다 (외부에서 빠르게 여러 번 저장하는 케이스)
+        if externalChangeAlertVisible { return }
+        externalChangeAlertVisible = true
+        defer { externalChangeAlertVisible = false }
+
+        let alert = NSAlert()
+        alert.messageText = "외부에서 파일이 변경되었습니다"
+        alert.informativeText = "\(url.lastPathComponent)이(가) 다른 곳에서 수정되었지만 현재 편집 중인 변경사항이 저장되지 않았습니다."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "내 변경 유지")     // 디스크 무시, 다음 저장 시 덮어씀
+        alert.addButton(withTitle: "디스크에서 불러오기")  // 내 변경 폐기
+
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            reloadFromDisk(url: url, diskMTime: diskMTime)
+        } else {
+            // 디스크 mtime을 알아둬야 다음 외부 변경 시 다시 prompt 가능
+            lastKnownMTime = diskMTime
+        }
+    }
+
     // MARK: - Lifecycle
 
     func releaseRootFolderAccess() {
+        stopFileWatcher()
         rootFolder?.stopAccessingSecurityScopedResource()
     }
 }
