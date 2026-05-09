@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     @Published var previewImageURL: URL?
     /// 새 파일 열기 시 emit. 에디터가 history/state 를 reset 하기 위한 신호.
     @Published var documentResetTick: Int = 0
+    /// 사이드바 다중 선택. selectedFile은 anchor(마지막 단일 클릭).
+    @Published var selectedFiles: Set<URL> = []
 
     struct Heading: Identifiable, Equatable {
         let id = UUID()
@@ -92,12 +94,74 @@ final class AppState: ObservableObject {
         stopFileWatcher()
         previewImageURL = nil  // .md 파일을 열면 이미지 미리보기는 닫힌다
         selectedFile = url
+        selectedFiles = [url]
         documentText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         isDirty = false
         lastKnownMTime = currentMTime(of: url)
         recomputeOutline()
         startFileWatcher(for: url)
         documentResetTick &+= 1  // 에디터 history reset
+    }
+
+    /// 다중 선택 보조 — 파일 토글 (cmd+click).
+    func toggleSelection(_ url: URL) {
+        if selectedFiles.contains(url) { selectedFiles.remove(url) }
+        else { selectedFiles.insert(url) }
+    }
+
+    /// anchor부터 url까지 트리 표시 순서로 range select (shift+click).
+    func rangeSelect(to url: URL) {
+        let flat = flattenedFileURLs()
+        guard let anchor = selectedFile,
+              let aIdx = flat.firstIndex(of: anchor),
+              let tIdx = flat.firstIndex(of: url) else {
+            selectedFiles = [url]
+            return
+        }
+        let lo = min(aIdx, tIdx), hi = max(aIdx, tIdx)
+        selectedFiles = Set(flat[lo...hi])
+    }
+
+    /// 화면 보이는 트리 순서로 펼친 URL 리스트.
+    private func flattenedFileURLs() -> [URL] {
+        var out: [URL] = []
+        func walk(_ nodes: [FileNode]) {
+            for n in nodes {
+                if n.isDirectory {
+                    if let children = n.children { walk(children) }
+                } else {
+                    out.append(n.url)
+                }
+            }
+        }
+        walk(fileTree)
+        return out
+    }
+
+    /// 다중 삭제. selectedFiles의 모든 항목을 휴지통으로.
+    func deleteSelectedFiles() {
+        let urls = Array(selectedFiles)
+        guard !urls.isEmpty else { return }
+        var failed: [String] = []
+        for url in urls {
+            do {
+                if selectedFile == url {
+                    stopFileWatcher()
+                    selectedFile = nil
+                    documentText = ""
+                    isDirty = false
+                    lastKnownMTime = nil
+                }
+                try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+            } catch {
+                failed.append("\(url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+        selectedFiles.removeAll()
+        refreshTree()
+        if !failed.isEmpty {
+            reportError("일부 파일 삭제 실패", detail: failed.joined(separator: "\n"))
+        }
     }
 
     func newFile() {

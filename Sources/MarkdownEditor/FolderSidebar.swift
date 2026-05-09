@@ -209,12 +209,25 @@ private struct NodeBranch: View {
                     if isRenaming { return }
                     if node.isDirectory {
                         withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
-                    } else if node.kind == .markdown {
-                        state.selectFile(node.url)
-                    } else if node.kind == .image {
-                        state.previewImageURL = node.url
+                        return
+                    }
+                    let mods = NSEvent.modifierFlags
+                    if mods.contains(.shift) {
+                        // range select (anchor=selectedFile부터 현재까지)
+                        state.rangeSelect(to: node.url)
+                    } else if mods.contains(.command) {
+                        // toggle add/remove
+                        state.toggleSelection(node.url)
                     } else {
-                        state.revealInFinder(node.url)
+                        // 일반 click — 단일 선택 + 파일 열기
+                        if node.kind == .markdown {
+                            state.selectFile(node.url)
+                        } else if node.kind == .image {
+                            state.previewImageURL = node.url
+                            state.selectedFiles = [node.url]
+                        } else {
+                            state.selectedFiles = [node.url]
+                        }
                     }
                 }
                 .onDrag {
@@ -233,13 +246,28 @@ private struct NodeBranch: View {
                     Button("이름 변경") { startRename() }
                     Button("Finder에서 보기") { state.revealInFinder(node.url) }
                     Divider()
-                    Button("삭제", role: .destructive) { showingDelete = true }
+                    if multiSelected.count > 1 {
+                        Button("\(multiSelected.count)개 삭제", role: .destructive) { showingDelete = true }
+                    } else {
+                        Button("삭제", role: .destructive) { showingDelete = true }
+                    }
                 }
                 .alert("삭제 확인", isPresented: $showingDelete) {
-                    Button("삭제", role: .destructive) { state.deleteFile(node.url) }
+                    Button(multiSelected.count > 1 ? "\(multiSelected.count)개 삭제" : "삭제",
+                           role: .destructive) {
+                        if multiSelected.count > 1 {
+                            state.deleteSelectedFiles()
+                        } else {
+                            state.deleteFile(node.url)
+                        }
+                    }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("\(node.name)을(를) 휴지통으로 이동합니다.")
+                    if multiSelected.count > 1 {
+                        Text("선택한 \(multiSelected.count)개 파일을 휴지통으로 이동합니다.")
+                    } else {
+                        Text("\(node.name)을(를) 휴지통으로 이동합니다.")
+                    }
                 }
 
             if node.isDirectory, expanded, let children = node.children {
@@ -286,7 +314,7 @@ private struct NodeBranch: View {
                     }
             } else {
                 Text(displayName)
-                    .font(.system(.callout, weight: state.selectedFile == node.url ? .semibold : .regular))
+                    .font(.system(.callout, weight: state.selectedFiles.contains(node.url) ? .semibold : .regular))
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -296,7 +324,7 @@ private struct NodeBranch: View {
     }
 
     private var rowBackground: some View {
-        if state.selectedFile == node.url {
+        if state.selectedFiles.contains(node.url) {
             return AnyView(Color.accentColor.opacity(0.18))
         } else if hovering && !isRenaming {
             return AnyView(Color.primary.opacity(0.06))
@@ -320,6 +348,15 @@ private struct NodeBranch: View {
 
     private func cancelRename() {
         isRenaming = false
+    }
+
+    /// 현재 노드가 다중 선택의 일부면 그 전체 set, 아니면 [node.url] 단일.
+    /// contextMenu / alert 분기에 사용.
+    private var multiSelected: Set<URL> {
+        if state.selectedFiles.contains(node.url), state.selectedFiles.count > 1 {
+            return state.selectedFiles
+        }
+        return [node.url]
     }
 
     private var displayName: String {
