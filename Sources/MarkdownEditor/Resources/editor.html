@@ -244,10 +244,27 @@ body {
 }
 #editor .link { color: var(--link); text-decoration: underline; }
 #editor .line.image-line {
-  text-align: center;
-  padding: 6px 0;
+  padding-bottom: 4px;
+}
+#editor .line.image-line .image-line-raw {
+  display: inline-block;
+  max-width: 100%;
+  font-size: 11px;
+  color: var(--secondary);
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+#editor .line.image-line .image-line-raw .marker,
+#editor .line.image-line .image-line-raw .link,
+#editor .line.image-line .image-line-raw .secondary {
+  color: inherit;
 }
 #editor .line.image-line img.md-image {
+  display: block;
+  margin: 4px auto 0;
   max-width: 100%;
   max-height: 480px;
   border-radius: 6px;

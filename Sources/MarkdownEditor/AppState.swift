@@ -88,6 +88,7 @@ final class AppState: ObservableObject {
     func selectFile(_ url: URL) {
         flushPendingSave()
         stopFileWatcher()
+        previewImageURL = nil  // .md 파일을 열면 이미지 미리보기는 닫힌다
         selectedFile = url
         documentText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         isDirty = false
@@ -341,6 +342,7 @@ final class AppState: ObservableObject {
         let parts = Array(repeating: "..", count: upCount) + downComps
         return parts.joined(separator: "/")
     }
+
 
     // MARK: - File watcher (외부 변경 감지)
 

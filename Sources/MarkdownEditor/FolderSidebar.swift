@@ -339,7 +339,7 @@ private struct NodeBranch: View {
     }
 }
 
-// MARK: - In-app image preview overlay
+// MARK: - In-app image preview (에디터 영역에 inline 표시)
 
 struct ImagePreviewOverlay: View {
     @EnvironmentObject var state: AppState
@@ -347,52 +347,62 @@ struct ImagePreviewOverlay: View {
     var body: some View {
         if let url = state.previewImageURL {
             ZStack {
-                // 배경: 클릭하면 닫힘
-                Color.black.opacity(0.55)
+                // 에디터와 비슷한 톤의 단색 배경. 클릭으로 닫지 않음 (정적 미리보기).
+                Color(nsColor: state.theme.editorBackgroundNS)
                     .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture { state.previewImageURL = nil }
 
-                if let img = NSImage(contentsOf: url) {
-                    Image(nsImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(40)
-                        .shadow(radius: 16)
-                        .onTapGesture { /* 이미지 자체 클릭은 닫힘 차단 */ }
-                } else {
-                    Text("이미지를 불러올 수 없습니다")
-                        .foregroundStyle(.white)
-                        .padding()
-                        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
-                }
-
-                // 좌상단 닫기 버튼 + 파일명
-                VStack {
-                    HStack(spacing: 12) {
+                VStack(spacing: 0) {
+                    // 헤더: 파일명 + 닫기 버튼
+                    HStack(spacing: 10) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text(url.lastPathComponent)
+                            .font(.system(.callout, weight: .medium))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button {
+                            state.revealInFinder(url)
+                        } label: {
+                            Image(systemName: "folder")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Finder에서 보기")
                         Button {
                             state.previewImageURL = nil
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 28, height: 28)
-                                .background(.black.opacity(0.55), in: Circle())
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
                         .keyboardShortcut(.escape, modifiers: [])
+                        .help("닫기 (Esc)")
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    Divider().opacity(0.4)
 
-                        Text(url.lastPathComponent)
-                            .font(.callout)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.black.opacity(0.55), in: Capsule())
-
-                        Spacer()
+                    // 이미지: 영역에 비례해 fit, 가운데 정렬
+                    GeometryReader { geo in
+                        Group {
+                            if let img = NSImage(contentsOf: url) {
+                                Image(nsImage: img)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                Text("이미지를 불러올 수 없습니다")
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                        .frame(width: geo.size.width, height: geo.size.height)
                     }
                     .padding(20)
-                    Spacer()
                 }
             }
             .transition(.opacity)

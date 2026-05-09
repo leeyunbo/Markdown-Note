@@ -50,9 +50,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
 
         window.contentViewController = splitVC
 
-        // 이미지 미리보기 오버레이: 미리 추가해두면 NSHostingView의 intrinsic 0×0이 부모 layout을
-        // 0으로 만들어 메인 윈도우가 보이지 않는 이슈가 있어, 필요할 때만 attach 한다.
-        observePreviewImageURL()
+        // 이미지 미리보기는 EditorViewController 안에서 자체 처리한다 (에디터 영역만 차지).
 
         // Toolbar
         let toolbar = NSToolbar(identifier: "MainToolbar")
@@ -103,39 +101,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         item.animator().isCollapsed.toggle()
     }
 
-    private weak var imagePreviewHost: NSView?
-
-    private func observePreviewImageURL() {
-        state.$previewImageURL
-            .receive(on: RunLoop.main)
-            .sink { [weak self] url in
-                guard let self else { return }
-                if url != nil {
-                    self.attachImagePreviewIfNeeded()
-                } else {
-                    self.imagePreviewHost?.removeFromSuperview()
-                    self.imagePreviewHost = nil
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    private func attachImagePreviewIfNeeded() {
-        guard imagePreviewHost == nil,
-              let containerView = splitVC?.view else { return }
-        let host = NSHostingView(rootView:
-            ImagePreviewOverlay().environmentObject(state)
-        )
-        host.translatesAutoresizingMaskIntoConstraints = false
-        containerView.addSubview(host, positioned: .above, relativeTo: nil)
-        NSLayoutConstraint.activate([
-            host.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            host.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            host.topAnchor.constraint(equalTo: containerView.topAnchor),
-            host.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-        ])
-        imagePreviewHost = host
-    }
 
     @objc func openFolder() { state.pickFolder() }
     @objc func newFile() { state.newFile() }

@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import WebKit
 import Combine
 
@@ -17,6 +18,8 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    private var imagePreviewHost: NSView?
 
     override func loadView() {
         let config = WKWebViewConfiguration()
@@ -39,7 +42,21 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         }
 
         loadEditorPage()
-        view = web
+
+        // 컨테이너 뷰: WKWebView + (필요 시 attach되는) 이미지 미리보기 오버레이.
+        // WKWebView를 view로 직접 쓰면 그 위에 sibling을 못 얹어 미리보기를 같은 layout에
+        // 두기 어렵다.
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        web.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(web)
+        NSLayoutConstraint.activate([
+            web.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            web.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            web.topAnchor.constraint(equalTo: container.topAnchor),
+            web.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        view = container
     }
 
     override func viewDidLoad() {
@@ -74,6 +91,39 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
                 }
             }
             .store(in: &cancellables)
+
+        state.$previewImageURL
+            .receive(on: RunLoop.main)
+            .sink { [weak self] url in
+                guard let self else { return }
+                if url != nil {
+                    self.attachImagePreview()
+                } else {
+                    self.detachImagePreview()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func attachImagePreview() {
+        guard imagePreviewHost == nil else { return }
+        let host = NSHostingView(rootView:
+            ImagePreviewOverlay().environmentObject(state)
+        )
+        host.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(host, positioned: .above, relativeTo: nil)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            host.topAnchor.constraint(equalTo: view.topAnchor),
+            host.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        imagePreviewHost = host
+    }
+
+    private func detachImagePreview() {
+        imagePreviewHost?.removeFromSuperview()
+        imagePreviewHost = nil
     }
 
     private func loadEditorPage() {

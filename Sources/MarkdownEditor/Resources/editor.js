@@ -330,8 +330,7 @@ function styleLine(lineDiv, opts) {
     const src = imgMatch[2];
     lineDiv.className = 'line image-line';
     lineDiv.dataset.raw = btoa(unescape(encodeURIComponent(text)));
-    const safeSrc = imageSrcForRender(src);
-    lineDiv.innerHTML = `<img class="md-image" src="${escapeHTML(safeSrc)}" alt="${escapeHTML(alt)}" loading="lazy" onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;">`;
+    lineDiv.innerHTML = imageLineHTML(alt, src, text);
     return;
   }
 
@@ -344,6 +343,18 @@ function styleLine(lineDiv, opts) {
 // 상대 경로면 현재 마크다운 파일 위치 기준으로 file://...로 풀어낸다 — 단,
 // 우리는 JS에서 docFolder를 모르기 때문에 Swift가 setDocFolder로 알려준다.
 let docFolderURL = '';  // file://... ending with /
+
+// image-line 내부 HTML — raw 마크다운(흐리게 작게) + 그 아래 렌더된 이미지.
+// raw 부분만 흐려야 하므로 별도 wrapper에 styling. img는 line의 직속 child라
+// wrapper opacity 영향 없음.
+function imageLineHTML(alt, src, rawLine) {
+  const safeSrc = imageSrcForRender(src);
+  const inner = highlightInline(rawLine) || '<br>';
+  return `<span class="image-line-raw">${inner}</span>`
+    + `<img class="md-image" src="${escapeHTML(safeSrc)}" alt="${escapeHTML(alt)}" `
+    + `loading="lazy" draggable="false" `
+    + `onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;">`;
+}
 function imageSrcForRender(src) {
   if (/^(https?:|file:|data:)/i.test(src)) return src;
   // 사용자가 직접 입력한 한글/공백 경로 대비 — 이미 %xx 있으면 그대로, 아니면 encode.
@@ -541,8 +552,7 @@ function buildContent(text) {
       const alt = imgM[1];
       const src = imgM[2];
       const raw = btoa(unescape(encodeURIComponent(line)));
-      const safeSrc = imageSrcForRender(src);
-      html += `<div class="line image-line" data-raw="${raw}"><img class="md-image" src="${escapeHTML(safeSrc)}" alt="${escapeHTML(alt)}" loading="lazy" onerror="this.parentNode.classList.add('image-error');this.parentNode.dataset.failedSrc=this.src;"></div>`;
+      html += `<div class="line image-line" data-raw="${raw}">${imageLineHTML(alt, src, line)}</div>`;
       i++;
       continue;
     }
@@ -779,13 +789,7 @@ function handleLineFocusChange() {
     // 떠난 라인이 fence marker였거나 fence 안 라인이었을 수 있음 — 다음 라인들 재계산
     reflowFences();
   }
-  // 이미지 라인에 진입하면 raw markdown으로 풀어서 편집 가능하게
-  if (cur.classList && cur.classList.contains('image-line') && cur.dataset && cur.dataset.raw) {
-    const raw = decodeRaw(cur.dataset.raw);
-    cur.classList.remove('image-line');
-    cur.textContent = raw;
-    delete cur.dataset.raw;
-  }
+  // image-line은 raw + img 둘 다 보이므로 진입 시 풀지 않는다 (옵시디언 스타일).
   // codeblock은 token span을 유지한다. 입력 시 input 핸들러가 즉시 re-highlight.
   ensureCaretSafe(cur);
   lastLineDiv = cur;
@@ -1540,6 +1544,8 @@ editor.addEventListener('dragover', (e) => {
 
 editor.addEventListener('drop', (e) => {
   if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+  // 에디터 내부에서 시작된 드래그(렌더된 이미지 등)는 무시. 외부에서 들어온 파일만 받는다.
+  if (e.dataTransfer.types && Array.from(e.dataTransfer.types).every(t => !t.toLowerCase().includes('file'))) return;
   // drop 위치로 caret 이동
   const range = document.caretRangeFromPoint
     ? document.caretRangeFromPoint(e.clientX, e.clientY)
