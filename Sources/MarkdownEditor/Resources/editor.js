@@ -658,8 +658,9 @@ window.appBridge = {
   },
 };
 
-// 이미지 drop / paste -> Swift로 file 전달.
-// capture phase로 등록하여 CodeMirror 내부 contenteditable이 처리하기 전에 가로챈다.
+// 이미지 paste(클립보드, 스크린샷 ⌘⇧⌃4 등) → Swift로 전달.
+// 외부 file drag(Finder 등)는 WKWebView 안의 JS drop이 안 잡혀서
+// EditorViewController의 NSDraggingDestination이 직접 처리한다.
 const editorDom = view.dom;
 
 function postImageToSwift(file) {
@@ -674,31 +675,6 @@ function postImageToSwift(file) {
   };
   reader.readAsDataURL(file);
 }
-
-editorDom.addEventListener("dragover", (e) => {
-  if (e.dataTransfer && e.dataTransfer.types &&
-      Array.from(e.dataTransfer.types).some(t => t === "Files" || t === "application/x-moz-file")) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }
-}, true);
-
-editorDom.addEventListener("drop", (e) => {
-  if (!e.dataTransfer) return;
-  const files = e.dataTransfer.files;
-  if (!files || files.length === 0) return;
-  let handled = false;
-  for (const f of files) {
-    if (f.type && f.type.startsWith("image/")) {
-      postImageToSwift(f);
-      handled = true;
-    }
-  }
-  if (handled) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-}, true);
 
 editorDom.addEventListener("paste", (e) => {
   if (!e.clipboardData) return;

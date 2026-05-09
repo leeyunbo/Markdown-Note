@@ -43,11 +43,13 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
 
         loadEditorPage()
 
-        // 컨테이너 뷰: WKWebView + (필요 시 attach되는) 이미지 미리보기 오버레이.
-        // WKWebView를 view로 직접 쓰면 그 위에 sibling을 못 얹어 미리보기를 같은 layout에
-        // 두기 어렵다.
-        let container = NSView()
+        // 컨테이너 뷰: WKWebView + 미리보기 오버레이 + 외부 file 드래그 수신.
+        // WKWebView 내 JS drop 이벤트는 macOS에서 file URL drag를 안정적으로 잡지 못해
+        // (capture phase로도 차단), Swift 쪽 NSDraggingDestination으로 처리한다.
+        let container = ImageDropContainerView()
+        container.controller = self
         container.translatesAutoresizingMaskIntoConstraints = false
+        container.registerForDraggedTypes([.fileURL])
         web.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(web)
         NSLayoutConstraint.activate([
@@ -57,6 +59,26 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             web.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
         view = container
+    }
+
+    func acceptNativeImageDrop(data: Data, name: String) {
+        handleImageData(data: data, suggestedName: name)
+    }
+
+    private func handleImageData(data: Data, suggestedName: String) {
+        guard let relPath = state.saveDroppedImage(data: data, suggestedName: suggestedName) else {
+            return
+        }
+        let urlEncoded = relPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
+            ?? relPath
+        let alt = (suggestedName as NSString).deletingPathExtension
+        let escaped = urlEncoded.replacingOccurrences(of: "\\", with: "\\\\")
+                                .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedAlt = alt.replacingOccurrences(of: "\\", with: "\\\\")
+                            .replacingOccurrences(of: "\"", with: "\\\"")
+        web.evaluateJavaScript(
+            "window.appBridge.insertImage(\"\(escapedAlt)\", \"\(escaped)\");",
+            completionHandler: nil)
     }
 
     override func viewDidLoad() {
@@ -264,6 +286,43 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         let arr = String(data: data, encoding: .utf8) ?? "[\"\"]"
         // arr like ["..."] → strip brackets
         return String(arr.dropFirst().dropLast())
+    }
+}
+
+// 외부 (Finder 등) 이미지 파일 드래그를 받기 위한 NSView. WKWebView가 자식이지만
+// file URL drag는 자체 처리하지 않아 부모인 이 뷰가 NSDraggingDestination으로 받는다.
+final class ImageDropContainerView: NSView {
+    weak var controller: EditorViewController?
+    private let imageExts: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "svg",
+    ]
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        return hasImageURLs(sender) ? .copy : []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        return hasImageURLs(sender) ? .copy : []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let urls = sender.draggingPasteboard.readObjects(
+                forClasses: [NSURL.self], options: nil) as? [URL] else { return false }
+        var handled = false
+        for url in urls {
+            let ext = url.pathExtension.lowercased()
+            guard imageExts.contains(ext) else { continue }
+            guard let data = try? Data(contentsOf: url) else { continue }
+            controller?.acceptNativeImageDrop(data: data, name: url.lastPathComponent)
+            handled = true
+        }
+        return handled
+    }
+
+    private func hasImageURLs(_ sender: NSDraggingInfo) -> Bool {
+        guard let urls = sender.draggingPasteboard.readObjects(
+                forClasses: [NSURL.self], options: nil) as? [URL] else { return false }
+        return urls.contains { imageExts.contains($0.pathExtension.lowercased()) }
     }
 }
 
