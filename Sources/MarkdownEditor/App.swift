@@ -42,6 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// documentText / undo history는 탭마다 독립. UserDefaults bookmark가 init에서
     /// 자동 복원되므로 폴더 트리는 동일하게 보임.
     @objc func menuNewTab() {
+        openNewTab(with: nil)
+    }
+
+    /// 특정 파일을 새 탭에서 연다. 사이드바 contextMenu의 "새 탭에서 열기"가 사용.
+    func openNewTab(with url: URL?) {
         let newState = AppState()
         let newController = MainWindowController(state: newState)
         guard let newWindow = newController.window else { return }
@@ -53,6 +58,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         newController.showWindow(nil)
         newWindow.makeKeyAndOrderFront(nil)
         extraControllers.append(newController)
+        if let url {
+            // 새 controller의 viewDidLoad가 끝난 직후 selectFile 호출되도록
+            // 다음 runloop에 dispatch (state Combine sink가 attach된 후)
+            DispatchQueue.main.async {
+                newState.selectFile(url)
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -71,9 +83,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         installEditMenu(mainMenu)
 
-        // File 메뉴: Open Folder, New, Save 추가
-        if let fileMenuItem = mainMenu.items.first(where: { ($0.submenu?.title ?? $0.title) == "File" }) ?? mainMenu.items.first(where: { $0.title.contains("File") }),
-           let fileMenu = fileMenuItem.submenu {
+        // File 메뉴: 시스템 locale에 따라 "File" / "파일"이거나 아예 없을 수 있어
+        // (Settings scene만 있는 SwiftUI App). 없으면 직접 추가한다.
+        let fileMenu = ensureFileMenu(mainMenu)
+        do {
             let openFolder = NSMenuItem(title: "Open Folder…",
                                         action: #selector(menuOpenFolder),
                                         keyEquivalent: "o")
@@ -100,7 +113,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // View 메뉴: Toggle Sidebar / Toggle Outline
-        let viewIdx = mainMenu.items.firstIndex(where: { ($0.submenu?.title ?? $0.title).contains("View") })
+        let viewIdx = mainMenu.items.firstIndex(where: {
+            let t = $0.submenu?.title ?? $0.title
+            return t == "View" || t == "보기" || t.contains("View") || t.contains("보기")
+        })
         if let idx = viewIdx, let viewMenu = mainMenu.items[idx].submenu {
             let toggle = NSMenuItem(title: "Toggle Sidebar",
                                     action: #selector(menuToggleSidebar),
@@ -139,13 +155,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// "File" / "파일" 메뉴를 찾거나, 없으면 새로 만들어서 mainMenu에 삽입.
+    private func ensureFileMenu(_ mainMenu: NSMenu) -> NSMenu {
+        if let existing = mainMenu.items.first(where: {
+            let t = $0.submenu?.title ?? $0.title
+            return t == "File" || t == "파일"
+        })?.submenu {
+            return existing
+        }
+        let menu = NSMenu(title: "File")
+        let item = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
+        item.submenu = menu
+        // 첫 번째(앱 이름) 다음 위치에 삽입
+        let insertAt = mainMenu.items.isEmpty ? 0 : 1
+        mainMenu.insertItem(item, at: insertAt)
+        return menu
+    }
+
     // Edit 메뉴 — Undo/Redo/Cut/Copy/Paste/Select All. target=nil로 두면
     // responder chain을 따라 first responder(WKWebView)에 selector가 dispatch되고,
     // contenteditable 내부에선 WebKit의 자체 undo manager가 처리한다.
     private func installEditMenu(_ mainMenu: NSMenu) {
-        // 이미 있으면 skip
+        // 이미 있으면 skip (영문/한국어 둘 다 매칭)
         if mainMenu.items.contains(where: {
-            ($0.submenu?.title ?? $0.title) == "Edit"
+            let t = $0.submenu?.title ?? $0.title
+            return t == "Edit" || t == "편집"
         }) { return }
 
         let editMenu = NSMenu(title: "Edit")
@@ -176,9 +210,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
         editMenuItem.submenu = editMenu
 
-        // File 다음에 삽입 (없으면 끝에)
+        // File / 파일 다음에 삽입 (없으면 끝에)
         let fileIdx = mainMenu.items.firstIndex(where: {
-            ($0.submenu?.title ?? $0.title) == "File"
+            let t = $0.submenu?.title ?? $0.title
+            return t == "File" || t == "파일"
         })
         if let idx = fileIdx {
             mainMenu.insertItem(editMenuItem, at: idx + 1)

@@ -251,7 +251,14 @@ private struct NodeBranch: View {
                 }
                 .contextMenu {
                     if !node.isDirectory {
-                        Button("열기") { state.selectFile(node.url) }
+                        if node.kind == .markdown {
+                            Button("열기") { state.selectFile(node.url) }
+                            Button("새 탭에서 열기") {
+                                if let app = NSApp.delegate as? AppDelegate {
+                                    app.openNewTab(with: node.url)
+                                }
+                            }
+                        }
                         Divider()
                     }
                     Button("이름 변경") { startRename() }
