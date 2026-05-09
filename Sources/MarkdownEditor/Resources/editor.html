@@ -34,45 +34,87 @@ body {
 
 #find-bar {
   display: flex;
+  flex-wrap: wrap;
+  row-gap: 6px;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 8px 14px;
   background: var(--bg);
   border-bottom: 1px solid var(--marker);
   align-items: center;
   font-size: 12px;
   flex-shrink: 0;
+  -webkit-backdrop-filter: saturate(150%);
+  backdrop-filter: saturate(150%);
 }
 #find-bar.hidden { display: none; }
 #find-bar input[type="text"] {
-  background: var(--code-bg);
+  background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--marker);
-  border-radius: 4px;
-  padding: 3px 8px;
+  border-radius: 5px;
+  padding: 3px 9px;
   outline: none;
   font: inherit;
   font-size: 13px;
-  min-width: 140px;
+  min-width: 180px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
-#find-bar input[type="text"]:focus { border-color: var(--link); }
+#find-bar input[type="text"]::placeholder {
+  color: var(--secondary);
+  opacity: 0.6;
+}
+#find-bar input[type="text"]:focus {
+  border-color: var(--link);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.18);
+}
 #find-bar button {
   background: transparent;
   border: 1px solid transparent;
   color: var(--fg);
   cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 7px;
+  border-radius: 5px;
   font: inherit;
   font-size: 12px;
+  line-height: 1;
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 #find-bar button:hover { background: var(--code-bg); }
-#find-bar button.active { background: var(--code-bg); border-color: var(--marker); }
+#find-bar button:active { background: var(--marker); }
+#find-bar button.active {
+  background: var(--code-bg);
+  border-color: var(--marker);
+  color: var(--link);
+}
+#find-bar #find-case { font-style: italic; font-weight: 500; }
+#find-bar #find-prev,
+#find-bar #find-next { font-size: 13px; }
+#find-bar #find-close {
+  font-size: 14px;
+  color: var(--secondary);
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+}
+#find-bar #find-close:hover { color: var(--fg); }
 #find-count {
   color: var(--secondary);
   font-size: 11px;
-  min-width: 48px;
+  min-width: 56px;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+#find-bar .sep {
+  width: 1px;
+  height: 16px;
+  background: var(--marker);
+  opacity: 0.6;
+  margin: 0 4px;
 }
 #find-bar .spacer { flex: 1; }
 #editor mark.find-hit {
@@ -189,16 +231,17 @@ body {
 </head>
 <body>
 <div id="find-bar" class="hidden">
-  <input type="text" id="find-input" placeholder="찾기" autocomplete="off">
-  <button id="find-case" title="대소문자 구분">Aa</button>
+  <input type="text" id="find-input" placeholder="Find" autocomplete="off" spellcheck="false">
+  <button id="find-case" title="Match case">Aa</button>
   <span id="find-count">0/0</span>
-  <button id="find-prev" title="이전 (⇧↩)">↑</button>
-  <button id="find-next" title="다음 (↩)">↓</button>
-  <input type="text" id="find-replace" placeholder="치환" autocomplete="off">
-  <button id="find-replace-one" title="현재 치환">치환</button>
-  <button id="find-replace-all" title="모두 치환">모두</button>
+  <button id="find-prev" title="Previous (⇧↩)">↑</button>
+  <button id="find-next" title="Next (↩)">↓</button>
+  <span class="sep"></span>
+  <input type="text" id="find-replace" placeholder="Replace" autocomplete="off" spellcheck="false">
+  <button id="find-replace-one" title="Replace current">Replace</button>
+  <button id="find-replace-all" title="Replace all">All</button>
   <span class="spacer"></span>
-  <button id="find-close" title="닫기 (Esc)">✕</button>
+  <button id="find-close" title="Close (Esc)">✕</button>
 </div>
 <div id="editor-wrap">
   <div id="editor" contenteditable="true" spellcheck="false" autocapitalize="off" autocorrect="off"></div>

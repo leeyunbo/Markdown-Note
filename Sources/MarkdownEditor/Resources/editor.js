@@ -859,5 +859,262 @@ editor.addEventListener('blur', () => {
   lastLineDiv = null;
 });
 
+// ----- Find / Replace (⌘F) -----
+
+const findBar = document.getElementById('find-bar');
+const findInput = document.getElementById('find-input');
+const findReplace = document.getElementById('find-replace');
+const findCount = document.getElementById('find-count');
+const findCaseBtn = document.getElementById('find-case');
+const findPrevBtn = document.getElementById('find-prev');
+const findNextBtn = document.getElementById('find-next');
+const findReplaceOneBtn = document.getElementById('find-replace-one');
+const findReplaceAllBtn = document.getElementById('find-replace-all');
+const findCloseBtn = document.getElementById('find-close');
+
+const findState = {
+  active: false,
+  caseSensitive: false,
+  matches: [],   // [{ lineDiv, startOff, length }]
+  currentIdx: -1,
+};
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function clearFindHighlights() {
+  // mark.find-hit를 textnode로 풀고, 영향받은 라인은 styled로 재적용
+  const lineSet = new Set();
+  editor.querySelectorAll('mark.find-hit').forEach(m => {
+    if (m.parentNode) {
+      const line = m.closest('.line');
+      if (line) lineSet.add(line);
+      const tn = document.createTextNode(m.textContent);
+      m.parentNode.replaceChild(tn, m);
+    }
+  });
+  // 텍스트노드 분할이 일어났을 수 있으니 normalize
+  for (const line of lineSet) {
+    line.normalize();
+    if (line !== lastLineDiv && !line.classList.contains('table-block')) {
+      styleLine(line);
+    }
+  }
+}
+
+function refreshFind() {
+  clearFindHighlights();
+  findState.matches = [];
+  findState.currentIdx = -1;
+
+  const query = findInput.value;
+  if (!query) {
+    findCount.textContent = '0/0';
+    return;
+  }
+
+  const cs = findState.caseSensitive;
+  const needle = cs ? query : query.toLowerCase();
+
+  // 라인별 매치 수집
+  for (const lineDiv of editor.children) {
+    if (!lineDiv.classList.contains('line')) continue;
+    if (lineDiv.classList.contains('table-block')) continue;
+    const text = lineDiv.textContent;
+    const haystack = cs ? text : text.toLowerCase();
+    let from = 0;
+    while (true) {
+      const idx = haystack.indexOf(needle, from);
+      if (idx < 0) break;
+      findState.matches.push({ lineDiv, startOff: idx, length: query.length });
+      from = idx + Math.max(needle.length, 1);
+    }
+  }
+
+  // 매치 라인에 mark 삽입 (라인 단위로 배치)
+  const byLine = new Map();
+  for (const m of findState.matches) {
+    if (!byLine.has(m.lineDiv)) byLine.set(m.lineDiv, []);
+    byLine.get(m.lineDiv).push(m);
+  }
+  for (const [lineDiv, ms] of byLine) {
+    renderLineWithMarks(lineDiv, ms);
+  }
+
+  if (findState.matches.length === 0) {
+    findCount.textContent = '0/0';
+    return;
+  }
+  moveToMatch(0);
+}
+
+function renderLineWithMarks(lineDiv, matches) {
+  const text = lineDiv.textContent;
+  matches.sort((a, b) => a.startOff - b.startOff);
+  let html = '';
+  let cursor = 0;
+  for (const m of matches) {
+    html += escapeHTML(text.slice(cursor, m.startOff));
+    html += `<mark class="find-hit">${escapeHTML(text.slice(m.startOff, m.startOff + m.length))}</mark>`;
+    cursor = m.startOff + m.length;
+  }
+  html += escapeHTML(text.slice(cursor));
+  lineDiv.className = 'line';
+  lineDiv.innerHTML = html || '<br>';
+}
+
+function moveToMatch(idx) {
+  editor.querySelectorAll('mark.find-current').forEach(m => m.classList.remove('find-current'));
+  if (idx < 0 || idx >= findState.matches.length) return;
+  findState.currentIdx = idx;
+
+  const m = findState.matches[idx];
+  if (!editor.contains(m.lineDiv)) {
+    refreshFind();
+    return;
+  }
+  // 같은 라인 내 매치 인덱스 — sorted by startOff
+  const sameLine = findState.matches.filter(x => x.lineDiv === m.lineDiv);
+  const localIdx = sameLine.indexOf(m);
+  const marks = m.lineDiv.querySelectorAll('mark.find-hit');
+  if (marks[localIdx]) {
+    marks[localIdx].classList.add('find-current');
+    marks[localIdx].scrollIntoView({ block: 'center', behavior: 'auto' });
+  }
+  findCount.textContent = `${idx + 1}/${findState.matches.length}`;
+}
+
+function findNext() {
+  if (findState.matches.length === 0) return;
+  moveToMatch((findState.currentIdx + 1) % findState.matches.length);
+}
+
+function findPrev() {
+  if (findState.matches.length === 0) return;
+  const n = findState.matches.length;
+  moveToMatch((findState.currentIdx - 1 + n) % n);
+}
+
+function replaceCurrent() {
+  if (findState.currentIdx < 0) return;
+  const m = findState.matches[findState.currentIdx];
+  if (!editor.contains(m.lineDiv)) return;
+
+  // 라인을 mark 없는 raw text로 보고 (textContent), 매치 자리만 교체
+  const text = m.lineDiv.textContent;
+  const replacement = findReplace.value;
+  const newText = text.slice(0, m.startOff) + replacement + text.slice(m.startOff + m.length);
+
+  // execCommand로 라인 통째로 교체 → undo 호환
+  const caretOff = m.startOff + replacement.length;
+  replaceLineText(m.lineDiv, newText, caretOff, caretOff);
+  notifySwift();
+
+  // 매치 목록 재계산. 다음 매치로 자동 이동을 위해 currentIdx 보정 시도
+  const prevIdx = findState.currentIdx;
+  refreshFind();
+  // refreshFind는 첫 매치로 이동시킴. 가능하면 prevIdx에 가까운 자리로
+  if (findState.matches.length > 0) {
+    const target = Math.min(prevIdx, findState.matches.length - 1);
+    moveToMatch(target);
+  }
+}
+
+function replaceAll() {
+  const query = findInput.value;
+  if (!query) return;
+  const replacement = findReplace.value;
+  const cs = findState.caseSensitive;
+  const re = new RegExp(escapeRegex(query), cs ? 'g' : 'gi');
+
+  // mark가 박혀있을 수 있으니 textContent 기준으로 비교 후 직접 textContent 교체.
+  // 라인별로 모아서 한 번에 처리. (라인이 많은 경우 execCommand 반복은 무거움)
+  let changedCount = 0;
+  for (const lineDiv of editor.children) {
+    if (!lineDiv.classList.contains('line')) continue;
+    if (lineDiv.classList.contains('table-block')) continue;
+    const text = lineDiv.textContent;
+    const newText = text.replace(re, replacement);
+    if (newText !== text) {
+      lineDiv.className = 'line';
+      lineDiv.textContent = newText;
+      changedCount++;
+    }
+  }
+  if (changedCount > 0) {
+    notifySwift();
+  }
+  refreshFind();
+}
+
+function openOrFocusFind() {
+  if (!findState.active) {
+    findBar.classList.remove('hidden');
+    findState.active = true;
+  }
+  findInput.focus();
+  findInput.select();
+  // 에디터에 selection이 있으면 그 텍스트를 검색어로 prefill
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+    const selText = sel.toString();
+    if (selText && !selText.includes('\n')) {
+      findInput.value = selText;
+      findInput.select();
+    }
+  }
+  refreshFind();
+}
+
+function closeFind() {
+  if (!findState.active) return;
+  findBar.classList.add('hidden');
+  findState.active = false;
+  clearFindHighlights();
+  editor.focus();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey && !e.shiftKey && !e.altKey && !e.ctrlKey && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    openOrFocusFind();
+  } else if (e.key === 'Escape' && findState.active) {
+    e.preventDefault();
+    closeFind();
+  }
+});
+
+findInput.addEventListener('input', () => refreshFind());
+findInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (e.shiftKey) findPrev(); else findNext();
+  }
+});
+findReplace.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    replaceCurrent();
+  }
+});
+findCaseBtn.addEventListener('click', () => {
+  findState.caseSensitive = !findState.caseSensitive;
+  findCaseBtn.classList.toggle('active', findState.caseSensitive);
+  refreshFind();
+});
+findPrevBtn.addEventListener('click', findPrev);
+findNextBtn.addEventListener('click', findNext);
+findReplaceOneBtn.addEventListener('click', replaceCurrent);
+findReplaceAllBtn.addEventListener('click', replaceAll);
+findCloseBtn.addEventListener('click', closeFind);
+
+// 외부에서 setText로 문서가 갈리면 매치 캐시 무효화 (refreshFind는 활성 시에만)
+const _origSetText = window.appBridge.setText;
+window.appBridge.setText = function(text) {
+  _origSetText(text);
+  if (findState.active) refreshFind();
+};
+
 // 초기
 editor.innerHTML = '<div class="line"><br></div>';
