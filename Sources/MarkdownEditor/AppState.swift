@@ -11,6 +11,14 @@ final class AppState: ObservableObject {
     @Published var theme: Theme = .light
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
+    @Published var outline: [Heading] = []
+
+    struct Heading: Identifiable, Equatable {
+        let id = UUID()
+        let level: Int
+        let text: String
+        let lineIdx: Int
+    }
 
     private var saveDebounceTask: Task<Void, Never>?
     private var lastSaveFailureKey: String?
@@ -83,6 +91,7 @@ final class AppState: ObservableObject {
         documentText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         isDirty = false
         lastKnownMTime = currentMTime(of: url)
+        recomputeOutline()
         startFileWatcher(for: url)
     }
 
@@ -102,7 +111,36 @@ final class AppState: ObservableObject {
     func textChanged(_ newValue: String) {
         documentText = newValue
         isDirty = true
+        recomputeOutline()
         scheduleAutosave()
+    }
+
+    private func recomputeOutline() {
+        let lines = documentText.components(separatedBy: "\n")
+        var result: [Heading] = []
+        var inFence = false
+        for (idx, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                inFence.toggle()
+                continue
+            }
+            if inFence { continue }
+            // ATX 헤딩: 1~6개의 # 다음 공백, 텍스트
+            guard let match = line.range(of: #"^(#{1,6})\s+(.+?)\s*$"#, options: .regularExpression) else { continue }
+            let matched = String(line[match])
+            // 직접 파싱
+            var level = 0
+            var rest = ""
+            for ch in matched {
+                if ch == "#" && rest.isEmpty { level += 1 }
+                else if ch == " " { rest = String(matched.dropFirst(level)).trimmingCharacters(in: .whitespaces); break }
+            }
+            if level >= 1 && level <= 6 && !rest.isEmpty {
+                result.append(Heading(level: level, text: rest, lineIdx: idx))
+            }
+        }
+        if outline != result { outline = result }
     }
 
     private func scheduleAutosave() {
@@ -294,6 +332,7 @@ final class AppState: ObservableObject {
         documentText = text
         isDirty = false
         lastKnownMTime = diskMTime
+        recomputeOutline()
     }
 
     private func promptExternalChange(for url: URL, diskMTime: Date?) {

@@ -53,6 +53,15 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
                 self?.applyTheme(theme)
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .outlineNavigateRequested)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] note in
+                if let lineIdx = note.object as? Int {
+                    self?.scrollToLine(lineIdx)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func loadEditorPage() {
@@ -117,6 +126,11 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         let json = (try? JSONSerialization.data(withJSONObject: vars))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         web.evaluateJavaScript("window.appBridge.setTheme(\(json));", completionHandler: nil)
+    }
+
+    func scrollToLine(_ lineIdx: Int) {
+        guard ready else { return }
+        web.evaluateJavaScript("window.appBridge.scrollToLine(\(lineIdx));", completionHandler: nil)
     }
 
     private func jsString(_ s: String) -> String {

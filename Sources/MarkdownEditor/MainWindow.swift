@@ -84,6 +84,14 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
                 self?.toggleSidebar()
             }
             .store(in: &cancellables)
+
+        // outline popover 토글 (단축키 ⌘⇧O)
+        NotificationCenter.default.publisher(for: .toggleOutlinePopoverRequested)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.toggleOutlinePopover(nil)
+            }
+            .store(in: &cancellables)
     }
 
     @objc func toggleSidebar() {
@@ -95,11 +103,51 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     @objc func newFile() { state.newFile() }
     @objc func saveFile() { state.saveCurrent() }
 
-    @objc func cycleTheme(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String,
-           let t = Theme(rawValue: raw) {
-            state.setTheme(t)
+    @objc func toggleOutlinePopover(_ sender: Any?) {
+        if let pop = outlinePopover, pop.isShown {
+            pop.performClose(sender)
+            return
         }
+        let pop = NSPopover()
+        pop.behavior = .transient
+        pop.animates = true
+        let host = NSHostingController(rootView:
+            OutlinePopover(onSelect: { [weak self] in
+                self?.outlinePopover?.performClose(nil)
+            })
+            .environmentObject(state)
+        )
+        pop.contentViewController = host
+        outlinePopover = pop
+
+        // anchor: toolbar의 outline 버튼이 가장 자연스럽지만, 직접 잡기 어려우니
+        // window content 상단 우측 근처에 띄운다 (toolbar 영역).
+        let anchorView = anchorViewForOutlinePopover()
+        pop.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .minY)
+    }
+
+    private func anchorViewForOutlinePopover() -> NSView {
+        // toolbar의 outline 버튼을 찾아 anchor로 사용 (NSToolbar API는 view 직접 노출 X,
+        // window의 view 트리에서 itemIdentifier로 매칭되는 NSToolbarItemViewer를 찾는다).
+        if let win = window,
+           let containerView = win.contentView?.superview ?? win.contentView,
+           let found = findOutlineToolbarView(in: containerView) {
+            return found
+        }
+        // fallback: window 컨텐츠 우측 상단 근처
+        return window?.contentView ?? NSView()
+    }
+
+    private func findOutlineToolbarView(in root: NSView) -> NSView? {
+        // toolbar item view는 클래스 이름이 NSToolbarItemViewer이거나 NSToolbarButton 형태.
+        // accessibilityLabel/identifier가 "Outline"이면 채택.
+        let target = "Outline"
+        if let label = root.accessibilityLabel(), label == target { return root }
+        if let id = root.identifier?.rawValue, id == ItemID.outline.rawValue { return root }
+        for sub in root.subviews {
+            if let v = findOutlineToolbarView(in: sub) { return v }
+        }
+        return nil
     }
 
     // MARK: - NSToolbarDelegate
@@ -107,9 +155,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     private enum ItemID {
         static let sidebar = NSToolbarItem.Identifier("sidebar")
         static let openFolder = NSToolbarItem.Identifier("openFolder")
-        static let theme = NSToolbarItem.Identifier("theme")
+        static let outline = NSToolbarItem.Identifier("outline")
         static let title = NSToolbarItem.Identifier("title")
     }
+
+    private var outlinePopover: NSPopover?
+    private weak var outlineToolbarButton: NSButton?
 
     func toolbar(_ toolbar: NSToolbar,
                  itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
@@ -131,6 +182,15 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             item.action = #selector(openFolder)
             item.toolTip = "폴더 열기 (⌘O)"
             return item
+        case ItemID.outline:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.label = "Outline"
+            item.image = NSImage(systemSymbolName: "list.bullet.indent",
+                                 accessibilityDescription: "Outline")
+            item.target = self
+            item.action = #selector(toggleOutlinePopover(_:))
+            item.toolTip = "아웃라인 (⌘⇧O)"
+            return item
         case ItemID.title:
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
             let label = NSTextField(labelWithString: state.selectedFile?.deletingPathExtension().lastPathComponent ?? "Markdown Editor")
@@ -145,36 +205,22 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             item.view = label
             item.label = ""
             return item
-        case ItemID.theme:
-            let menu = NSMenu()
-            for t in Theme.allCases {
-                let mi = NSMenuItem(title: t.displayName, action: #selector(cycleTheme(_:)), keyEquivalent: "")
-                mi.representedObject = t.rawValue
-                mi.target = self
-                if state.theme == t { mi.state = .on }
-                menu.addItem(mi)
-            }
-            let item = NSMenuToolbarItem(itemIdentifier: itemIdentifier)
-            item.label = "Theme"
-            item.image = NSImage(systemSymbolName: "circle.lefthalf.filled", accessibilityDescription: "Theme")
-            item.menu = menu
-            item.showsIndicator = true
-            item.toolTip = "테마 (⌘⇧1~4)"
-            return item
         default:
             return nil
         }
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ItemID.sidebar, ItemID.openFolder, .flexibleSpace, ItemID.title, .flexibleSpace, ItemID.theme]
+        [ItemID.sidebar, ItemID.openFolder, .flexibleSpace, ItemID.title, .flexibleSpace, ItemID.outline]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ItemID.sidebar, ItemID.openFolder, ItemID.title, ItemID.theme, .flexibleSpace, .space]
+        [ItemID.sidebar, ItemID.openFolder, ItemID.outline, ItemID.title, .flexibleSpace, .space]
     }
 }
 
 extension Notification.Name {
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
+    static let outlineNavigateRequested = Notification.Name("outlineNavigateRequested")
+    static let toggleOutlinePopoverRequested = Notification.Name("toggleOutlinePopoverRequested")
 }

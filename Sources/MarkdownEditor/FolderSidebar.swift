@@ -17,6 +17,113 @@ struct FolderSidebar: View {
     }
 }
 
+// MARK: - Outline popover (toolbar + ⌘⇧O)
+
+struct OutlinePopover: View {
+    @EnvironmentObject var state: AppState
+    let onSelect: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "list.bullet.indent")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                Text("Outline")
+                    .font(.system(.caption, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(state.outline.count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.primary.opacity(0.06))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+
+            Divider().opacity(0.4)
+
+            if state.outline.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "number")
+                        .font(.system(size: 18, weight: .light))
+                        .foregroundStyle(.tertiary)
+                    Text("No headings")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 1) {
+                        ForEach(state.outline) { h in
+                            OutlineRow(heading: h, onSelect: onSelect)
+                        }
+                    }
+                    .padding(6)
+                }
+                .frame(maxHeight: 380)
+            }
+        }
+        .frame(width: 280)
+    }
+}
+
+private struct OutlineRow: View {
+    @EnvironmentObject var state: AppState
+    let heading: AppState.Heading
+    let onSelect: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("H\(heading.level)")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .frame(width: 18, alignment: .leading)
+                .opacity(0.7)
+            Text(heading.text)
+                .font(.system(size: fontSize(for: heading.level), weight: weight(for: heading.level)))
+                .foregroundStyle(heading.level <= 2 ? Color.primary : .secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .padding(.leading, CGFloat(heading.level - 1) * 10 + 6)
+        .padding(.trailing, 8)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .background(hovering ? Color.accentColor.opacity(0.18) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 5))
+        .onHover { hovering = $0 }
+        .onTapGesture {
+            NotificationCenter.default.post(name: .outlineNavigateRequested,
+                                            object: heading.lineIdx)
+            onSelect()
+        }
+    }
+
+    private func fontSize(for level: Int) -> CGFloat {
+        switch level {
+        case 1: return 13
+        case 2: return 12.5
+        default: return 12
+        }
+    }
+    private func weight(for level: Int) -> Font.Weight {
+        switch level {
+        case 1: return .semibold
+        case 2: return .medium
+        default: return .regular
+        }
+    }
+}
+
 private struct Header: View {
     @EnvironmentObject var state: AppState
     let name: String
@@ -79,7 +186,7 @@ private struct NodeBranch: View {
     let node: FileNode
     let depth: Int
 
-    @State private var expanded: Bool = true
+    @State private var expanded: Bool = false
     @State private var hovering = false
     @State private var isRenaming = false
     @State private var renameText = ""

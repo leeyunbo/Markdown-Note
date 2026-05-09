@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fileMenu.insertItem(openFolder, at: 0)
         }
 
-        // View 메뉴: Toggle Sidebar
+        // View 메뉴: Toggle Sidebar / Toggle Outline
         let viewIdx = mainMenu.items.firstIndex(where: { ($0.submenu?.title ?? $0.title).contains("View") })
         if let idx = viewIdx, let viewMenu = mainMenu.items[idx].submenu {
             let toggle = NSMenuItem(title: "Toggle Sidebar",
@@ -85,6 +85,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             toggle.keyEquivalentModifierMask = [.command, .shift]
             viewMenu.addItem(NSMenuItem.separator())
             viewMenu.addItem(toggle)
+
+            let outline = NSMenuItem(title: "Show Outline",
+                                     action: #selector(menuToggleOutline),
+                                     keyEquivalent: "o")
+            outline.target = self
+            outline.keyEquivalentModifierMask = [.command, .shift]
+            viewMenu.addItem(outline)
         }
 
         // Theme 메뉴 (View 다음에 삽입)
@@ -161,6 +168,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func menuSave() { state.saveCurrent() }
     @objc func menuToggleSidebar() {
         NotificationCenter.default.post(name: .toggleSidebarRequested, object: nil)
+    }
+    @objc func menuToggleOutline() {
+        NotificationCenter.default.post(name: .toggleOutlinePopoverRequested, object: nil)
     }
     @objc func menuSetTheme(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String,

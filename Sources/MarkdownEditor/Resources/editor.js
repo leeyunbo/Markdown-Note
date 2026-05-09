@@ -550,6 +550,60 @@ window.appBridge = {
   setTheme: function(vars) {
     Object.entries(vars).forEach(([k, v]) =>
       document.documentElement.style.setProperty('--' + k, v));
+  },
+  getOutline: function() {
+    // textContent 기반으로 ATX 헤딩 추출. fence 안 라인은 제외.
+    const out = [];
+    let inFence = false;
+    let lineIdx = 0;
+    for (const child of editor.children) {
+      if (!child.classList || !child.classList.contains('line')) { lineIdx++; continue; }
+      if (child.classList.contains('table-block')) {
+        const raw = decodeRaw(child.dataset.raw || '');
+        lineIdx += raw.split('\n').length;
+        continue;
+      }
+      const text = child.textContent || '';
+      if (isFenceMarker(text)) { inFence = !inFence; lineIdx++; continue; }
+      if (!inFence) {
+        const m = text.match(/^(#{1,6})\s+(.+?)\s*$/);
+        if (m) out.push({ level: m[1].length, text: m[2], lineIdx });
+      }
+      lineIdx++;
+    }
+    return out;
+  },
+  scrollToLine: function(targetIdx) {
+    let lineIdx = 0;
+    for (const child of editor.children) {
+      if (!child.classList || !child.classList.contains('line')) { lineIdx++; continue; }
+      if (child.classList.contains('table-block')) {
+        const raw = decodeRaw(child.dataset.raw || '');
+        const span = raw.split('\n').length;
+        if (targetIdx < lineIdx + span) {
+          child.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          return true;
+        }
+        lineIdx += span;
+        continue;
+      }
+      if (lineIdx === targetIdx) {
+        child.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        // 커서를 해당 라인 시작에 두기
+        const sel = window.getSelection();
+        const r = document.createRange();
+        const target = child.firstChild || child;
+        try {
+          r.setStart(target, 0);
+          r.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(r);
+        } catch (_) {}
+        return true;
+      }
+      lineIdx++;
+    }
+    return false;
   }
 };
 
