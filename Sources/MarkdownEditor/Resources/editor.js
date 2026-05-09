@@ -480,7 +480,8 @@ window.appBridge = {
   },
 };
 
-// 이미지 drop / paste -> Swift로 file 전달
+// 이미지 drop / paste -> Swift로 file 전달.
+// capture phase로 등록하여 CodeMirror 내부 contenteditable이 처리하기 전에 가로챈다.
 const editorDom = view.dom;
 
 function postImageToSwift(file) {
@@ -496,10 +497,20 @@ function postImageToSwift(file) {
   reader.readAsDataURL(file);
 }
 
+editorDom.addEventListener("dragover", (e) => {
+  if (e.dataTransfer && e.dataTransfer.types &&
+      Array.from(e.dataTransfer.types).some(t => t === "Files" || t === "application/x-moz-file")) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+}, true);
+
 editorDom.addEventListener("drop", (e) => {
-  if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+  if (!e.dataTransfer) return;
+  const files = e.dataTransfer.files;
+  if (!files || files.length === 0) return;
   let handled = false;
-  for (const f of e.dataTransfer.files) {
+  for (const f of files) {
     if (f.type && f.type.startsWith("image/")) {
       postImageToSwift(f);
       handled = true;
@@ -509,7 +520,7 @@ editorDom.addEventListener("drop", (e) => {
     e.preventDefault();
     e.stopPropagation();
   }
-});
+}, true);
 
 editorDom.addEventListener("paste", (e) => {
   if (!e.clipboardData) return;
@@ -518,9 +529,10 @@ editorDom.addEventListener("paste", (e) => {
       const file = item.getAsFile();
       if (file) {
         e.preventDefault();
+        e.stopPropagation();
         postImageToSwift(file);
         return;
       }
     }
   }
-});
+}, true);
