@@ -28,6 +28,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             window.setFrameAutosaveName(name)
         }
         super.init(window: window)
+        // shouldCascadeWindows = true(default)면 showWindow 시점에 cascade가 saved frame을 옮긴다.
+        shouldCascadeWindows = false
         setup()
         // window.contentViewController = splitVC가 splitVC.view의 fittingSize로 frame을 reset하므로
         // setup() 후 saved frame을 다시 강제 적용한다.
