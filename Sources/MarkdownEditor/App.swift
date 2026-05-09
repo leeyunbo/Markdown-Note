@@ -37,12 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "NSAutomaticTextCompletionEnabled": false,
         ])
 
-        let controller = MainWindowController(state: state)
+        let controller = MainWindowController(state: state, frameAutosaveName: "MainEditorWindow")
         controller.window?.tabbingMode = .preferred
         controller.window?.tabbingIdentifier = "MarkdownEditorMain"
-        // 메인 윈도우 프레임은 autosave로 복원. 추가 탭/윈도우는 같은 name 쓰면
-        // 충돌하므로 main에만.
-        controller.window?.setFrameAutosaveName("MainEditorWindow")
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

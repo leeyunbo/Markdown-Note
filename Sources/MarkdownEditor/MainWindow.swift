@@ -11,7 +11,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
 
     private weak var titleLabel: NSTextField?
 
-    init(state: AppState) {
+    init(state: AppState, frameAutosaveName: String? = nil) {
         self.state = state
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
@@ -22,9 +22,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.titleVisibility = .hidden
         window.title = "Markdown Editor"
         window.minSize = NSSize(width: 720, height: 480)
-        // setFrameAutosaveName은 첫 윈도우(메인)에만 부여한다.
-        // 모든 탭이 같은 name을 쓰면 마지막에 닫힌 윈도우의 frame이 다른 윈도우를 덮어쓰는
-        // 문제가 있어 AppDelegate가 메인 한 곳에서만 호출.
+        // autosave name은 default content rect를 적용한 직후, 화면에 표시되기 전에 set.
+        // 그래야 saved frame이 default를 덮어쓰고 화면 표시는 saved frame 그대로 나온다.
+        if let name = frameAutosaveName {
+            window.setFrameAutosaveName(name)
+        }
         super.init(window: window)
         setup()
     }
