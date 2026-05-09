@@ -361,7 +361,7 @@ function buildImageDecorations(state) {
     const m = line.text.match(re);
     if (!m) continue;
     const { alt, width, height } = parseAltAndSize(m[1]);
-    const src = m[2].split(/\s+/)[0];  // (path "title") 형태 무시
+    const src = m[2].split(/\s+/)[0];
     const widget = Decoration.widget({
       widget: new ImageWidget(alt, src, width, height),
       side: 1,
