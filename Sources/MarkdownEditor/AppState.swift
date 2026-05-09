@@ -202,4 +202,10 @@ final class AppState: ObservableObject {
     func revealInFinder(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    // MARK: - Lifecycle
+
+    func releaseRootFolderAccess() {
+        rootFolder?.stopAccessingSecurityScopedResource()
+    }
 }

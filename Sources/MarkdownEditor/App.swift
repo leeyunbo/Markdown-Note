@@ -28,6 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        state.flushPendingSave()
+        state.releaseRootFolderAccess()
+    }
+
     // MARK: - Menubar
 
     private func installMenuBarItems() {
