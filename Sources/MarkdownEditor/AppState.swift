@@ -328,6 +328,9 @@ final class AppState: ObservableObject {
         // 경로 구분자 제거
         name = name.replacingOccurrences(of: "/", with: "_")
                    .replacingOccurrences(of: "\\", with: "_")
+        // macOS 파일 시스템은 한글을 NFD(자모 분리)로 돌려주므로 NFC(글자 단위)로 정규화한다.
+        // 그래야 percent-encode 시 길이가 절반 이하로 줄어든다.
+        name = name.precomposedStringWithCanonicalMapping
         // 확장자 없으면 png 추가
         if (name as NSString).pathExtension.isEmpty {
             name += ".png"
