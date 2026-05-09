@@ -33,7 +33,10 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
 
-        web = WKWebView(frame: .zero, configuration: config)
+        let dragWeb = DragForwardingWebView(frame: .zero, configuration: config)
+        dragWeb.controller = self
+        dragWeb.registerForDraggedTypes([.fileURL])  // file URL drop 받기 위해 명시적으로
+        web = dragWeb
         web.setValue(false, forKey: "drawsBackground")
         web.navigationDelegate = self
         web.allowsBackForwardNavigationGestures = false
@@ -289,40 +292,60 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     }
 }
 
-// 외부 (Finder 등) 이미지 파일 드래그를 받기 위한 NSView. WKWebView가 자식이지만
-// file URL drag는 자체 처리하지 않아 부모인 이 뷰가 NSDraggingDestination으로 받는다.
-final class ImageDropContainerView: NSView {
+private let editorImageExts: Set<String> = [
+    "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "svg",
+]
+
+private func imageURLs(from info: NSDraggingInfo) -> [URL] {
+    guard let urls = info.draggingPasteboard.readObjects(
+            forClasses: [NSURL.self], options: nil) as? [URL] else { return [] }
+    return urls.filter { editorImageExts.contains($0.pathExtension.lowercased()) }
+}
+
+// WKWebView 위에서 drop이 일어나면 hit test상 우리 container까지 안 가므로
+// WKWebView 자체가 file URL drop을 받아 controller에 위임.
+final class DragForwardingWebView: WKWebView {
     weak var controller: EditorViewController?
-    private let imageExts: Set<String> = [
-        "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "svg",
-    ]
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        return hasImageURLs(sender) ? .copy : []
+        if !imageURLs(from: sender).isEmpty { return .copy }
+        return super.draggingEntered(sender)
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        return hasImageURLs(sender) ? .copy : []
+        if !imageURLs(from: sender).isEmpty { return .copy }
+        return super.draggingUpdated(sender)
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let urls = sender.draggingPasteboard.readObjects(
-                forClasses: [NSURL.self], options: nil) as? [URL] else { return false }
-        var handled = false
-        for url in urls {
-            let ext = url.pathExtension.lowercased()
-            guard imageExts.contains(ext) else { continue }
-            guard let data = try? Data(contentsOf: url) else { continue }
-            controller?.acceptNativeImageDrop(data: data, name: url.lastPathComponent)
-            handled = true
+        let urls = imageURLs(from: sender)
+        if !urls.isEmpty, let ctrl = controller {
+            for url in urls {
+                guard let data = try? Data(contentsOf: url) else { continue }
+                ctrl.acceptNativeImageDrop(data: data, name: url.lastPathComponent)
+            }
+            return true
         }
-        return handled
+        return super.performDragOperation(sender)
+    }
+}
+
+// 컨테이너는 fallback (WKWebView 외부 영역에 drop 떨어지는 경우 — 거의 없지만 보험)
+final class ImageDropContainerView: NSView {
+    weak var controller: EditorViewController?
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        return imageURLs(from: sender).isEmpty ? [] : .copy
     }
 
-    private func hasImageURLs(_ sender: NSDraggingInfo) -> Bool {
-        guard let urls = sender.draggingPasteboard.readObjects(
-                forClasses: [NSURL.self], options: nil) as? [URL] else { return false }
-        return urls.contains { imageExts.contains($0.pathExtension.lowercased()) }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = imageURLs(from: sender)
+        guard !urls.isEmpty, let ctrl = controller else { return false }
+        for url in urls {
+            guard let data = try? Data(contentsOf: url) else { continue }
+            ctrl.acceptNativeImageDrop(data: data, name: url.lastPathComponent)
+        }
+        return true
     }
 }
 
