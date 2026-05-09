@@ -176,7 +176,7 @@ const listMarkPlugin = ViewPlugin.fromClass(class {
         },
       });
     }
-    return Decoration.set(builder);
+    return Decoration.set(builder, true);
   }
 }, { decorations: v => v.decorations });
 
@@ -205,7 +205,7 @@ const imagePlugin = ViewPlugin.fromClass(class {
       });
       builder.push(widget.range(line.to));
     }
-    return Decoration.set(builder);
+    return Decoration.set(builder, true);
   }
 }, { decorations: v => v.decorations });
 
@@ -382,6 +382,11 @@ function makeExtensions() {
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     search({ top: true }),
     EditorView.lineWrapping,
+    EditorView.contentAttributes.of({
+      spellcheck: "false",
+      autocorrect: "off",
+      autocapitalize: "off",
+    }),
     imagePlugin,
     listMarkPlugin,
     codeBlockLinePlugin,
