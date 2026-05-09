@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 CONFIG="${1:-release}"
-APP_NAME="MarkdownEditor"
+APP_NAME="Markdown Note"
 BUNDLE_ID="com.daou.markdowneditor"
 VERSION="1.0.0"
 
@@ -62,7 +62,7 @@ cat > "$APP_ROOT/Contents/Info.plist" <<EOF
     <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>$APP_NAME</string>
-    <key>CFBundleDisplayName</key><string>Markdown Editor</string>
+    <key>CFBundleDisplayName</key><string>Markdown Note</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundleVersion</key><string>$VERSION</string>

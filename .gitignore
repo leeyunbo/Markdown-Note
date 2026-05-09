@@ -7,3 +7,6 @@ dist/
 *.app
 .claude/settings.local.json
 node_modules/
+# 브라우저 "Save Page Complete" 임시 자료
+markdown editor.html
+markdown editor_files/

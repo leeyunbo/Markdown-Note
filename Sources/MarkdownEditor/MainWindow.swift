@@ -20,7 +20,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             defer: false)
         window.titlebarAppearsTransparent = false
         window.titleVisibility = .hidden
-        window.title = "Markdown Editor"
+        window.title = "Markdown Note"
         window.minSize = NSSize(width: 720, height: 480)
         // autosave name은 default content rect를 적용한 직후, 화면에 표시되기 전에 set.
         // 그래야 saved frame이 default를 덮어쓰고 화면 표시는 saved frame 그대로 나온다.
@@ -77,7 +77,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         state.$selectedFile
             .receive(on: RunLoop.main)
             .sink { [weak self] url in
-                let name = url?.deletingPathExtension().lastPathComponent ?? "Markdown Editor"
+                let name = url?.deletingPathExtension().lastPathComponent ?? "Markdown Note"
                 self?.window?.title = name
                 self?.titleLabel?.stringValue = name
             }
@@ -217,7 +217,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             return item
         case ItemID.title:
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            let label = NSTextField(labelWithString: state.selectedFile?.deletingPathExtension().lastPathComponent ?? "Markdown Editor")
+            let label = NSTextField(labelWithString: state.selectedFile?.deletingPathExtension().lastPathComponent ?? "Markdown Note")
             label.font = .systemFont(ofSize: 13, weight: .medium)
             label.textColor = .labelColor
             label.alignment = .center

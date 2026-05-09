@@ -1,6 +1,6 @@
-# Markdown Editor
+# Markdown Note
 
-심플하고 Mac스러운 마크다운 에디터. Notion/Obsidian Live Preview 패턴 — 작성 중 라인은 raw markdown, 떠나는 즉시 styled.
+심플하고 Mac스러운 마크다운 에디터. CodeMirror 6 기반, 폴더 단위 노트 관리.
 
 ## 특징
 
@@ -15,9 +15,9 @@
 
 ```bash
 ./build.sh release
-open build/MarkdownEditor.app
+open build/"Markdown Note.app"
 # 설치
-cp -R build/MarkdownEditor.app /Applications/
+cp -R build/"Markdown Note.app" /Applications/
 ```
 
 ## 키보드
