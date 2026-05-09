@@ -352,34 +352,37 @@ const listMarkPlugin = ViewPlugin.fromClass(class {
   }
 }, { decorations: v => v.decorations });
 
-const imagePlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    const folderChanged = update.transactions.some(t =>
-      t.effects.some(e => e.is(docFolderEffect)));
-    if (update.docChanged || update.viewportChanged || folderChanged) {
-      this.decorations = this.build(update.view);
-    }
+// Block decoration은 CodeMirror 6 룰상 ViewPlugin이 아니라 StateField에서만 만들 수 있다.
+function buildImageDecorations(state) {
+  const builder = [];
+  const re = /^\s*!\[([^\]]*)\]\(([^)\s]+(?:\s+"[^"]*")?)\)\s*$/;
+  for (let i = 1; i <= state.doc.lines; i++) {
+    const line = state.doc.line(i);
+    const m = line.text.match(re);
+    if (!m) continue;
+    const { alt, width, height } = parseAltAndSize(m[1]);
+    const src = m[2].split(/\s+/)[0];  // (path "title") 형태 무시
+    const widget = Decoration.widget({
+      widget: new ImageWidget(alt, src, width, height),
+      side: 1,
+      block: true,
+    });
+    builder.push(widget.range(line.to));
   }
-  build(view) {
-    const builder = [];
-    const re = /^\s*!\[([^\]]*)\]\(([^)\s]+(?:\s+"[^"]*")?)\)\s*$/;
-    for (let i = 1; i <= view.state.doc.lines; i++) {
-      const line = view.state.doc.line(i);
-      const m = line.text.match(re);
-      if (!m) continue;
-      const { alt, width, height } = parseAltAndSize(m[1]);
-      const src = m[2].split(/\s+/)[0];  // (path "title") 형태 무시
-      const widget = Decoration.widget({
-        widget: new ImageWidget(alt, src, width, height),
-        side: 1,
-        block: true,
-      });
-      builder.push(widget.range(line.to));
+  return Decoration.set(builder, true);
+}
+
+const imageField = StateField.define({
+  create(state) { return buildImageDecorations(state); },
+  update(value, tr) {
+    if (tr.docChanged) return buildImageDecorations(tr.state);
+    for (const e of tr.effects) {
+      if (e.is(docFolderEffect)) return buildImageDecorations(tr.state);
     }
-    return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
+    return value;
+  },
+  provide: f => EditorView.decorations.from(f),
+});
 
 // ----- 마크다운 단축키 (⌘B / ⌘I / ⌘K) -----
 
@@ -559,7 +562,7 @@ function makeExtensions() {
       autocorrect: "off",
       autocapitalize: "off",
     }),
-    imagePlugin,
+    imageField,
     listMarkPlugin,
     codeBlockLinePlugin,
     tableLinePlugin,
