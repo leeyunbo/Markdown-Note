@@ -46,7 +46,8 @@ const mdHighlight = HighlightStyle.define([
   // 마크다운 마커 (#, **, _, > 등)
   { tag: tags.meta, color: "var(--marker)" },
   { tag: tags.contentSeparator, color: "var(--marker)" },
-  { tag: tags.list, color: "var(--list)", fontWeight: "600" },
+  // tags.list는 lang-markdown에서 BulletList/OrderedList 전체에 부여되어 자식 글자
+  // 색까지 영향을 주므로 highlight style에선 안 잡고, ListMark만 별도 ViewPlugin으로 색칠.
   { tag: tags.quote, color: "var(--secondary)", fontStyle: "italic" },
 
   // 코드 syntax 안 token들
@@ -112,6 +113,72 @@ class ImageWidget extends WidgetType {
 
 // docFolderURL 변경 시 image widget을 다시 빌드시키기 위한 effect.
 const docFolderEffect = StateEffect.define();
+
+// 코드 펜스 안 라인에 cm-codeblock-line 클래스 부여 (배경 + monospace).
+// 첫/마지막 라인엔 둥근 모서리용 클래스도 추가.
+const codeBlockLinePlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.build(update.view);
+    }
+  }
+  build(view) {
+    const builder = [];
+    const tree = syntaxTree(view.state);
+    const doc = view.state.doc;
+    // FencedCode 노드 찾아서 그 영역의 라인들에 line decoration
+    tree.iterate({
+      enter(node) {
+        if (node.name !== "FencedCode") return;
+        const startLine = doc.lineAt(node.from).number;
+        const endLine = doc.lineAt(node.to).number;
+        for (let n = startLine; n <= endLine; n++) {
+          const line = doc.line(n);
+          const classes = ["cm-codeblock-line"];
+          if (n === startLine) classes.push("cm-codeblock-first");
+          if (n === endLine) classes.push("cm-codeblock-last");
+          builder.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
+        }
+      },
+    });
+    return Decoration.set(builder, true);
+  }
+}, { decorations: v => v.decorations });
+
+// ListMark만 골라서 색 + nested 깊이별 cycle. lang-markdown의 ListMark 노드를 찾아
+// BulletList/OrderedList 조상 갯수로 깊이 계산.
+const listMarkPlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.build(update.view);
+    }
+  }
+  build(view) {
+    const builder = [];
+    const tree = syntaxTree(view.state);
+    for (const { from, to } of view.visibleRanges) {
+      tree.iterate({
+        from, to,
+        enter(node) {
+          if (node.name !== "ListMark") return;
+          let depth = 0;
+          let p = node.node.parent;
+          while (p) {
+            if (p.name === "BulletList" || p.name === "OrderedList") depth++;
+            p = p.parent;
+          }
+          depth = Math.min(Math.max(depth - 1, 0), 4);
+          builder.push(Decoration.mark({
+            class: `md-list-mark md-list-depth-${depth}`,
+          }).range(node.from, node.to));
+        },
+      });
+    }
+    return Decoration.set(builder);
+  }
+}, { decorations: v => v.decorations });
 
 const imagePlugin = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = this.build(view); }
@@ -316,6 +383,8 @@ function makeExtensions() {
     search({ top: true }),
     EditorView.lineWrapping,
     imagePlugin,
+    listMarkPlugin,
+    codeBlockLinePlugin,
     themeCompartment.of(baseTheme),
     keymap.of([
       { key: "Enter", run: handleEnter },
@@ -343,7 +412,19 @@ window.appBridge = {
     if (text === lastAppliedText) return;
     isApplyingExternal = true;
     try {
-      // setState로 새 state 생성 → history도 reset (이전 파일의 ⌘Z 이력 안 따라옴)
+      // 일반 텍스트 sync — dispatch만 (history는 보존, 사용자 입력 round-trip 방지)
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+      });
+      lastAppliedText = text;
+    } finally {
+      setTimeout(() => { isApplyingExternal = false; }, 0);
+    }
+  },
+  resetEditor(text) {
+    // 새 파일 열기 — state 통째로 재생성 → history reset (이전 파일의 ⌘Z 안 따라옴)
+    isApplyingExternal = true;
+    try {
       view.setState(EditorState.create({ doc: text, extensions: makeExtensions() }));
       lastAppliedText = text;
     } finally {

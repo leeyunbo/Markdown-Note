@@ -13,6 +13,8 @@ final class AppState: ObservableObject {
     @Published var debugLog: String = "ready"
     @Published var outline: [Heading] = []
     @Published var previewImageURL: URL?
+    /// 새 파일 열기 시 emit. 에디터가 history/state 를 reset 하기 위한 신호.
+    @Published var documentResetTick: Int = 0
 
     struct Heading: Identifiable, Equatable {
         let id = UUID()
@@ -95,6 +97,7 @@ final class AppState: ObservableObject {
         lastKnownMTime = currentMTime(of: url)
         recomputeOutline()
         startFileWatcher(for: url)
+        documentResetTick &+= 1  // 에디터 history reset
     }
 
     func newFile() {

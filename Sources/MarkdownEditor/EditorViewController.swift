@@ -76,6 +76,14 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             }
             .store(in: &cancellables)
 
+        state.$documentResetTick
+            .dropFirst()  // 초기값(0)은 무시
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.resetEditor(text: self?.state.documentText ?? "")
+            }
+            .store(in: &cancellables)
+
         state.$theme
             .receive(on: RunLoop.main)
             .sink { [weak self] theme in
@@ -229,6 +237,12 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     func scrollToLine(_ lineIdx: Int) {
         guard ready else { return }
         web.evaluateJavaScript("window.appBridge.scrollToLine(\(lineIdx));", completionHandler: nil)
+    }
+
+    private func resetEditor(text: String) {
+        guard ready else { return }
+        let payload = jsString(text)
+        web.evaluateJavaScript("window.appBridge.resetEditor(\(payload));", completionHandler: nil)
     }
 
     private func applyDocFolder(for url: URL?) {

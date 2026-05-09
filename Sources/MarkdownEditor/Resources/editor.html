@@ -65,6 +65,43 @@ body { overflow: hidden; height: 100vh; }
 .cm-editor .cm-activeLine { background: transparent; }
 .cm-editor .cm-gutters { display: none; }
 
+/* List marker — depth별 색 cycle. ListMark만 색칠, 글자는 영향 없음 */
+.cm-content .md-list-mark { font-weight: 600; }
+.cm-content .md-list-depth-0 { color: var(--list); }
+.cm-content .md-list-depth-1 { color: #b14ad6; }
+.cm-content .md-list-depth-2 { color: #c69829; }
+.cm-content .md-list-depth-3 { color: #c14b4b; }
+.cm-content .md-list-depth-4 { color: #4a8fd6; }
+
+/* Fenced code block — lang-markdown의 FencedCode/CodeText에 배경 + monospace */
+.cm-content .tok-T-fenced-code,  /* placeholder, 실제 클래스는 아래 */
+.cm-line:has(.tok-FencedCode),
+.cm-line:has(.cm-codeblock-line),
+.cm-line.cm-codeblock-line {
+  background: var(--code-bg);
+}
+/* lang-markdown은 CodeText / CodeMark 노드 단위. 노드별 inline style이 들어가지만
+   라인 배경은 따로 안 주므로 ViewPlugin에서 라인 데코레이션을 부여한다. */
+.cm-content .cm-codeblock-line {
+  background: var(--code-bg);
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+/* 코드블록 라인의 첫/마지막은 부드럽게 */
+.cm-content .cm-codeblock-line.cm-codeblock-first {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  margin-top: 2px;
+}
+.cm-content .cm-codeblock-line.cm-codeblock-last {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  margin-bottom: 2px;
+}
+
 /* Search panel — CodeMirror 기본을 우리 톤으로 */
 .cm-panels.cm-panels-top {
   border-bottom: 1px solid var(--marker);
