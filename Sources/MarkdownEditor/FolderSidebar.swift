@@ -205,6 +205,11 @@ private struct NodeBranch: View {
                 .contentShape(Rectangle())
                 .background(rowBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    // 폴더 자체에 drop 시 row 테두리 강조 (자식 영역과 구분)
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(dropTargeted ? Color.accentColor : Color.clear, lineWidth: 1)
+                )
                 .onHover { hovering = $0 }
                 .onTapGesture {
                     if isRenaming { return }
@@ -282,6 +287,13 @@ private struct NodeBranch: View {
                 }
             }
         }
+        // drop hover 시 폴더 + 자식 묶음 영역 전체에 옅은 highlight
+        .background(
+            (node.isDirectory && dropTargeted)
+                ? Color.accentColor.opacity(0.08)
+                : Color.clear
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     @ViewBuilder

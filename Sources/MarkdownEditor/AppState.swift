@@ -84,7 +84,14 @@ final class AppState: ObservableObject {
 
     func refreshTree() {
         guard let root = rootFolder else { fileTree = []; return }
-        fileTree = FileNode.scan(root).children ?? []
+        // 큰 폴더 / iCloud Drive scan이 main thread block을 일으켜 drag/drop 후
+        // 멈칫 보이는 케이스가 있어 background에서 스캔 후 main에서만 publish.
+        Task.detached(priority: .userInitiated) {
+            let result = FileNode.scan(root).children ?? []
+            await MainActor.run { [weak self] in
+                self?.fileTree = result
+            }
+        }
     }
 
     // MARK: - File ops
