@@ -573,7 +573,43 @@ editor.addEventListener('focus', () => {
   handleLineFocusChange();
 });
 
-// Enter 키: contenteditable의 자동 동작 대신 우리가 직접 라인 추가
+// 리스트 마커 검출. 매치되면 prefix/isEmpty/nextPrefix 반환.
+// - "- foo"   → prefix "- ",     isEmpty false, nextPrefix "- "
+// - "- "      → prefix "- ",     isEmpty true,  nextPrefix "- "
+// - "1. foo"  → prefix "1. ",    isEmpty false, nextPrefix "2. "
+// - "- [ ] x" → prefix "- [ ] ", isEmpty false, nextPrefix "- [ ] "
+function detectListPrefix(line) {
+  // 체크박스 (unordered + [ ]/[x])
+  let m = line.match(/^(\s*)([-*+])\s+\[([ xX])\]\s+(.*)$/);
+  if (m) {
+    const indent = m[1], mk = m[2], content = m[4];
+    return {
+      prefix: `${indent}${mk} [${m[3]}] `,
+      isEmpty: content === '',
+      nextPrefix: `${indent}${mk} [ ] `  // 다음 줄은 항상 빈 체크박스
+    };
+  }
+  // unordered
+  m = line.match(/^(\s*)([-*+])\s+(.*)$/);
+  if (m) {
+    const indent = m[1], mk = m[2], content = m[3];
+    const prefix = `${indent}${mk} `;
+    return { prefix, isEmpty: content === '', nextPrefix: prefix };
+  }
+  // ordered
+  m = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+  if (m) {
+    const indent = m[1], num = parseInt(m[2], 10), content = m[3];
+    return {
+      prefix: `${indent}${m[2]}. `,
+      isEmpty: content === '',
+      nextPrefix: `${indent}${num + 1}. `
+    };
+  }
+  return null;
+}
+
+// Enter 키: contenteditable의 자동 동작 대신 우리가 직접 라인 추가 + 리스트 컨티뉴
 editor.addEventListener('keydown', (e) => {
   if ((e.key === 'Enter' || e.key === 'Return') && !e.shiftKey && !composing) {
     const cur = getCurrentLineDiv();
@@ -592,20 +628,35 @@ editor.addEventListener('keydown', (e) => {
     const before = fullText.slice(0, offset);
     const after = fullText.slice(offset);
 
+    const listInfo = detectListPrefix(fullText);
+
+    // 빈 리스트 항목 + 라인 끝 Enter → 마커 제거 (리스트 종료, 새 라인 안 만듦)
+    if (listInfo && listInfo.isEmpty && offset === fullText.length) {
+      cur.className = 'line';
+      cur.innerHTML = '<br>';
+      ensureCaretSafe(cur);
+      lastLineDiv = cur;
+      notifySwift();
+      return;
+    }
+
+    // 새 라인 prefix: 리스트 라인 안에서 Enter면 nextPrefix 자동 삽입
+    const newPrefix = listInfo ? listInfo.nextPrefix : '';
+
     // 떠나는 현재 라인 → styled
     cur.className = 'line';
     cur.textContent = before;
     styleLine(cur);
 
-    // 새 라인 — 항상 textnode를 두어 cursor가 안전하게 들어가도록
+    // 새 라인
     const newLine = document.createElement('div');
     newLine.className = 'line';
-    const tn = document.createTextNode(after);
+    const tn = document.createTextNode(newPrefix + after);
     newLine.appendChild(tn);
     cur.parentNode.insertBefore(newLine, cur.nextSibling);
 
     const r = document.createRange();
-    r.setStart(tn, 0);
+    r.setStart(tn, newPrefix.length);
     r.collapse(true);
     sel.removeAllRanges();
     sel.addRange(r);
