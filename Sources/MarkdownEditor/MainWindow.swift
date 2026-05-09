@@ -106,6 +106,14 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     @objc func newFile() { state.newFile() }
     @objc func saveFile() { state.saveCurrent() }
 
+    /// macOS native ⌘T가 NSWindow 자동 tab 기능을 통해 이 메서드로 dispatch된다.
+    /// AppDelegate에 위임해서 새 탭 생성 (별도 AppState + 같은 tabbing identifier).
+    @IBAction override func newWindowForTab(_ sender: Any?) {
+        if let app = NSApp.delegate as? AppDelegate {
+            app.menuNewTab()
+        }
+    }
+
     @objc func toggleOutlinePopover(_ sender: Any?) {
         if let pop = outlinePopover, pop.isShown {
             pop.performClose(sender)
