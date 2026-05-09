@@ -1,153 +1,117 @@
 # Markdown Note
 
-> 심플하고 Mac스러운 마크다운 에디터.
-> 폴더 단위 노트 + 라이브 프리뷰 + 인라인 TOC + 발표 모드.
+> 폴더 안의 마크다운 노트를 가장 자연스럽게 쓰고 보는 macOS 앱.
 
-native macOS 앱 — AppKit + SwiftUI + WKWebView + CodeMirror 6 하이브리드. Notion / Obsidian / iA Writer 계열의 라이브 프리뷰 패턴을 차용하되, **개발자 친화 / Xcode 밀도** 톤을 따른다.
-
----
-
-## ✨ Features
-
-#### 에디터
-- **라이브 프리뷰** — `**bold**` 입력 즉시 굵게, 마커는 흐리게(opacity 0.35) 유지
-- **마크다운 풀 지원** — 헤딩 1~6, 리스트, 체크박스, 인용, 코드 펜스, 링크, 이미지, 표, HR, 인라인 HTML
-- **CodeMirror 6** — `history()`, `bracketMatching()`, `indentOnInput()`, `search()` 등 표준 확장 활용
-- **find & replace** — ⌘F (CodeMirror search panel)
-- **line-kind gutter** — 좌측에 `h1`/`h2`/`│`/`•`/`☐`/`✓` 마커로 라인 종류 표시
-- **이미지 드래그 & 드롭** — 폴더 자동 생성(`attachments/`) + 마크다운 링크 자동 삽입 + 인라인 미리보기
-- **NFC 정규화** — macOS 한글 파일명(NFD) 자동 NFC 변환
-
-#### 사이드바
-- **폴더 단위 트리** — 임의 로컬 폴더 / iCloud Drive 열기, 보안 스코프 북마크 자동 복원
-- **멀티 선택** — ⌘+클릭 / ⇧+클릭 + 일괄 삭제
-- **드래그 앤 드롭** — 폴더로 파일 이동
-- **인라인 rename** — 더블클릭
-
-#### 우측 인라인 TOC (`On this page`)
-- 헤딩(H1~H3) 추출 → 우측 200px sticky pane
-- 커서 위치 따라 active 행 자동 추적
-- 클릭 시 해당 헤딩으로 점프
-- 헤딩 0개면 자동 collapse
-
-#### 윈도우 / 멀티탭
-- **macOS native window tabbing** — ⌘T로 새 탭 (각 탭 독립 AppState)
-- **frame autosave** — 다음 실행 시 위치/크기 복원, 다중 모니터 OK
-- **사이드바 토글** — ⌘⇧D
-
-#### 테마 & 폰트
-- **4종 테마** — Light / Dark / Sepia / Paper (⌘⇧1~4)
-- **5종 폰트** — System / Pretendard / JetBrains Mono / SF Mono / iA Writer Quattro (Format > Font)
-- 코드 블록은 항상 JetBrains Mono 고정
-
-#### 발표 모드
-- **⌘⇧P** — 현재 문서를 별도 윈도우 + 풀스크린으로 띄움
-- marked.js로 깔끔한 HTML 렌더 + highlight.js 코드 syntax
-- **⌘+휠**로 확대/축소, **trackpad pinch** 지원
-- **ESC**로 종료 (풀스크린 → 빠진 후 윈도우 close까지 자동)
+직관적인 라이브 프리뷰, 폴더 단위 노트 관리, 우측 인라인 목차, 즉석 발표 모드까지 — 글 쓰는 동안 흐름이 끊기지 않도록 설계됐다.
 
 ---
 
-## 🛠 Build
+## ✨ 무엇을 할 수 있나
 
-```bash
-# 의존성 (한 번만)
-npm install
+### 글쓰기
 
-# 디버그 빌드 + 실행
-./build.sh
-open "build/Markdown Note.app"
+- **라이브 프리뷰** — `**굵게**`를 입력하는 순간 굵게, `# 제목`은 큰 헤딩으로 즉시 변환. 마크다운 마커는 흐려져 가독성을 해치지 않는다
+- **풀 마크다운 지원** — 헤딩 1~6 / 리스트 / 체크박스 / 인용문 / 코드 펜스 / 링크 / 이미지 / 표 / 수평선
+- **이미지 드래그 & 드롭** — 사진을 에디터로 끌어다 놓으면 `attachments/` 폴더에 자동 저장 + 마크다운 링크 자동 삽입 + 인라인 미리보기
+- **검색 (⌘F)** — 현재 문서 안에서 단어 찾기 / 바꾸기
 
-# 릴리즈 빌드 + /Applications 설치
-./build.sh release
-cp -R "build/Markdown Note.app" /Applications/
-```
+### 폴더 관리
 
-요구사항:
-- **macOS 14.0+** (NSImage SVG 디코딩 등에 필요)
-- **Swift 5.9+** — Command Line Tools만 있어도 OK (Xcode 풀 설치 불필요)
-- **Node 18+** — esbuild로 CodeMirror 번들 생성
+- **폴더 단위 노트** — 노트가 들어있는 폴더를 통째로 열고, 사이드바 트리에서 탐색
+- **즉석 새 파일 / 새 폴더** — ⌘N 또는 사이드바 우클릭
+- **드래그 & 드롭으로 이동** — 사이드바 안에서 파일을 폴더로 끌어다 놓기
+- **멀티 선택** — ⌘+클릭 / ⇧+클릭으로 여러 파일 선택, 일괄 삭제
+- **파일명 즉석 변경** — 더블클릭
+
+### 우측 목차 (On this page)
+
+문서의 헤딩(H1~H3)이 우측에 자동으로 목차로 정리된다.
+
+- 커서가 있는 헤딩이 **자동 강조**
+- 클릭하면 해당 위치로 부드럽게 이동
+- 헤딩이 없는 문서에서는 자동으로 사라짐
+
+### 발표 모드
+
+`⌘⇧P` 한 번이면 현재 문서가 풀스크린 발표 모드로 전환된다.
+
+- 깔끔한 타이포그래피로 즉석 슬라이드
+- **⌘ + 마우스 휠**로 확대 / 축소
+- 트랙패드 핀치 줌도 지원
+- ESC로 깔끔하게 종료
+
+### 모양
+
+- **4가지 테마** — Light / Dark / Sepia / Paper (`⌘⇧1` ~ `⌘⇧4`)
+- **5가지 폰트** — System / Pretendard / JetBrains Mono / SF Mono / iA Writer Quattro
+- 코드 블록은 항상 monospace 유지
+
+### Mac답게
+
+- **여러 노트 동시에** — `⌘T`로 새 탭, macOS 네이티브 윈도우 탭 사용
+- **창 위치 기억** — 다음 실행 시 같은 자리에서 같은 크기로
+- **자동 저장** — 입력 멈추면 알아서 저장
+- **외부 편집 감지** — 다른 앱에서 같은 파일이 바뀌면 알림
 
 ---
 
-## ⌨️ 키보드 단축키
+## ⌨️ 단축키
 
 | 단축키 | 동작 |
 |---|---|
-| ⌘O | 폴더 열기 |
-| ⌘N | 새 파일 |
-| ⌘T | 새 탭 |
-| ⌘S | 저장 |
-| ⌘F | 검색 |
-| ⌘⇧D | 사이드바 토글 |
-| ⌘⇧P | 발표 모드 |
-| ⌘⇧1~4 | Light / Dark / Sepia / Paper |
-| ESC | 검색 / 발표모드 닫기 |
+| `⌘O` | 폴더 열기 |
+| `⌘N` | 새 파일 |
+| `⌘T` | 새 탭 |
+| `⌘S` | 저장 |
+| `⌘F` | 문서 안 검색 |
+| `⌘⇧D` | 사이드바 토글 |
+| `⌘⇧P` | 발표 모드 |
+| `⌘⇧1` ~ `⌘⇧4` | 테마 전환 |
+| `ESC` | 검색 / 발표 모드 닫기 |
 
 ---
 
-## 🏗 Architecture
+## 📥 설치
 
-### 왜 WKWebView?
-macOS Sequoia에서 SwiftUI 합성 안의 NSTextView 글리프가 invisible해지는 환경 이슈가 발견됨. 메인 에디터를 WebKit 분리 프로세스에서 그리는 **WKWebView + CodeMirror 6** 조합으로 우회.
+### 다운로드
 
-### 폴더 구조
-```
-Sources/MarkdownEditor/
-├── App.swift                 # @main + AppDelegate (메뉴바, 멀티탭, 발표모드 dispatch)
-├── MainWindow.swift          # NSWindow + NSToolbar + NSSplitViewController (3-pane)
-├── EditorViewController.swift # WKWebView 호스팅 + JS 브리지 (textChanged / cursorLine 등)
-├── PresentationWindow.swift  # 발표 모드 별도 NSWindow (⌘+wheel zoom 포함)
-├── FolderSidebar.swift       # SwiftUI 사이드바 트리 (NSHostingController wrap)
-├── TocPanel.swift            # 우측 인라인 TOC pane
-├── TitleBar.swift            # toolbar 가운데 "파일명 — Edited 2분 전"
-├── Icon.swift                # 디자인 시스템 inline SVG → NSImage
-├── AppState.swift            # ObservableObject (트리/선택/텍스트/테마/폰트/outline)
-├── FileNode.swift            # 트리 모델
-├── Theme.swift               # 4종 테마 색상
-├── EditorFont.swift          # 5종 폰트 옵션
-└── Resources/
-    ├── editor.html           # CodeMirror 호스트
-    ├── editor.js             # CM6 확장 + JS 브리지
-    ├── cm.bundle.js          # esbuild 번들 (Sources/cm-bundle 에서 생성)
-    ├── presentation.html     # marked.js 발표 모드
-    └── AppIcon.icns
+[Releases 페이지](https://github.com/leeyunbo/Markdown-Note/releases)에서 최신 `Markdown Note.zip` 다운로드.
 
-Sources/cm-bundle/index.js    # CodeMirror 6 export → esbuild → cm.bundle.js
-```
+### 첫 실행
 
-### 디자인 시스템
-- **Mock A "Safe" variant** (`/design_handoff_markdown_note/`) 토큰 정확히 적용
-  - sidebar/toolbar `#f5f5f7`, editor `#ffffff`, body 13px / letter-spacing -0.005em
-  - 마크다운 syntax 색상 (`#0066cc` link, `#34a89c` list, `#c71f3a` code-fg, etc.)
-- **Inline TOC card** (`/design_handoff_toc_inline/`) variant ④ 적용
-  - 200px sticky right gutter, active 행 2×12 accent rail + soft tinted background
+1. zip 더블클릭 → `Markdown Note.app` 추출
+2. `/Applications/`로 드래그
+3. **첫 실행만** 우클릭 > 열기 → 경고창에서 **열기** 클릭 *(macOS 보안 정책상 한 번만 필요. 이후엔 그냥 더블클릭)*
 
-### NSToolbar / titlebar customization
-macOS의 자동 vibrant blur material을 정확한 디자인 토큰 색상으로 대체:
-1. `titlebarAppearsTransparent = true`
-2. NSTitlebarView 안의 `NSVisualEffectView`를 view tree에서 `removeFromSuperview`
-3. `NSTitlebarContainerView`에 단색 NSView를 직접 install
-4. 사이드바 boundary 위치에 1px vertical separator 동적 갱신
-5. NSSplitView를 `object_setClass`로 `TonedSplitView`로 swap → divider 색 분리 (sidebar↔editor 0.10, editor↔TOC 0.04)
-
----
-
-## 🙏 Acknowledgements
-
-- **CodeMirror 6** — Marijn Haverbeke et al. (MIT)
-- **reveal.js / marked / highlight.js** — 발표 모드용 (각각 MIT)
-- **JetBrains Mono** — JetBrains (OFL 1.1)
-- **Pretendard** — orioncactus (OFL 1.1)
-- **디자인 핸드오프** — `design_handoff_markdown_note` (Mock A Safe variant) + `design_handoff_toc_inline` (variant ④)
-
----
-
-## 📦 배포
+### 직접 빌드
 
 ```bash
-# .app을 zip으로 패키징
-cd build && ditto -c -k --keepParent "Markdown Note.app" "Markdown Note.zip"
+git clone https://github.com/leeyunbo/Markdown-Note.git
+cd Markdown-Note
+npm install
+./build.sh release
+open "build/Markdown Note.app"
 ```
 
-ad-hoc 서명이라 다른 맥에서 첫 실행 시 **우클릭 > 열기**로 Gatekeeper 경고를 한 번 dismiss해야 함.
+요구사항: macOS 14+, Node 18+, Swift 5.9+ (Command Line Tools 정도면 충분)
+
+---
+
+## 📷 Screenshots
+
+![Markdown Note 메인 화면](docs/screenshots/main.png)
+
+좌측 폴더 트리 · 라이브 프리뷰 에디터 · 우측 인라인 목차 · 상단 `파일명 — Edited 1분 전` · 하단 단어/줄/태스크 카운트.
+
+---
+
+## 🙏 Credits
+
+- **CodeMirror 6** — 에디터 코어
+- **marked.js / highlight.js** — 발표 모드 렌더링
+- **JetBrains Mono / Pretendard** — 타이포그래피
+- 디자인 핸드오프 — `design_handoff_markdown_note` (Mock A "Safe") + `design_handoff_toc_inline` (variant ④)
+
+---
+
+Made with ☕ on macOS.
