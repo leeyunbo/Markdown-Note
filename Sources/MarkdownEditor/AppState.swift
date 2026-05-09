@@ -13,6 +13,7 @@ final class AppState: ObservableObject {
     @Published var debugLog: String = "ready"
 
     private var saveDebounceTask: Task<Void, Never>?
+    private var lastSaveFailureKey: String?
 
     init() {
         if let bookmark = UserDefaults.standard.data(forKey: "rootFolderBookmark") {
@@ -116,8 +117,20 @@ final class AppState: ObservableObject {
         do {
             try documentText.write(to: url, atomically: true, encoding: .utf8)
             isDirty = false
+            lastSaveFailureKey = nil
         } catch {
-            NSSound.beep()
+            // isDirty는 유지 — 다음 autosave/수동 save가 다시 시도하도록
+            // 같은 (파일, 에러코드) 조합엔 첫 1회만 alert (autosave 800ms 폭탄 방지)
+            let key = "\(url.path)|\((error as NSError).code)"
+            let firstTime = (key != lastSaveFailureKey)
+            lastSaveFailureKey = key
+            if firstTime {
+                reportError("저장 실패",
+                            detail: "\(url.lastPathComponent): \(error.localizedDescription)")
+            } else {
+                NSLog("[MarkdownEditor] save failed (suppressed) — %@: %@",
+                      url.lastPathComponent, error.localizedDescription)
+            }
         }
     }
 
@@ -154,7 +167,8 @@ final class AppState: ObservableObject {
             if selectedFile == url { selectedFile = newURL }
             refreshTree()
         } catch {
-            NSSound.beep()
+            reportError("이름 변경 실패",
+                        detail: "\(url.lastPathComponent) → \(newURL.lastPathComponent): \(error.localizedDescription)")
         }
     }
 
@@ -168,8 +182,21 @@ final class AppState: ObservableObject {
             }
             refreshTree()
         } catch {
-            NSSound.beep()
+            reportError("삭제 실패",
+                        detail: "\(url.lastPathComponent): \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Error reporting
+
+    private func reportError(_ title: String, detail: String) {
+        NSLog("[MarkdownEditor] %@ — %@", title, detail)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = detail
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "확인")
+        alert.runModal()
     }
 
     func revealInFinder(_ url: URL) {
