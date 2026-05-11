@@ -33,12 +33,7 @@ struct FileNode: Identifiable, Hashable {
         for child in contents {
             let childIsDir = (try? child.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
             if childIsDir {
-                let node = scan(child)
-                // attachments/ 는 이미지로 차있어 children이 비어있는 형태 — 빈 디렉토리도 보여준다.
-                if child.lastPathComponent == "attachments"
-                    || !(node.children?.isEmpty ?? true) {
-                    dirs.append(node)
-                }
+                dirs.append(scan(child))
             } else {
                 let ext = child.pathExtension.lowercased()
                 let isMd = (ext == "md" || ext == "markdown")

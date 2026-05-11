@@ -21,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 추가 탭/윈도우는 자체 AppState를 가진 별도 controller로 운영.
     /// macOS native window tabbing이 이들을 자동으로 탭으로 묶음.
     private var extraControllers: [MainWindowController] = []
-    private var presentationController: PresentationWindowController?
 
     override init() {
         super.init()
@@ -297,23 +296,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func menuNewFile() { state.newFile() }
     @objc func menuSave() { state.saveCurrent() }
     @objc func menuPresent() {
-        NSLog("[MD] menuPresent fired")
+        NSLog("[MD] menuPresent ENTRY isActive=\(NSApp.isActive) key=\(NSApp.keyWindow?.title ?? "nil") main=\(NSApp.mainWindow?.title ?? "nil")")
         let s = activeState()
         let md = s.documentText.isEmpty ? "# Empty\n\n현재 파일이 비어있음" : s.documentText
-        // 이전 윈도우가 살아있으면 먼저 닫고 새로 띄움 (재사용 안 함 — markdown이 다를 수 있음)
-        if let prev = presentationController, prev.window?.isVisible == true {
-            prev.window?.close()
+        let docFolder = s.selectedFile?.deletingLastPathComponent() ?? s.rootFolder
+        if let mc = activeMainController() {
+            mc.showPresentation(markdown: md, docFolder: docFolder)
+        } else {
+            NSLog("[MD] menuPresent — no active controller")
         }
-        presentationController = nil
-        // 풀스크린 transition 충돌 방지를 위해 짧게 지연
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            guard let self else { return }
-            let pc = PresentationWindowController(markdown: md) { [weak self] in
-                self?.presentationController = nil
-            }
-            pc.presentFullscreen()
-            self.presentationController = pc
+    }
+
+    private func activeMainController() -> MainWindowController? {
+        let all = (extraControllers + [mainController].compactMap { $0 })
+        if let key = NSApp.keyWindow, let mc = all.first(where: { $0.window === key }) {
+            return mc
         }
+        return mainController ?? all.first
     }
 
     private func activeState() -> AppState {

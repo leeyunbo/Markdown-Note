@@ -8,7 +8,7 @@ const {
   gutter, GutterMarker, showPanel, highlightActiveLine,
   defaultKeymap, history, historyKeymap, indentWithTab, undo, redo,
   HighlightStyle, syntaxHighlighting, defaultHighlightStyle, bracketMatching,
-  indentOnInput, syntaxTree,
+  indentOnInput, indentUnit, syntaxTree,
   searchKeymap, search, openSearchPanel, closeSearchPanel, findNext, findPrevious,
   markdown, markdownLanguage, languages, tags,
 } = window.CM;
@@ -517,6 +517,61 @@ const codeBlockLinePlugin = ViewPlugin.fromClass(class {
   }
 }, { decorations: v => v.decorations });
 
+// IndentedCode (라인 시작 \t 또는 4 spaces) 노드 안의 라인은 lang-markdown이 CodeText로
+// 자식 인식해서 monospace 태그가 적용된다. 사용자가 Tab으로 들여쓰기한 일반 라인이
+// 의도와 달리 mono 폰트로 leak되는 시각 버그 — 라인 클래스로 강제 본문 폰트 복귀.
+const indentedCodeResetPlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.build(update.view);
+    }
+  }
+  build(view) {
+    const builder = [];
+    const tree = syntaxTree(view.state);
+    const doc = view.state.doc;
+    tree.iterate({
+      enter(node) {
+        if (node.name !== "CodeBlock" && node.name !== "IndentedCode") return;
+        const startLine = doc.lineAt(node.from).number;
+        const endLine = doc.lineAt(node.to).number;
+        for (let n = startLine; n <= endLine; n++) {
+          const line = doc.line(n);
+          builder.push(Decoration.line({ class: "cm-indented-reset" }).range(line.from));
+        }
+      },
+    });
+    return Decoration.set(builder, true);
+  }
+}, { decorations: v => v.decorations });
+
+// 인라인 코드 `…` 의 본문(InlineCode 노드)에 배경/색 입히기. fence ``` 안 코드 블록은
+// 별도 codeBlockLinePlugin이 라인 단위로 처리하므로 충돌 없음.
+const inlineCodePlugin = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = this.build(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.build(update.view);
+    }
+  }
+  build(view) {
+    const builder = [];
+    const tree = syntaxTree(view.state);
+    for (const { from, to } of view.visibleRanges) {
+      tree.iterate({
+        from, to,
+        enter(node) {
+          if (node.name !== "InlineCode") return;
+          builder.push(Decoration.mark({ class: "cm-inline-code" })
+            .range(node.from, node.to));
+        },
+      });
+    }
+    return Decoration.set(builder, true);
+  }
+}, { decorations: v => v.decorations });
+
 // ListMark만 골라서 색 + nested 깊이별 cycle. lang-markdown의 ListMark 노드를 찾아
 // BulletList/OrderedList 조상 갯수로 깊이 계산.
 const listMarkPlugin = ViewPlugin.fromClass(class {
@@ -715,6 +770,65 @@ function handleEnter({ state, dispatch }) {
   return false;  // default Enter 동작
 }
 
+// Enter 시 자동 list 마커 — 영문/한국어 IME 모두 한 경로로 처리.
+// 한국어 IME confirm Enter는 commit + \n을 한 transaction "녕\n" 형태로 보내는 케이스가
+// 있어 "\n으로 끝나는 단일 insertion" 패턴까지 매칭한다.
+const imeListContinueFilter = EditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged) return tr;
+
+  // 단일 insertion이고 \n으로 끝나는 케이스만
+  let insertedText = null;
+  let insertPos = -1;
+  let changeCount = 0;
+  let bad = false;
+  tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+    changeCount++;
+    if (fromA !== toA) { bad = true; return; }
+    const t = inserted.toString();
+    if (!t.endsWith("\n")) { bad = true; return; }
+    insertedText = t;
+    insertPos = fromA;
+  });
+  if (bad || changeCount !== 1 || insertedText === null) return tr;
+
+  // 한국어 IME confirm Enter는 "\n\n"으로 들어오는 케이스가 있어 첫 \n 위치로 매칭.
+  const newState = tr.state;
+  const firstNewlineOffset = insertedText.indexOf("\n");
+  const newlineAt = insertPos + firstNewlineOffset;
+  const beforeLine = newState.doc.lineAt(newlineAt);
+  const beforeText = beforeLine.text;
+
+  let prefix = "";
+  let m;
+  if ((m = beforeText.match(/^(\s*)([-*+])\s+\[([ xX])\]\s+/))) {
+    prefix = `${m[1]}${m[2]} [ ] `;
+  } else if ((m = beforeText.match(/^(\s*)([-*+])\s+/))) {
+    prefix = `${m[1]}${m[2]} `;
+  } else if ((m = beforeText.match(/^(\s*)(\d+)\.\s+/))) {
+    const num = parseInt(m[2], 10);
+    prefix = `${m[1]}${num + 1}. `;
+  } else {
+    return tr;
+  }
+
+  // 마커만 있는 빈 항목에서 Enter → 마커 제거
+  const contentAfter = beforeText.slice(prefix.length).trim();
+  if (contentAfter === "" && newlineAt === beforeLine.to) {
+    return [{
+      changes: { from: beforeLine.from, to: newlineAt + 1, insert: "" },
+      selection: { anchor: beforeLine.from },
+    }];
+  }
+
+  // IME의 \n\n 케이스를 \n 1개로 normalize. 첫 \n 이후 텍스트는 버린다 (IME 버그).
+  const beforeNewlinePart = insertedText.slice(0, firstNewlineOffset);
+  const finalInsert = beforeNewlinePart + "\n" + prefix;
+  return [{
+    changes: { from: insertPos, to: insertPos, insert: finalInsert },
+    selection: { anchor: insertPos + finalInsert.length },
+  }];
+});
+
 // ----- Notify Swift -----
 
 let notifyTimer = null;
@@ -768,6 +882,8 @@ function makeExtensions() {
     bracketMatching(),
     indentOnInput(),
     markdown({ base: markdownLanguage, codeLanguages: languages }),
+    indentUnit.of("\t"),
+    EditorState.tabSize.of(4),
     syntaxHighlighting(mdHighlight),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     search({ top: true }),
@@ -782,12 +898,14 @@ function makeExtensions() {
     showPanel.of(makeStatusPanel),
     imageField,
     listMarkPlugin,
+    inlineCodePlugin,
+    indentedCodeResetPlugin,
     codeBlockLinePlugin,
     tableLinePlugin,
     taskLinePlugin,
     themeCompartment.of(baseTheme),
+    imeListContinueFilter,
     keymap.of([
-      { key: "Enter", run: handleEnter },
       { key: "Mod-b", run: wrapSelection("**", "**") },
       { key: "Mod-i", run: wrapSelection("*", "*") },
       { key: "Mod-k", run: insertLinkCmd },

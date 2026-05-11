@@ -32,6 +32,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     private weak var titlebarSeparator: NSView?
     private var tocItem: NSSplitViewItem!
 
+    // 발표 모드: borderless 윈도우를 메뉴바 위 level로 띄운다 (가짜 풀스크린).
+    // NSWindow.toggleFullScreen은 우리 split + WKWebView 환경에서 안정적이지 않아 회피.
+    private var presentationWindow: NSWindow?
+
     init(state: AppState, frameAutosaveName: String? = nil) {
         self.state = state
         let window = NSWindow(
@@ -169,6 +173,59 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
                 self?.tocItem?.animator().isCollapsed = outline.isEmpty
             }
             .store(in: &cancellables)
+
+    }
+
+    // MARK: - Presentation (borderless fake-fullscreen)
+
+    /// ⌘⇧P — borderless 윈도우를 메뉴바 위 level로 화면 전체에 띄움. 진짜 풀스크린 X.
+    /// 이미 떠 있으면 markdown만 갱신.
+    func showPresentation(markdown: String, docFolder: URL?) {
+        NSLog("[MD-PRESENT] showPresentation — existing=\(presentationWindow == nil ? "nil" : "exists")")
+        if let existing = presentationWindow,
+           let overlay = existing.contentView as? PresentationOverlayView {
+            overlay.update(markdown: markdown, docFolder: docFolder)
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let screen = window?.screen ?? NSScreen.main ?? NSScreen.screens.first
+        let frame = screen?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let win = PresentationKeyWindow(
+            contentRect: frame,
+            styleMask: [.borderless],
+            backing: .buffered, defer: false)
+        win.isReleasedWhenClosed = false
+        win.level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 1)
+        win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        win.backgroundColor = .white
+        win.isOpaque = true
+        win.hasShadow = false
+        let overlay = PresentationOverlayView { [weak self] in
+            self?.hidePresentation()
+        }
+        overlay.frame = NSRect(origin: .zero, size: frame.size)
+        overlay.autoresizingMask = [.width, .height]
+        win.contentView = overlay
+        overlay.update(markdown: markdown, docFolder: docFolder)
+        presentationWindow = win
+        win.makeKeyAndOrderFront(nil)
+    }
+
+    /// ESC → 발표 윈도우 닫고 메인 윈도우로 key 복귀.
+    func hidePresentation() {
+        guard let win = presentationWindow else { return }
+        NSLog("[MD-PRESENT] hidePresentation")
+        if let overlay = win.contentView as? PresentationOverlayView {
+            overlay.cleanup()
+        }
+        win.orderOut(nil)
+        presentationWindow = nil
+        // 메인 윈도우로 key 복귀
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        if let split = splitVC, split.splitViewItems.count >= 2 {
+            window?.makeFirstResponder(split.splitViewItems[1].viewController.view)
+        }
     }
 
     /// macOS Big Sur+에서 titlebar/toolbar 영역에 자동으로 깔리는 NSVisualEffectView를

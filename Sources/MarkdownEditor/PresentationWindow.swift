@@ -1,6 +1,13 @@
 import AppKit
 import WebKit
 
+/// borderless NSWindow는 기본적으로 key/main이 안 됨. JS keydown ESC를 받기 위해
+/// WKWebView가 first responder가 되도록 override.
+final class PresentationKeyWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 /// ⌘+wheel = magnification 변경. 일반 wheel은 super (스크롤).
 final class ZoomableWebView: WKWebView {
     override func scrollWheel(with event: NSEvent) {
@@ -15,111 +22,105 @@ final class ZoomableWebView: WKWebView {
     }
 }
 
-/// reveal.js로 현재 문서를 슬라이드로 띄우는 별도 NSWindow.
-/// `---` 가 슬라이드 구분자, mouseWheel + 키보드 다 작동, 자동 풀스크린.
-final class PresentationWindowController: NSWindowController, WKNavigationDelegate, WKScriptMessageHandler, NSWindowDelegate {
-    private var web: WKWebView!
-    private let markdown: String
-    private let onClose: () -> Void
-    private var pendingClose = false
+/// 메인 윈도우 contentView 위에 깔리는 발표용 overlay.
+/// 별도 NSWindow를 띄우지 않아 풀스크린 transition race가 발생하지 않는다.
+/// ⌘⇧P → MainWindowController가 이 view를 contentView에 add + 풀스크린 진입.
+/// ESC → JS가 closeRequest 보내면 onClose 호출 → MainWindowController가 hide + 풀스크린 해제.
+final class PresentationOverlayView: NSView, WKNavigationDelegate, WKScriptMessageHandler {
+    private(set) var web: ZoomableWebView!
+    private var markdown: String = ""
+    private var docFolderURL: String = ""
+    /// HTML 로드 완료 후 한 번이라도 markdown을 주입했는지.
+    private var pageLoaded = false
+    let onClose: () -> Void
 
-    init(markdown: String, onClose: @escaping () -> Void) {
-        self.markdown = markdown
+    init(onClose: @escaping () -> Void) {
         self.onClose = onClose
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
-            backing: .buffered, defer: false)
-        window.title = "Presentation"
-        window.minSize = NSSize(width: 720, height: 480)
-        window.collectionBehavior = [.fullScreenPrimary]
-        super.init(window: window)
-        window.delegate = self
-        setup()
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.white.cgColor
+        setupWebView()
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    private func setup() {
-        guard let window else { return }
+    private func setupWebView() {
         let config = WKWebViewConfiguration()
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
-        // 외부 reveal.js CDN을 위해 file://에서 cross-origin 허용
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
-        let userContent = WKUserContentController()
-        userContent.add(self, name: "consoleLog")
-        userContent.add(self, name: "closeRequest")
-        config.userContentController = userContent
-        web = ZoomableWebView(frame: .zero, configuration: config)
+        let ucc = WKUserContentController()
+        ucc.add(self, name: "consoleLog")
+        ucc.add(self, name: "closeRequest")
+        config.userContentController = ucc
+        web = ZoomableWebView(frame: bounds, configuration: config)
         web.allowsMagnification = true
         web.magnification = 1.0
         if #available(macOS 13.3, *) { web.isInspectable = true }
         web.navigationDelegate = self
-        window.contentView = web
+        web.autoresizingMask = [.width, .height]
+        addSubview(web)
         if let url = Bundle.main.url(forResource: "presentation", withExtension: "html") {
-            web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            let scope = FileManager.default.homeDirectoryForCurrentUser
+            web.loadFileURL(url, allowingReadAccessTo: scope)
         }
     }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        // backtick template literal에 markdown 박기 위해 \, ` , ${ 만 escape
-        let escaped = markdown
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "${", with: "\\${")
-        let js = "window.appBridge.setMarkdown(`\(escaped)`);"
-        webView.evaluateJavaScript(js, completionHandler: nil)
+    /// MainWindowController가 호출 — 발표 시작/갱신.
+    func update(markdown: String, docFolder: URL?) {
+        self.markdown = markdown
+        self.docFolderURL = Self.makeDocFolderURL(docFolder)
+        if pageLoaded { injectMarkdown() }
     }
 
-    func userContentController(_ userContentController: WKUserContentController,
-                               didReceive message: WKScriptMessage) {
-        if message.name == "consoleLog", let text = message.body as? String {
-            NSLog("[MD-PRESENT] %@", text)
-        }
-        if message.name == "closeRequest" {
-            NSLog("[MD-PRESENT] closeRequest")
-            closeFromESC()
-        }
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        NSLog("[MD-PRESENT] windowWillClose — releasing")
-        // WKUserContentController가 self를 retain하므로 명시적으로 끊어 controller deinit 보장
+    /// MainWindowController가 hide 시점에 호출 — WKUserContentController가 self를 strong retain 하므로
+    /// 명시적으로 끊지 않으면 deinit 안 됨.
+    func cleanup() {
         let ucc = web.configuration.userContentController
         ucc.removeScriptMessageHandler(forName: "consoleLog")
         ucc.removeScriptMessageHandler(forName: "closeRequest")
         web.navigationDelegate = nil
-        onClose()
     }
 
-    private func closeFromESC() {
-        guard let win = window else { return }
-        if win.styleMask.contains(.fullScreen) {
-            // 풀스크린 빠진 후 windowDidExitFullScreen에서 close (timing race 방지)
-            pendingClose = true
-            win.toggleFullScreen(nil)
-        } else {
-            win.close()
-        }
+    deinit { NSLog("[MD-PRESENT] overlay deinit") }
+
+    private static func makeDocFolderURL(_ url: URL?) -> String {
+        guard let url else { return "" }
+        var s = url.absoluteString
+        if !s.hasSuffix("/") { s += "/" }
+        return s
     }
 
-    func windowDidExitFullScreen(_ notification: Notification) {
-        NSLog("[MD-PRESENT] exitFullScreen pending=\(pendingClose)")
-        if pendingClose {
-            pendingClose = false
-            DispatchQueue.main.async { [weak self] in
-                self?.window?.close()
-            }
-        }
+    private func injectMarkdown() {
+        let escaped = markdown
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "`", with: "\\`")
+            .replacingOccurrences(of: "${", with: "\\${")
+        let escapedFolder = docFolderURL
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "`", with: "\\`")
+        let js = "window.appBridge.setMarkdown(`\(escaped)`, `\(escapedFolder)`);"
+        web.evaluateJavaScript(js, completionHandler: nil)
     }
 
-    func presentFullscreen() {
-        showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
-        // 짧은 지연 후 풀스크린 — contentView attach 직후엔 불가능
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            self.window?.toggleFullScreen(nil)
+    // MARK: WKNavigationDelegate
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        pageLoaded = true
+        injectMarkdown()
+    }
+
+    // MARK: WKScriptMessageHandler
+
+    func userContentController(_ userContentController: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        switch message.name {
+        case "consoleLog":
+            if let text = message.body as? String { NSLog("[MD-PRESENT] %@", text) }
+        case "closeRequest":
+            NSLog("[MD-PRESENT] closeRequest")
+            onClose()
+        default: break
         }
     }
 }
