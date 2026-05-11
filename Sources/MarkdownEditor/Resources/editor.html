@@ -52,8 +52,9 @@ body { overflow: hidden; height: 100vh; }
   padding: 0;  /* gutter는 화면 끝부터 시작, content는 자체 padding */
 }
 .cm-editor .cm-content {
-  padding: 12px 20px;  /* Mock A: padTop 12, padX 20 */
-  max-width: 720px;     /* Mock A measure 720 */
+  /* 상단 12, 좌우 20, 하단은 50vh로 — 마지막 줄이 화면 중앙까지 스크롤 가능 */
+  padding: 12px 20px 50vh 20px;
+  max-width: 980px;     /* 창 크기에 따라 본문이 더 넓어지도록 (옵션화는 추후) */
 }
 .cm-editor.cm-focused {
   outline: none;
@@ -99,7 +100,14 @@ body { overflow: hidden; height: 100vh; }
 .cm-editor .cm-selectionBackground,
 .cm-editor.cm-focused .cm-selectionBackground,
 .cm-editor ::selection {
-  background: rgba(0, 102, 204, 0.22) !important;
+  background: rgba(0, 102, 204, 0.30) !important;
+}
+/* CodeMirror 6는 selection layer DOM에 inline `z-index: -1`을 직접 박는다
+   (drawSelection의 above: false). 그래서 .cm-codeblock-line 배경(#f3f3f5) 뒤에
+   selection이 그려져 보이지 않음. !important로 inline style을 덮어 content 위로 올림.
+   cursor layer는 z-index 150이라 영향 없음. */
+.cm-editor .cm-selectionLayer {
+  z-index: 1 !important;
 }
 .cm-editor .cm-activeLine { background: transparent; }
 
@@ -138,6 +146,26 @@ body { overflow: hidden; height: 100vh; }
   border-bottom-right-radius: 4px;
   margin-bottom: 2px;
   padding-bottom: 6px;
+}
+
+/* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
+   본문 폰트로 강제 복귀. Tab으로 들여쓰기한 일반 텍스트가 mono로 leak되는 버그 차단. */
+.cm-content .cm-line.cm-indented-reset,
+.cm-content .cm-line.cm-indented-reset * {
+  font-family: var(--editor-font) !important;
+  font-size: 13.5px !important;
+  background: transparent !important;
+  color: var(--fg) !important;
+}
+
+/* Inline code (단일 ` ` 안) — mock A 톤 */
+.cm-content .cm-inline-code {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.9em;
 }
 
 /* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */

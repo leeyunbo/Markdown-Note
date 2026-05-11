@@ -36,6 +36,7 @@ export {
   foldGutter,
   foldKeymap,
   indentOnInput,
+  indentUnit,
   syntaxTree,
   LanguageDescription,
 } from "@codemirror/language";
