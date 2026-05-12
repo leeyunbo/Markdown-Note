@@ -48,8 +48,8 @@ swiftc "$OPT_FLAG" \
     -o "$APP_ROOT/Contents/MacOS/$APP_NAME" \
     "${SWIFT_FILES[@]}"
 
-# 리소스 복사
-cp Sources/MarkdownEditor/Resources/* "$APP_ROOT/Contents/Resources/"
+# 리소스 복사 (vendor/ subdir도 포함되도록 recursive)
+cp -R Sources/MarkdownEditor/Resources/* "$APP_ROOT/Contents/Resources/"
 
 cat > "$APP_ROOT/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
