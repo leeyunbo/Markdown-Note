@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 CONFIG="${1:-release}"
 APP_NAME="Markdown Note"
 BUNDLE_ID="com.daou.markdowneditor"
-VERSION="1.3.0"
+VERSION="1.4.0"
 
 # CodeMirror 번들이 없거나 entry보다 오래되면 다시 만들기
 if [[ ! -f Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
