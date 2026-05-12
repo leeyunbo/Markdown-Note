@@ -177,14 +177,16 @@ body { overflow: hidden; height: 100vh; }
   color: var(--fg) !important;
 }
 
-/* Inline code (단일 ` ` 안) — mock A 톤 */
+/* Inline code (단일 ` ` 안) — mock A 톤.
+   font-size / padding을 mark decoration에 주면 CM이 caret hitbox를 잘못 계산해서
+   마우스 클릭으로 인라인 코드 안에 커서를 놓지 못한다. 시각적 강조는 box-shadow와
+   배경/색으로만 처리하고 글자 metrics는 본문과 동일하게 유지. */
 .cm-content .cm-inline-code {
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   background: var(--code-bg);
   color: var(--code-fg);
-  padding: 0.1em 0.35em;
   border-radius: 3px;
-  font-size: 0.9em;
+  box-shadow: 1px 0 0 var(--code-bg), -1px 0 0 var(--code-bg);
 }
 
 /* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */
@@ -196,6 +198,49 @@ body { overflow: hidden; height: 100vh; }
   background: rgba(255, 145, 0, 0.85) !important;
   color: var(--bg);
 }
+
+/* Mermaid 토글 widget — 코드 블록 위에 작은 버튼 + 활성 시 SVG block widget */
+.md-mermaid-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: -apple-system, sans-serif;
+  font-size: 10.5px;
+  color: var(--secondary);
+  background: var(--bg);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  margin: 2px 0 4px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-mermaid-toggle:hover { background: var(--code-bg); color: var(--fg); }
+.md-mermaid-render {
+  background: var(--bg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 4px 0 8px;
+  overflow-x: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.md-mermaid-render svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.md-mermaid-error {
+  background: rgba(220, 50, 50, 0.06);
+  border: 1px dashed #c14b4b;
+  color: #c14b4b;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+/* 다이어그램 모드일 때 코드 블록 라인 숨김 */
+.cm-content .cm-line.cm-mermaid-hidden { display: none; }
 
 /* Image widget — block decoration이 라인 다음에 widget div를 박음 */
 .md-image-wrap {
@@ -232,7 +277,37 @@ body { overflow: hidden; height: 100vh; }
 </head>
 <body>
 <div id="editor-host"></div>
+<script>
+  // 진단: 글 안 보이는 원인 추적 — 어떤 JS 에러든 즉시 Swift NSLog로 forward.
+  window.addEventListener("error", function(e) {
+    try {
+      window.webkit?.messageHandlers?.consoleLog?.postMessage(
+        "[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?")
+      );
+    } catch (err) {}
+  });
+  window.addEventListener("unhandledrejection", function(e) {
+    try {
+      window.webkit?.messageHandlers?.consoleLog?.postMessage(
+        "[unhandled] " + (e.reason && e.reason.message ? e.reason.message : String(e.reason))
+      );
+    } catch (err) {}
+  });
+</script>
 <script src="cm.bundle.js"></script>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+  try {
+    if (window.mermaid && typeof window.mermaid.initialize === "function") {
+      window.mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "default" });
+      window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid loaded version=" + (window.mermaid.version || "?"));
+    } else {
+      window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid global NOT FOUND");
+    }
+  } catch (e) {
+    window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid init error: " + e.message);
+  }
+</script>
 <script src="editor.js"></script>
 </body>
 </html>
