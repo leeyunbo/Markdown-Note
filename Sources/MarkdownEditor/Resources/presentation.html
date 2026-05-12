@@ -98,12 +98,12 @@ article hr {
   margin: 2.2em 0;
 }
 
-/* Inline code — 본문 톤, 옅은 배경 (분홍 빠짐) */
+/* Inline code — 에디터와 동일한 분홍 톤 (mock A) — 회색만으론 강조가 약하다 */
 article code {
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   font-size: 0.86em;
   background: var(--code-bg);
-  color: var(--fg);
+  color: #c71f3a;
   padding: 0.12em 0.4em;
   border-radius: 4px;
 }
@@ -156,12 +156,35 @@ article input[type="checkbox"] {
   margin-right: 0.4em;
   accent-color: var(--accent);
 }
+
+/* Mermaid diagram — 발표용으로 코드 대신 SVG */
+article .mermaid-render {
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 1.2em -40px;
+  max-width: calc(100% + 80px);
+  overflow-x: auto;
+}
+article .mermaid-render svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
 </style>
 </head>
 <body>
 <article id="content"></article>
 <script src="vendor/marked.min.js"></script>
 <script src="vendor/highlight.min.js"></script>
+<script src="vendor/mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    window.mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "default" });
+  }
+</script>
 <script>
 function relay(...args) {
   try {
@@ -228,15 +251,29 @@ window.appBridge = {
         img.src = absolutize(cur, baseURL);
       }
     });
+    // mermaid 블록(```mermaid)을 SVG로 자동 변환. 변환 후엔 pre 요소 자체를 교체.
+    if (window.mermaid) {
+      const mermaidBlocks = document.querySelectorAll("pre code.language-mermaid");
+      mermaidBlocks.forEach((codeEl, i) => {
+        const src = codeEl.textContent;
+        const pre = codeEl.parentElement;
+        const id = "mmd_present_" + i + "_" + Math.random().toString(36).slice(2);
+        window.mermaid.render(id, src).then(({ svg }) => {
+          const wrap = document.createElement("div");
+          wrap.className = "mermaid-render";
+          wrap.innerHTML = svg;
+          pre.replaceWith(wrap);
+        }).catch(err => {
+          relay("mermaid err: " + (err && err.message ? err.message : String(err)));
+        });
+      });
+    }
+    // 일반 코드 블록 hljs highlight (mermaid는 위에서 이미 교체됨)
     if (typeof hljs !== "undefined") {
-      relay("hljs version=" + (hljs.versionString || "?"));
-      document.querySelectorAll("pre code").forEach(b => {
-        // setMarkdown이 재호출되는 경우 이전 highlight 흔적 제거
+      document.querySelectorAll("pre code:not(.language-mermaid)").forEach(b => {
         b.removeAttribute("data-highlighted");
         hljs.highlightElement(b);
       });
-    } else {
-      relay("hljs UNDEFINED");
     }
   }
 };
