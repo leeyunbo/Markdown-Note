@@ -21,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 추가 탭/윈도우는 자체 AppState를 가진 별도 controller로 운영.
     /// macOS native window tabbing이 이들을 자동으로 탭으로 묶음.
     private var extraControllers: [MainWindowController] = []
+    /// applicationDidFinishLaunching 이전에 들어온 open 요청 (Finder에서 더블클릭 등).
+    /// mainController 생성 후 한꺼번에 처리.
+    private var pendingOpenURLs: [URL] = []
 
     override init() {
         super.init()
@@ -57,6 +60,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.installMenuBarItems()
             self?.dumpMenuTree()
         }
+        // 런치 이전에 들어온 open 요청 처리 (Finder 더블클릭 / "다음으로 열기" 등).
+        if !pendingOpenURLs.isEmpty {
+            let urls = pendingOpenURLs
+            pendingOpenURLs.removeAll()
+            for url in urls { openMarkdownFile(url) }
+        }
+    }
+
+    /// macOS Finder에서 .md 파일 더블클릭 / 기본앱 / "다음으로 열기"로 전달된 파일을 처리.
+    /// 다중 파일도 가능. 첫 파일은 메인 윈도우, 나머지는 새 탭으로 열어준다.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        if mainController == nil {
+            pendingOpenURLs.append(contentsOf: urls)
+            return
+        }
+        for url in urls { openMarkdownFile(url) }
+    }
+
+    private func openMarkdownFile(_ url: URL) {
+        guard url.isFileURL else { return }
+        let folder = url.deletingLastPathComponent()
+        // 1) 같은 폴더가 이미 열려있는 윈도우/탭이면 그 안에서 선택만 (가장 매끄러운 UX)
+        let all = ([mainController].compactMap { $0 }) + extraControllers
+        if let existing = all.first(where: {
+            $0.state.rootFolder?.standardizedFileURL == folder.standardizedFileURL
+        }) {
+            existing.state.selectFile(url)
+            existing.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        // 2) 메인이 빈 상태(폴더 없음)면 그대로 사용
+        if state.rootFolder == nil {
+            state.openFolder(folder)
+            DispatchQueue.main.async { [weak self] in
+                self?.state.selectFile(url)
+                self?.mainController?.window?.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            return
+        }
+        // 3) 다른 폴더면 새 탭으로 열어 작업 중이던 폴더 보존
+        openNewTab(with: url, folder: folder)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func dumpMenuTree() {
@@ -81,8 +128,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         openNewTab(with: nil)
     }
 
-    /// 특정 파일을 새 탭에서 연다. 사이드바 contextMenu / 에디터 drop이 사용.
-    func openNewTab(with url: URL?) {
+    /// 특정 파일을 새 탭에서 연다. 사이드바 contextMenu / 에디터 drop / Finder open이 사용.
+    /// folder가 주어지면 새 탭의 rootFolder도 명시적으로 변경 (UserDefaults 복원 무시).
+    func openNewTab(with url: URL?, folder: URL? = nil) {
         let newState = AppState()
         let newController = MainWindowController(state: newState)
         guard let newWindow = newController.window else { return }
@@ -94,6 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         newController.showWindow(nil)
         newWindow.makeKeyAndOrderFront(nil)
         extraControllers.append(newController)
+        if let folder { newState.openFolder(folder) }
         if let url {
             // 새 controller의 view 로드 + Combine sinks attach 후 selectFile.
             // 한 runloop으로는 부족하므로 살짝 지연.
