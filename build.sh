@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 CONFIG="${1:-release}"
 APP_NAME="Markdown Note"
 BUNDLE_ID="com.daou.markdowneditor"
-VERSION="1.0.0"
+VERSION="1.3.0"
 
 # CodeMirror 번들이 없거나 entry보다 오래되면 다시 만들기
 if [[ ! -f Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
@@ -77,12 +77,43 @@ cat > "$APP_ROOT/Contents/Info.plist" <<EOF
         <dict>
             <key>CFBundleTypeName</key><string>Markdown Document</string>
             <key>CFBundleTypeRole</key><string>Editor</string>
-            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSHandlerRank</key><string>Default</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>md</string>
+                <string>markdown</string>
+                <string>mdown</string>
+                <string>mkd</string>
+            </array>
             <key>LSItemContentTypes</key>
             <array>
                 <string>net.daringfireball.markdown</string>
+            </array>
+        </dict>
+    </array>
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key><string>net.daringfireball.markdown</string>
+            <key>UTTypeConformsTo</key>
+            <array>
                 <string>public.plain-text</string>
             </array>
+            <key>UTTypeDescription</key><string>Markdown Document</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>md</string>
+                    <string>markdown</string>
+                    <string>mdown</string>
+                    <string>mkd</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>text/markdown</string>
+                </array>
+            </dict>
         </dict>
     </array>
 </dict>
