@@ -3,11 +3,24 @@
 <head>
 <meta charset="utf-8">
 <title>Presentation</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<link rel="stylesheet" href="vendor/highlight-github.min.css">
 <style>
+/* 로컬 JetBrains Mono — Google Fonts CDN 없이 동작 (회사 네트워크 등 차단 환경 대응) */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("vendor/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("vendor/JetBrainsMono-Medium.woff2") format("woff2");
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("vendor/JetBrainsMono-SemiBold.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
 /* 발표 모드 디자인 시스템 — 모노톤 + 파란 accent 1개.
    메인 에디터(mock A)와 같은 톤이지만 발표용으로 사이즈/여백 확장. */
 :root {
@@ -147,9 +160,8 @@ article input[type="checkbox"] {
 </head>
 <body>
 <article id="content"></article>
-<script src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"></script>
-<!-- 단일 번들 — 모든 인기 언어 포함. core+common 분리 로드는 우리 file:// 환경에서 hljs 글로벌이 안 잡히는 케이스가 있다. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/highlight.min.js"></script>
 <script>
 function relay(...args) {
   try {
@@ -194,9 +206,19 @@ window.appBridge = {
   setMarkdown(md, baseURL) {
     relay("setMarkdown len=" + md.length + " base=" + (baseURL || "(none)"));
     if (typeof marked === "undefined") { relay("marked not loaded"); return; }
-    // 1) 마크다운 단계에서 ![alt](src) 의 src를 절대 URL로 치환
-    const rewritten = md.replace(/(!\[[^\]]*\])\(([^)\s]+)((?:\s+"[^"]*")?\))/g,
+    // 1) 이미지 src를 baseURL 기준 절대 file:// URL로
+    let rewritten = md.replace(/(!\[[^\]]*\])\(([^)\s]+)((?:\s+"[^"]*")?\))/g,
       (_, head, src, tail) => `${head}(${absolutize(src, baseURL)}${tail}`);
+    // 2) 사용자 노트는 list를 4 spaces 또는 1 tab 단위로 들여쓰는 경향. CommonMark는
+    //    nested list가 2 spaces 단위라 list로 인식 못 함. tab → 4 spaces로 expand 후
+    //    list 라인의 indent에서 4 spaces 빼서 정상화.
+    rewritten = rewritten.split("\n").map(line => {
+      const expanded = line.replace(/^[\t ]+/, (lead) => lead.replace(/\t/g, "    "));
+      const m = expanded.match(/^( {4,})([-*+]|\d+\.)\s/);
+      if (!m) return expanded;
+      const newIndent = " ".repeat(m[1].length - 4);
+      return newIndent + expanded.slice(m[1].length);
+    }).join("\n");
     const html = marked.parse(rewritten, { gfm: true, breaks: false });
     document.getElementById("content").innerHTML = html;
     // 2) HTML img 태그 (![]가 아닌 <img src>) 가 있을 수 있으니 후처리로 한 번 더
