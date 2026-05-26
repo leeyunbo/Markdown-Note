@@ -20,6 +20,14 @@ describe('parseAltAndSize', () => {
   it('keeps empty alt', () => {
     expect(parseAltAndSize('|100')).toEqual({ alt: '', width: 100, height: null });
   });
+
+  it('captures all pipes except the trailing size in alt (greedy match)', () => {
+    expect(parseAltAndSize('pipe|in|middle|320')).toEqual({
+      alt: 'pipe|in|middle',
+      width: 320,
+      height: null,
+    });
+  });
 });
 
 describe('imageSrcForRender', () => {

@@ -8,17 +8,22 @@ export interface ParsedAlt {
 export function parseAltAndSize(rawAlt: string): ParsedAlt {
   const m = rawAlt.match(/^(.*)\|(\d+)(?:x(\d+))?$/);
   if (m) {
+    const [, alt = '', widthStr = '', heightStr] = m;
     return {
-      alt: m[1] ?? '',
-      width: parseInt(m[2] ?? '0', 10),
-      height: m[3] ? parseInt(m[3], 10) : null,
+      alt,
+      width: parseInt(widthStr, 10),
+      height: heightStr ? parseInt(heightStr, 10) : null,
     };
   }
   return { alt: rawAlt, width: null, height: null };
 }
 
 /** Resolves an image src for rendering. Absolute URLs pass through; relative paths
- *  are resolved against the document folder URL. */
+ *  are resolved against the document folder URL.
+ *
+ *  Precondition: `docFolderURL`, if non-empty, must end with `/`. Swift's
+ *  setDocFolder bridge always appends one; callers passing a custom value
+ *  must do the same. */
 export function imageSrcForRender(src: string, docFolderURL: string): string {
   if (/^(https?:|file:|data:)/i.test(src)) return src;
   const looksEncoded = /%[0-9A-Fa-f]{2}/.test(src);
