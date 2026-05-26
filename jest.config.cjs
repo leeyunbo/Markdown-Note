@@ -14,5 +14,5 @@ module.exports = {
     global: { lines: 80, statements: 80, branches: 75, functions: 80 },
   },
   coverageReporters: ['text', 'lcov', 'html'],
-  transform: { '^.+\\.ts$': ['ts-jest', { useESM: false, isolatedModules: true }] },
+  transform: { '^.+\\.ts$': ['ts-jest', { useESM: false }] },
 };
