@@ -1,1 +1,2 @@
-export * from "./cm-reexports";
+export * from './cm-reexports';
+export { parseAltAndSize, imageSrcForRender } from './nodes/image-utils';

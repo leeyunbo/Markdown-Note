@@ -11,6 +11,7 @@ const {
   indentOnInput, indentUnit, syntaxTree,
   searchKeymap, search, openSearchPanel, closeSearchPanel, findNext, findPrevious,
   markdown, markdownLanguage, languages, tags,
+  parseAltAndSize, imageSrcForRender,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -263,20 +264,6 @@ const mdHighlight = HighlightStyle.define([
 
 let docFolderURL = "";  // file://...   ending with /
 
-function imageSrcForRender(src) {
-  if (/^(https?:|file:|data:)/i.test(src)) return src;
-  const looksEncoded = /%[0-9A-Fa-f]{2}/.test(src);
-  const encoded = looksEncoded ? src : encodeURI(src);
-  if (encoded.startsWith("/")) return "file://" + encoded;
-  if (!docFolderURL) return encoded;
-  return docFolderURL + encoded;
-}
-
-function parseAltAndSize(rawAlt) {
-  const m = rawAlt.match(/^(.*)\|(\d+)(?:x(\d+))?$/);
-  if (m) return { alt: m[1], width: parseInt(m[2], 10), height: m[3] ? parseInt(m[3], 10) : null };
-  return { alt: rawAlt, width: null, height: null };
-}
 
 class ImageWidget extends WidgetType {
   constructor(alt, src, width, height) {
@@ -296,7 +283,7 @@ class ImageWidget extends WidgetType {
     wrap.contentEditable = "false";
     const img = document.createElement("img");
     img.className = "md-image";
-    img.src = imageSrcForRender(this.src);
+    img.src = imageSrcForRender(this.src, docFolderURL);
     img.alt = this.alt;
     img.loading = "lazy";
     img.draggable = false;
