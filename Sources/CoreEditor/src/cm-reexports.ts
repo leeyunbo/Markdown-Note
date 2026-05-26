@@ -1,6 +1,3 @@
-// CodeMirror 6 단일 번들. esbuild의 --global-name=CM 으로 window.CM에 노출.
-// editor.js에서 CM.* 형태로 사용.
-
 export { EditorState, Compartment, RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
 export {
   EditorView,
