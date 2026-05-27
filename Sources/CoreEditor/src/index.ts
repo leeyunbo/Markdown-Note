@@ -6,3 +6,5 @@ export { inlineCodePlugin } from './nodes/inline-code';
 export { indentedCodeResetPlugin } from './nodes/indented-reset';
 export { codeBlockLinePlugin } from './nodes/code-block';
 export { tableLinePlugin } from './nodes/table';
+export { docFolderEffect, docFolderField } from './plugins/doc-folder';
+export { ImageWidget, imageField } from './nodes/image';

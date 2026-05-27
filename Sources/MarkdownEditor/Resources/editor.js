@@ -17,6 +17,8 @@ const {
   indentedCodeResetPlugin,
   codeBlockLinePlugin,
   tableLinePlugin,
+  docFolderEffect, docFolderField,
+  ImageWidget, imageField,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -265,45 +267,6 @@ const mdHighlight = HighlightStyle.define([
   { tag: tags.typeName, color: "#1e7d8c" },
 ]);
 
-// ----- Image widget: ![alt](path) 또는 ![alt|N](path) 라인 다음에 inline img 표시 -----
-
-let docFolderURL = "";  // file://...   ending with /
-
-
-class ImageWidget extends WidgetType {
-  constructor(alt, src, width, height) {
-    super();
-    this.alt = alt;
-    this.src = src;
-    this.width = width;
-    this.height = height;
-  }
-  eq(other) {
-    return other.alt === this.alt && other.src === this.src
-      && other.width === this.width && other.height === this.height;
-  }
-  toDOM() {
-    const wrap = document.createElement("div");
-    wrap.className = "md-image-wrap";
-    wrap.contentEditable = "false";
-    const img = document.createElement("img");
-    img.className = "md-image";
-    img.src = imageSrcForRender(this.src, docFolderURL);
-    img.alt = this.alt;
-    img.loading = "lazy";
-    img.draggable = false;
-    if (this.width) img.width = this.width;
-    if (this.height) img.height = this.height;
-    img.onerror = () => { wrap.classList.add("md-image-error"); wrap.dataset.failedSrc = img.src; };
-    wrap.appendChild(img);
-    return wrap;
-  }
-  ignoreEvent() { return false; }
-}
-
-// docFolderURL 변경 시 image widget을 다시 빌드시키기 위한 effect.
-const docFolderEffect = StateEffect.define();
-
 // done task line: strikethrough + muted (mock A spec).
 // task marker `[x]` 자체엔 별도 인라인 클래스 (filled accent + white check 시각화 — CSS).
 const taskLinePlugin = ViewPlugin.fromClass(class {
@@ -539,38 +502,6 @@ const mermaidDecoField = StateField.define({
     if (tr.docChanged) return buildMermaidDecorations(tr.state);
     for (const e of tr.effects) {
       if (e.is(toggleMermaidEffect)) return buildMermaidDecorations(tr.state);
-    }
-    return value;
-  },
-  provide: f => EditorView.decorations.from(f),
-});
-
-// Block decoration은 CodeMirror 6 룰상 ViewPlugin이 아니라 StateField에서만 만들 수 있다.
-function buildImageDecorations(state) {
-  const builder = [];
-  const re = /^\s*!\[([^\]]*)\]\(([^)\s]+(?:\s+"[^"]*")?)\)\s*$/;
-  for (let i = 1; i <= state.doc.lines; i++) {
-    const line = state.doc.line(i);
-    const m = line.text.match(re);
-    if (!m) continue;
-    const { alt, width, height } = parseAltAndSize(m[1]);
-    const src = m[2].split(/\s+/)[0];
-    const widget = Decoration.widget({
-      widget: new ImageWidget(alt, src, width, height),
-      side: 1,
-      block: true,
-    });
-    builder.push(widget.range(line.to));
-  }
-  return Decoration.set(builder, true);
-}
-
-const imageField = StateField.define({
-  create(state) { return buildImageDecorations(state); },
-  update(value, tr) {
-    if (tr.docChanged) return buildImageDecorations(tr.state);
-    for (const e of tr.effects) {
-      if (e.is(docFolderEffect)) return buildImageDecorations(tr.state);
     }
     return value;
   },
@@ -835,6 +766,7 @@ function makeExtensions() {
     highlightActiveLine(),
     lineKindGutter,
     showPanel.of(makeStatusPanel),
+    docFolderField,
     imageField,
     mermaidActiveField,
     mermaidDecoField,
@@ -900,8 +832,6 @@ window.appBridge = {
     document.documentElement.style.setProperty("--editor-font", family);
   },
   setDocFolder(url) {
-    docFolderURL = url || "";
-    // imagePlugin이 이 effect를 보고 widget을 다시 빌드한다
     view.dispatch({ effects: docFolderEffect.of(url || "") });
   },
   openSearch() {
