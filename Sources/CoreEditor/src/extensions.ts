@@ -1,0 +1,106 @@
+import { Compartment, EditorState } from '@codemirror/state';
+import {
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  keymap,
+} from '@codemirror/view';
+import {
+  bracketMatching,
+  indentOnInput,
+  indentUnit,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+} from '@codemirror/language';
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from '@codemirror/commands';
+import { search, searchKeymap } from '@codemirror/search';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { languages } from '@codemirror/language-data';
+
+import { baseTheme } from './styling/base-theme';
+import { mdHighlight } from './styling/highlight';
+import { lineKindGutter } from './plugins/line-kind-gutter';
+import { statusBarPanel } from './plugins/status-bar';
+import { imageField } from './nodes/image';
+import { docFolderField } from './plugins/doc-folder';
+import { mermaidActiveField, mermaidDecoField } from './nodes/mermaid';
+import { listMarkPlugin } from './nodes/list-mark';
+import { inlineCodePlugin } from './nodes/inline-code';
+import { indentedCodeResetPlugin } from './nodes/indented-reset';
+import { codeBlockLinePlugin } from './nodes/code-block';
+import { tableLinePlugin } from './nodes/table';
+import { taskLinePlugin } from './plugins/task-line';
+import { imeListContinueFilter } from './commands/ime-list-continue';
+import { wrapSelection } from './commands/wrap-selection';
+import { insertLinkCmd } from './commands/insert-link';
+
+export const themeCompartment = new Compartment();
+
+export interface EditorUpdateHooks {
+  onTextChanged(text: string): void;
+  onCursorLineChanged(line0Based: number): void;
+  shouldNotify(): boolean;
+}
+
+export function makeExtensions(hooks: EditorUpdateHooks) {
+  return [
+    history(),
+    drawSelection(),
+    dropCursor(),
+    EditorState.allowMultipleSelections.of(true),
+    bracketMatching(),
+    indentOnInput(),
+    markdown({ base: markdownLanguage, codeLanguages: languages }),
+    indentUnit.of('\t'),
+    EditorState.tabSize.of(4),
+    syntaxHighlighting(mdHighlight),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    search({ top: true }),
+    EditorView.lineWrapping,
+    EditorView.contentAttributes.of({
+      spellcheck: 'false',
+      autocorrect: 'off',
+      autocapitalize: 'off',
+    }),
+    highlightActiveLine(),
+    lineKindGutter,
+    statusBarPanel,
+    docFolderField,
+    imageField,
+    mermaidActiveField,
+    mermaidDecoField,
+    listMarkPlugin,
+    inlineCodePlugin,
+    indentedCodeResetPlugin,
+    codeBlockLinePlugin,
+    tableLinePlugin,
+    taskLinePlugin,
+    themeCompartment.of(baseTheme),
+    imeListContinueFilter,
+    keymap.of([
+      { key: 'Mod-b', run: wrapSelection('**', '**') },
+      { key: 'Mod-i', run: wrapSelection('*', '*') },
+      { key: 'Mod-k', run: insertLinkCmd },
+      indentWithTab,
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap,
+    ]),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged && hooks.shouldNotify()) {
+        hooks.onTextChanged(update.state.doc.toString());
+      }
+      if (update.selectionSet || update.docChanged) {
+        const head = update.state.selection.main.head;
+        const line0 = update.state.doc.lineAt(head).number - 1;
+        hooks.onCursorLineChanged(line0);
+      }
+    }),
+  ];
+}

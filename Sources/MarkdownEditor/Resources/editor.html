@@ -292,6 +292,8 @@ body { overflow: hidden; height: 100vh; }
     window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid init error: " + e.message);
   }
 </script>
-<script src="editor.js"></script>
+<script>
+  CM.bootEditor(document.getElementById("editor-host"));
+</script>
 </body>
 </html>
