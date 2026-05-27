@@ -13,6 +13,7 @@ const {
   markdown, markdownLanguage, languages, tags,
   parseAltAndSize, imageSrcForRender,
   listMarkPlugin,
+  inlineCodePlugin,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -648,32 +649,6 @@ const indentedCodeResetPlugin = ViewPlugin.fromClass(class {
         }
       },
     });
-    return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
-
-// 인라인 코드 `…` 의 본문(InlineCode 노드)에 배경/색 입히기. fence ``` 안 코드 블록은
-// 별도 codeBlockLinePlugin이 라인 단위로 처리하므로 충돌 없음.
-const inlineCodePlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    }
-  }
-  build(view) {
-    const builder = [];
-    const tree = syntaxTree(view.state);
-    for (const { from, to } of view.visibleRanges) {
-      tree.iterate({
-        from, to,
-        enter(node) {
-          if (node.name !== "InlineCode") return;
-          builder.push(Decoration.mark({ class: "cm-inline-code" })
-            .range(node.from, node.to));
-        },
-      });
-    }
     return Decoration.set(builder, true);
   }
 }, { decorations: v => v.decorations });
