@@ -19,3 +19,8 @@ export { statusBarPanel } from './plugins/status-bar';
 export { wrapSelection } from './commands/wrap-selection';
 export { insertLinkCmd } from './commands/insert-link';
 export { handleEnter } from './commands/list-continue';
+export {
+  imeListContinueFilter,
+  listPrefixFor,
+  extractNewlineInsertion,
+} from './commands/ime-list-continue';

@@ -26,6 +26,7 @@ const {
   wrapSelection,
   insertLinkCmd,
   handleEnter,
+  imeListContinueFilter,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -280,64 +281,6 @@ const mdHighlight = HighlightStyle.define([
 
 
 
-// Enter 시 자동 list 마커 — 영문/한국어 IME 모두 한 경로로 처리.
-// 한국어 IME confirm Enter는 commit + \n을 한 transaction "녕\n" 형태로 보내는 케이스가
-// 있어 "\n으로 끝나는 단일 insertion" 패턴까지 매칭한다.
-const imeListContinueFilter = EditorState.transactionFilter.of((tr) => {
-  if (!tr.docChanged) return tr;
-
-  // 단일 insertion이고 \n으로 끝나는 케이스만
-  let insertedText = null;
-  let insertPos = -1;
-  let changeCount = 0;
-  let bad = false;
-  tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-    changeCount++;
-    if (fromA !== toA) { bad = true; return; }
-    const t = inserted.toString();
-    if (!t.endsWith("\n")) { bad = true; return; }
-    insertedText = t;
-    insertPos = fromA;
-  });
-  if (bad || changeCount !== 1 || insertedText === null) return tr;
-
-  // 한국어 IME confirm Enter는 "\n\n"으로 들어오는 케이스가 있어 첫 \n 위치로 매칭.
-  const newState = tr.state;
-  const firstNewlineOffset = insertedText.indexOf("\n");
-  const newlineAt = insertPos + firstNewlineOffset;
-  const beforeLine = newState.doc.lineAt(newlineAt);
-  const beforeText = beforeLine.text;
-
-  let prefix = "";
-  let m;
-  if ((m = beforeText.match(/^(\s*)([-*+])\s+\[([ xX])\]\s+/))) {
-    prefix = `${m[1]}${m[2]} [ ] `;
-  } else if ((m = beforeText.match(/^(\s*)([-*+])\s+/))) {
-    prefix = `${m[1]}${m[2]} `;
-  } else if ((m = beforeText.match(/^(\s*)(\d+)\.\s+/))) {
-    const num = parseInt(m[2], 10);
-    prefix = `${m[1]}${num + 1}. `;
-  } else {
-    return tr;
-  }
-
-  // 마커만 있는 빈 항목에서 Enter → 마커 제거
-  const contentAfter = beforeText.slice(prefix.length).trim();
-  if (contentAfter === "" && newlineAt === beforeLine.to) {
-    return [{
-      changes: { from: beforeLine.from, to: newlineAt + 1, insert: "" },
-      selection: { anchor: beforeLine.from },
-    }];
-  }
-
-  // IME의 \n\n 케이스를 \n 1개로 normalize. 첫 \n 이후 텍스트는 버린다 (IME 버그).
-  const beforeNewlinePart = insertedText.slice(0, firstNewlineOffset);
-  const finalInsert = beforeNewlinePart + "\n" + prefix;
-  return [{
-    changes: { from: insertPos, to: insertPos, insert: finalInsert },
-    selection: { anchor: insertPos + finalInsert.length },
-  }];
-});
 
 // ----- Notify Swift -----
 
