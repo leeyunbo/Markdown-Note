@@ -30,3 +30,4 @@ export {
   postConsoleLog,
   postImageDropped,
 } from './bridge/outgoing';
+export { installPasteImageHandler } from './plugins/paste-image';

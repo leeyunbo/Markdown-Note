@@ -29,7 +29,7 @@ const {
   imeListContinueFilter,
   postTextChanged,
   postCursorLine,
-  postImageDropped,
+  installPasteImageHandler,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -450,25 +450,4 @@ window.appBridge = {
 // 이미지 paste(클립보드, 스크린샷 ⌘⇧⌃4 등) → Swift로 전달.
 // 외부 file drag(Finder 등)는 WKWebView 안의 JS drop이 안 잡혀서
 // EditorViewController의 NSDraggingDestination이 직접 처리한다.
-const editorDom = view.dom;
-
-editorDom.addEventListener("paste", (e) => {
-  if (!e.clipboardData) return;
-  for (const item of e.clipboardData.items) {
-    if (item.kind === "file" && item.type.startsWith("image/")) {
-      const file = item.getAsFile();
-      if (file) {
-        e.preventDefault();
-        e.stopPropagation();
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === "string") {
-            postImageDropped(reader.result, file.name || "image.png");
-          }
-        };
-        reader.readAsDataURL(file);
-        return;
-      }
-    }
-  }
-}, true);
+installPasteImageHandler(view);
