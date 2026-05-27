@@ -31,3 +31,5 @@ export {
   postImageDropped,
 } from './bridge/outgoing';
 export { installPasteImageHandler } from './plugins/paste-image';
+export { baseTheme } from './styling/base-theme';
+export { mdHighlight } from './styling/highlight';
