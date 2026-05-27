@@ -124,9 +124,15 @@ body { overflow: hidden; height: 100vh; }
 /* CodeMirror 6는 selection layer DOM에 inline `z-index: -1`을 직접 박는다
    (drawSelection의 above: false). 그래서 .cm-codeblock-line 배경(#f3f3f5) 뒤에
    selection이 그려져 보이지 않음. !important로 inline style을 덮어 content 위로 올림.
-   cursor layer는 z-index 150이라 영향 없음. */
+   cursor layer는 z-index 150이라 영향 없음.
+
+   pointer-events: none을 명시하지 않으면 content 위로 올린 selection 레이어가
+   마우스 이벤트를 가로채서 "선택된 파란 영역을 클릭해도 deselect 안 됨" 증상이
+   발생한다. CodeMirror의 기본 layer는 이 속성을 가지지만, 우리가 z-index만
+   덮으면서 함께 명시해야 inline style 우선순위에서 살아남음. */
 .cm-editor .cm-selectionLayer {
   z-index: 1 !important;
+  pointer-events: none !important;
 }
 .cm-editor .cm-activeLine { background: transparent; }
 
