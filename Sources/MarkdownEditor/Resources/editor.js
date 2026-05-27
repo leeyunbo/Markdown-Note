@@ -21,6 +21,7 @@ const {
   ImageWidget, imageField,
   toggleMermaidEffect, mermaidActiveField, mermaidDecoField,
   taskLinePlugin,
+  lineKindGutter,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -315,52 +316,6 @@ function makeStatusPanel(view) {
   };
 }
 
-// 라인 gutter — 각 라인의 마크다운 종류(h1/h2/¶/│ 등)를 좌측에 작은 라벨로.
-class LineKindMarker extends GutterMarker {
-  constructor(label) { super(); this.label = label; }
-  eq(other) { return other.label === this.label; }
-  toDOM() {
-    const span = document.createElement("span");
-    span.className = "cm-line-kind";
-    span.textContent = this.label;
-    return span;
-  }
-}
-const M_H1 = new LineKindMarker("h1");
-const M_H2 = new LineKindMarker("h2");
-const M_H3 = new LineKindMarker("h3");
-const M_H4 = new LineKindMarker("h4");
-const M_H5 = new LineKindMarker("h5");
-const M_H6 = new LineKindMarker("h6");
-const M_PARA = new LineKindMarker("¶");
-const M_QUOTE = new LineKindMarker("│");
-const M_CODE = new LineKindMarker("─");
-const M_HR = new LineKindMarker("⎯");
-const M_LIST = new LineKindMarker("•");
-const M_TASK_DONE = new LineKindMarker("✓");
-const M_TASK_TODO = new LineKindMarker("☐");
-
-const lineKindGutter = gutter({
-  class: "cm-line-kind-gutter",
-  lineMarker(view, line) {
-    const t = view.state.doc.lineAt(line.from).text;
-    if (/^\s*#{6}\s/.test(t)) return M_H6;
-    if (/^\s*#{5}\s/.test(t)) return M_H5;
-    if (/^\s*#{4}\s/.test(t)) return M_H4;
-    if (/^\s*#{3}\s/.test(t)) return M_H3;
-    if (/^\s*#{2}\s/.test(t)) return M_H2;
-    if (/^\s*#{1}\s/.test(t)) return M_H1;
-    if (/^\s*>+\s/.test(t)) return M_QUOTE;
-    // 체크박스 (mock A: ✓ done, ☐ todo) — list보다 먼저 체크해야 매칭됨
-    let cb = t.match(/^\s*[-*+]\s+\[([ xX])\]/);
-    if (cb) return cb[1].toLowerCase() === "x" ? M_TASK_DONE : M_TASK_TODO;
-    if (/^\s*([-*+]|\d+\.)\s/.test(t)) return M_LIST;
-    if (/^\s*([-_*])(\s*\1){2,}\s*$/.test(t)) return M_HR;
-    if (/^\s*```|^\s*~~~/.test(t)) return M_CODE;
-    return null;  // 본문 paragraph는 마커 없음
-  },
-  initialSpacer() { return M_H2; },  // 가장 넓은 라벨 기준 폭 예약
-});
 
 // ----- 마크다운 단축키 (⌘B / ⌘I / ⌘K) -----
 
