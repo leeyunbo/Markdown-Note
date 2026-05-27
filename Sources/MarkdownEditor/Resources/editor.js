@@ -12,6 +12,7 @@ const {
   searchKeymap, search, openSearchPanel, closeSearchPanel, findNext, findPrevious,
   markdown, markdownLanguage, languages, tags,
   parseAltAndSize, imageSrcForRender,
+  listMarkPlugin,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -670,40 +671,6 @@ const inlineCodePlugin = ViewPlugin.fromClass(class {
           if (node.name !== "InlineCode") return;
           builder.push(Decoration.mark({ class: "cm-inline-code" })
             .range(node.from, node.to));
-        },
-      });
-    }
-    return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
-
-// ListMark만 골라서 색 + nested 깊이별 cycle. lang-markdown의 ListMark 노드를 찾아
-// BulletList/OrderedList 조상 갯수로 깊이 계산.
-const listMarkPlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    }
-  }
-  build(view) {
-    const builder = [];
-    const tree = syntaxTree(view.state);
-    for (const { from, to } of view.visibleRanges) {
-      tree.iterate({
-        from, to,
-        enter(node) {
-          if (node.name !== "ListMark") return;
-          let depth = 0;
-          let p = node.node.parent;
-          while (p) {
-            if (p.name === "BulletList" || p.name === "OrderedList") depth++;
-            p = p.parent;
-          }
-          depth = Math.min(Math.max(depth - 1, 0), 4);
-          builder.push(Decoration.mark({
-            class: `md-list-mark md-list-depth-${depth}`,
-          }).range(node.from, node.to));
         },
       });
     }
