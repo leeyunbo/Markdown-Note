@@ -33,6 +33,7 @@ const {
   baseTheme,
   mdHighlight,
   installDiagnostics,
+  installAppBridge,
 } = window.CM;
 
 // 하단 status bar — Ln/Col, 인코딩, format, tasks 진행, file size.
@@ -118,93 +119,12 @@ const view = new EditorView({
   state: EditorState.create({ doc: "", extensions: makeExtensions() }),
 });
 
-// ----- Swift bridge -----
-
-window.appBridge = {
-  setText(text) {
-    if (text === lastAppliedText) return;
-    isApplyingExternal = true;
-    try {
-      // 일반 텍스트 sync — dispatch만 (history는 보존, 사용자 입력 round-trip 방지)
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: text },
-      });
-      lastAppliedText = text;
-    } finally {
-      setTimeout(() => { isApplyingExternal = false; }, 0);
-    }
-  },
-  resetEditor(text) {
-    // 새 파일 열기 — state 통째로 재생성 → history reset (이전 파일의 ⌘Z 안 따라옴)
-    isApplyingExternal = true;
-    try {
-      view.setState(EditorState.create({ doc: text, extensions: makeExtensions() }));
-      lastAppliedText = text;
-    } finally {
-      setTimeout(() => { isApplyingExternal = false; }, 0);
-    }
-  },
-  setTheme(vars) {
-    Object.entries(vars).forEach(([k, v]) =>
-      document.documentElement.style.setProperty("--" + k, v));
-  },
-  /// 본문 폰트만 변경 — CSS variable로 적용해 .cm-editor가 상속.
-  /// 코드 블록(.cm-codeblock-line, gutter 등)은 자체 fontFamily가 명시돼 영향 없음.
-  setFontFamily(family) {
-    document.documentElement.style.setProperty("--editor-font", family);
-  },
-  setDocFolder(url) {
-    view.dispatch({ effects: docFolderEffect.of(url || "") });
-  },
-  openSearch() {
-    // 토글: 이미 열려있으면 닫기, 아니면 열기.
-    const existing = view.dom.querySelector(".cm-search");
-    if (existing) {
-      closeSearchPanel(view);
-    } else {
-      openSearchPanel(view);
-    }
-    return true;
-  },
-  scrollToLine(lineIdx) {
-    const lineNum = Math.max(1, Math.min(view.state.doc.lines, lineIdx + 1));
-    const line = view.state.doc.line(lineNum);
-    view.dispatch({
-      selection: { anchor: line.from },
-      scrollIntoView: true,
-    });
-    view.focus();
-    return true;
-  },
-  insertImage(alt, path) {
-    const sel = view.state.selection.main;
-    const insertion = `![${alt}](${path})`;
-    view.dispatch({
-      changes: { from: sel.from, to: sel.to, insert: insertion },
-      selection: { anchor: sel.from + insertion.length },
-      scrollIntoView: true,
-    });
-    return true;
-  },
-  getOutline() {
-    // syntaxTree로 ATX heading 추출
-    const tree = syntaxTree(view.state);
-    const result = [];
-    const doc = view.state.doc;
-    tree.iterate({
-      enter: (node) => {
-        const m = node.name.match(/^ATXHeading(\d)$/);
-        if (!m) return;
-        const level = parseInt(m[1], 10);
-        const text = doc.sliceString(node.from, node.to)
-                        .replace(/^#+\s+/, "").trim();
-        const lineIdx = doc.lineAt(node.from).number - 1;
-        result.push({ level, text, lineIdx });
-      },
-    });
-    return result;
-  },
-};
+installAppBridge(view, {
+  setApplyingExternal(v) { isApplyingExternal = v; },
+  buildState(text) { return EditorState.create({ doc: text, extensions: makeExtensions() }); },
+  getLastAppliedText() { return lastAppliedText; },
+  setLastAppliedText(text) { lastAppliedText = text; },
+});
 
 // 이미지 paste(클립보드, 스크린샷 ⌘⇧⌃4 등) → Swift로 전달.
 // 외부 file drag(Finder 등)는 WKWebView 안의 JS drop이 안 잡혀서
