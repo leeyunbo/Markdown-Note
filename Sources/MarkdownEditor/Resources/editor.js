@@ -24,6 +24,7 @@ const {
   lineKindGutter,
   statusBarPanel,
   wrapSelection,
+  insertLinkCmd,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -276,27 +277,6 @@ const mdHighlight = HighlightStyle.define([
 // ----- 마크다운 단축키 (⌘B / ⌘I / ⌘K) -----
 
 
-function insertLinkCmd({ state, dispatch }) {
-  const sel = state.selection.main;
-  const selText = state.doc.sliceString(sel.from, sel.to);
-  const labelText = selText || "text";
-  const placeholder = "url";
-  const replacement = `[${labelText}](${placeholder})`;
-  let from, to;
-  if (selText) {
-    from = sel.from + `[${labelText}](`.length;
-    to = from + placeholder.length;
-  } else {
-    from = sel.from + 1;
-    to = from + labelText.length;
-  }
-  dispatch(state.update({
-    changes: { from: sel.from, to: sel.to, insert: replacement },
-    selection: { anchor: from, head: to },
-    scrollIntoView: true,
-  }));
-  return true;
-}
 
 // ----- Enter 시 리스트 자동 컨티뉴 -----
 
