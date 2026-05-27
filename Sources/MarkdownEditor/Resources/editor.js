@@ -16,6 +16,7 @@ const {
   inlineCodePlugin,
   indentedCodeResetPlugin,
   codeBlockLinePlugin,
+  tableLinePlugin,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -330,56 +331,6 @@ const taskLinePlugin = ViewPlugin.fromClass(class {
       builder.push(Decoration.mark({ class: checkClass }).range(start, end));
     }
     return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
-
-// 마크다운 표 라인 — header / alignment / body 라인 그룹화 + role 클래스.
-// pipe(|)는 별도 mark decoration으로 흐리게 색칠.
-const tableLinePlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    }
-  }
-  build(view) {
-    const lineDecos = [];
-    const markDecos = [];
-    const doc = view.state.doc;
-    const isTableRow = (t) => /^\s*\|.*\|\s*$/.test(t);
-    const isAlignRow = (t) => /^\s*\|(\s*:?-{2,}:?\s*\|)+\s*$/.test(t);
-    let i = 1;
-    while (i <= doc.lines) {
-      const head = doc.line(i);
-      if (isTableRow(head.text) && i + 1 <= doc.lines && isAlignRow(doc.line(i + 1).text)) {
-        let last = i + 1;
-        for (let j = i + 2; j <= doc.lines; j++) {
-          if (!isTableRow(doc.line(j).text)) break;
-          last = j;
-        }
-        for (let n = i; n <= last; n++) {
-          const line = doc.line(n);
-          const classes = ["cm-table-line"];
-          if (n === i) classes.push("cm-table-header", "cm-table-first");
-          else if (n === i + 1) classes.push("cm-table-align");
-          else if ((n - i) % 2 === 0) classes.push("cm-table-zebra");
-          if (n === last) classes.push("cm-table-last");
-          lineDecos.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
-          // pipe 위치마다 mark decoration
-          for (let k = 0; k < line.text.length; k++) {
-            if (line.text[k] === "|") {
-              markDecos.push(Decoration.mark({ class: "cm-table-pipe" })
-                .range(line.from + k, line.from + k + 1));
-            }
-          }
-        }
-        i = last + 1;
-        continue;
-      }
-      i++;
-    }
-    // line + mark 합쳐서 하나의 set. line decoration은 항상 mark보다 먼저 와야 sort 보장.
-    return Decoration.set([...lineDecos, ...markDecos], true);
   }
 }, { decorations: v => v.decorations });
 

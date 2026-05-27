@@ -5,3 +5,4 @@ export { listMarkPlugin } from './nodes/list-mark';
 export { inlineCodePlugin } from './nodes/inline-code';
 export { indentedCodeResetPlugin } from './nodes/indented-reset';
 export { codeBlockLinePlugin } from './nodes/code-block';
+export { tableLinePlugin } from './nodes/table';
