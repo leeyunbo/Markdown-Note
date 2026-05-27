@@ -19,6 +19,7 @@ const {
   tableLinePlugin,
   docFolderEffect, docFolderField,
   ImageWidget, imageField,
+  toggleMermaidEffect, mermaidActiveField, mermaidDecoField,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -388,124 +389,6 @@ const lineKindGutter = gutter({
     return null;  // 본문 paragraph는 마커 없음
   },
   initialSpacer() { return M_H2; },  // 가장 넓은 라벨 기준 폭 예약
-});
-
-// ----- Mermaid 토글 (```mermaid 펜스 코드 블록 ↔ SVG 다이어그램) -----
-// StateField로 켜진 블록들의 시작 라인 fence position을 저장. 그 블록은 라인을 hide하고
-// SVG widget을 block decoration으로 그 자리에 표시. 토글 버튼은 항상 fence 옆에.
-
-const toggleMermaidEffect = StateEffect.define();  // {pos: fence start, on: boolean}
-
-const mermaidActiveField = StateField.define({
-  create() { return new Set(); },
-  update(value, tr) {
-    let next = value;
-    for (const e of tr.effects) {
-      if (e.is(toggleMermaidEffect)) {
-        next = new Set(next);
-        const key = String(e.value.pos);
-        if (e.value.on) next.add(key); else next.delete(key);
-      }
-    }
-    if (tr.docChanged) {
-      // doc 변경 시 라인이 옮겨질 수 있으므로 보수적으로 리셋
-      return new Set();
-    }
-    return next;
-  },
-});
-
-class MermaidToggleWidget extends WidgetType {
-  constructor(active, pos) { super(); this.active = active; this.pos = pos; }
-  eq(o) { return o.active === this.active && o.pos === this.pos; }
-  toDOM(view) {
-    const btn = document.createElement("button");
-    btn.className = "md-mermaid-toggle";
-    btn.type = "button";
-    btn.contentEditable = "false";
-    btn.textContent = this.active ? "◧ 코드 보기" : "▦ 다이어그램 보기";
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      view.dispatch({ effects: toggleMermaidEffect.of({ pos: this.pos, on: !this.active }) });
-    };
-    return btn;
-  }
-  ignoreEvent() { return false; }
-}
-
-class MermaidRenderWidget extends WidgetType {
-  constructor(src, key) { super(); this.src = src; this.key = key; }
-  eq(o) { return o.src === this.src && o.key === this.key; }
-  toDOM() {
-    const wrap = document.createElement("div");
-    wrap.className = "md-mermaid-render";
-    wrap.contentEditable = "false";
-    if (!window.mermaid) {
-      wrap.className = "md-mermaid-error";
-      wrap.textContent = "mermaid library not loaded";
-      return wrap;
-    }
-    const id = "mmd_" + Math.random().toString(36).slice(2);
-    window.mermaid.render(id, this.src).then(({ svg }) => {
-      wrap.innerHTML = svg;
-    }).catch(err => {
-      wrap.className = "md-mermaid-error";
-      wrap.textContent = "mermaid error: " + (err && err.message ? err.message : String(err));
-    });
-    return wrap;
-  }
-  ignoreEvent() { return false; }
-}
-
-// CodeMirror 6 룰: block decoration (block: true)은 ViewPlugin에서 만들 수 없고
-// StateField에서만 가능. imageField와 같은 패턴.
-function buildMermaidDecorations(state) {
-  const builder = [];
-  const tree = syntaxTree(state);
-  const doc = state.doc;
-  const active = state.field(mermaidActiveField, false) || new Set();
-  tree.iterate({
-    enter(node) {
-      if (node.name !== "FencedCode") return;
-      const startLine = doc.lineAt(node.from);
-      const endLine = doc.lineAt(node.to);
-      const m = startLine.text.match(/^\s*(?:```|~~~)\s*(\w+)/);
-      if (!m || m[1].toLowerCase() !== "mermaid") return;
-      const key = String(startLine.from);
-      const isActive = active.has(key);
-      builder.push(Decoration.widget({
-        widget: new MermaidToggleWidget(isActive, startLine.from),
-        side: -1,
-        block: true,
-      }).range(startLine.from));
-      if (isActive) {
-        for (let n = startLine.number; n <= endLine.number; n++) {
-          const line = doc.line(n);
-          builder.push(Decoration.line({ class: "cm-mermaid-hidden" }).range(line.from));
-        }
-        const body = doc.sliceString(startLine.to, endLine.from).trim();
-        builder.push(Decoration.widget({
-          widget: new MermaidRenderWidget(body, key),
-          side: 1,
-          block: true,
-        }).range(endLine.to));
-      }
-    },
-  });
-  return Decoration.set(builder, true);
-}
-
-const mermaidDecoField = StateField.define({
-  create(state) { return buildMermaidDecorations(state); },
-  update(value, tr) {
-    if (tr.docChanged) return buildMermaidDecorations(tr.state);
-    for (const e of tr.effects) {
-      if (e.is(toggleMermaidEffect)) return buildMermaidDecorations(tr.state);
-    }
-    return value;
-  },
-  provide: f => EditorView.decorations.from(f),
 });
 
 // ----- 마크다운 단축키 (⌘B / ⌘I / ⌘K) -----

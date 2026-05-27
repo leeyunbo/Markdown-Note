@@ -8,3 +8,8 @@ export { codeBlockLinePlugin } from './nodes/code-block';
 export { tableLinePlugin } from './nodes/table';
 export { docFolderEffect, docFolderField } from './plugins/doc-folder';
 export { ImageWidget, imageField } from './nodes/image';
+export {
+  toggleMermaidEffect,
+  mermaidActiveField,
+  mermaidDecoField,
+} from './nodes/mermaid';
