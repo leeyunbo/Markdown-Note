@@ -24,3 +24,9 @@ export {
   listPrefixFor,
   extractNewlineInsertion,
 } from './commands/ime-list-continue';
+export {
+  postTextChanged,
+  postCursorLine,
+  postConsoleLog,
+  postImageDropped,
+} from './bridge/outgoing';

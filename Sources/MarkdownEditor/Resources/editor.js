@@ -27,6 +27,9 @@ const {
   insertLinkCmd,
   handleEnter,
   imeListContinueFilter,
+  postTextChanged,
+  postCursorLine,
+  postImageDropped,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -282,19 +285,6 @@ const mdHighlight = HighlightStyle.define([
 
 
 
-// ----- Notify Swift -----
-
-let notifyTimer = null;
-function notifySwift(text) {
-  if (notifyTimer) clearTimeout(notifyTimer);
-  notifyTimer = setTimeout(() => {
-    if (window.webkit && window.webkit.messageHandlers
-        && window.webkit.messageHandlers.textChanged) {
-      window.webkit.messageHandlers.textChanged.postMessage(text);
-    }
-  }, 150);
-}
-
 // ----- 에디터 인스턴스 -----
 
 const themeCompartment = new Compartment();
@@ -306,25 +296,15 @@ const updateListener = EditorView.updateListener.of((update) => {
   if (update.docChanged && !isApplyingExternal) {
     const text = update.state.doc.toString();
     lastAppliedText = text;
-    notifySwift(text);
+    postTextChanged(text);
   }
   // cursor line이 바뀔 때마다 inline TOC active 행 갱신용으로 Swift에 전달
   if (update.selectionSet || update.docChanged) {
     const head = update.state.selection.main.head;
     const line = update.state.doc.lineAt(head).number - 1;  // 0-based
-    notifyCursorLine(line);
+    postCursorLine(line);
   }
 });
-
-let lastNotifiedCursorLine = -1;
-function notifyCursorLine(line) {
-  if (line === lastNotifiedCursorLine) return;
-  lastNotifiedCursorLine = line;
-  if (window.webkit && window.webkit.messageHandlers
-      && window.webkit.messageHandlers.cursorLine) {
-    window.webkit.messageHandlers.cursorLine.postMessage(line);
-  }
-}
 
 function makeExtensions() {
   return [
@@ -472,19 +452,6 @@ window.appBridge = {
 // EditorViewController의 NSDraggingDestination이 직접 처리한다.
 const editorDom = view.dom;
 
-function postImageToSwift(file) {
-  if (!window.webkit || !window.webkit.messageHandlers
-      || !window.webkit.messageHandlers.imageDropped) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    window.webkit.messageHandlers.imageDropped.postMessage({
-      dataURL: reader.result,
-      name: file.name || "image.png",
-    });
-  };
-  reader.readAsDataURL(file);
-}
-
 editorDom.addEventListener("paste", (e) => {
   if (!e.clipboardData) return;
   for (const item of e.clipboardData.items) {
@@ -493,7 +460,13 @@ editorDom.addEventListener("paste", (e) => {
       if (file) {
         e.preventDefault();
         e.stopPropagation();
-        postImageToSwift(file);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            postImageDropped(reader.result, file.name || "image.png");
+          }
+        };
+        reader.readAsDataURL(file);
         return;
       }
     }
