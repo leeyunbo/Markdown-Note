@@ -188,3 +188,38 @@ describe('imeListContinueFilter', () => {
     expect(after.doc.toString()).toBe('- itemabc\n- ');
   });
 });
+
+// ---------------------------------------------------------------------------
+// imeListContinueFilter — empty list marker clear (boundary tests)
+// ---------------------------------------------------------------------------
+describe('imeListContinueFilter — empty list marker clear', () => {
+  function applyEnter(initialDoc: string, cursorPos: number) {
+    const state = EditorState.create({
+      doc: initialDoc,
+      selection: EditorSelection.cursor(cursorPos),
+      extensions: [imeListContinueFilter],
+    });
+    return state.update({
+      changes: { from: cursorPos, to: cursorPos, insert: '\n' },
+      selection: EditorSelection.cursor(cursorPos + 1),
+    });
+  }
+
+  it('clears an empty bullet marker on Enter without error', () => {
+    expect(() => applyEnter('- ', 2)).not.toThrow();
+    const tr = applyEnter('- ', 2);
+    expect(tr.newDoc.toString()).toBe('');
+  });
+
+  it('clears an empty numbered marker on Enter without error', () => {
+    expect(() => applyEnter('1. ', 3)).not.toThrow();
+    const tr = applyEnter('1. ', 3);
+    expect(tr.newDoc.toString()).toBe('');
+  });
+
+  it('clears an empty checkbox marker on Enter without error', () => {
+    expect(() => applyEnter('- [ ] ', 6)).not.toThrow();
+    const tr = applyEnter('- [ ] ', 6);
+    expect(tr.newDoc.toString()).toBe('');
+  });
+});

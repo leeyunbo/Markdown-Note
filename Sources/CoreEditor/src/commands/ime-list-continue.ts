@@ -57,9 +57,10 @@ export const imeListContinueFilter = EditorState.transactionFilter.of((tr) => {
 
   const contentAfter = beforeText.slice(prefix.length).trim();
   if (contentAfter === '' && newlineAt === beforeLine.to) {
+    const clearTo = Math.min(newlineAt + 1, tr.startState.doc.length);
     return [
       {
-        changes: { from: beforeLine.from, to: newlineAt + 1, insert: '' },
+        changes: { from: beforeLine.from, to: clearTo, insert: '' },
         selection: { anchor: beforeLine.from },
       },
     ];
