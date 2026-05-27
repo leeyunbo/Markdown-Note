@@ -15,6 +15,7 @@ const {
   listMarkPlugin,
   inlineCodePlugin,
   indentedCodeResetPlugin,
+  codeBlockLinePlugin,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -474,38 +475,6 @@ const lineKindGutter = gutter({
   },
   initialSpacer() { return M_H2; },  // 가장 넓은 라벨 기준 폭 예약
 });
-
-// 코드 펜스 안 라인에 cm-codeblock-line 클래스 부여 (배경 + monospace).
-// 첫/마지막 라인엔 둥근 모서리용 클래스도 추가.
-const codeBlockLinePlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    }
-  }
-  build(view) {
-    const builder = [];
-    const tree = syntaxTree(view.state);
-    const doc = view.state.doc;
-    // FencedCode 노드 찾아서 그 영역의 라인들에 line decoration
-    tree.iterate({
-      enter(node) {
-        if (node.name !== "FencedCode") return;
-        const startLine = doc.lineAt(node.from).number;
-        const endLine = doc.lineAt(node.to).number;
-        for (let n = startLine; n <= endLine; n++) {
-          const line = doc.line(n);
-          const classes = ["cm-codeblock-line"];
-          if (n === startLine) classes.push("cm-codeblock-first");
-          if (n === endLine) classes.push("cm-codeblock-last");
-          builder.push(Decoration.line({ class: classes.join(" ") }).range(line.from));
-        }
-      },
-    });
-    return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
 
 // ----- Mermaid 토글 (```mermaid 펜스 코드 블록 ↔ SVG 다이어그램) -----
 // StateField로 켜진 블록들의 시작 라인 fence position을 저장. 그 블록은 라인을 hide하고
