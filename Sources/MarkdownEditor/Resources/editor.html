@@ -277,23 +277,7 @@ body { overflow: hidden; height: 100vh; }
 </head>
 <body>
 <div id="editor-host"></div>
-<script>
-  // 진단: 글 안 보이는 원인 추적 — 어떤 JS 에러든 즉시 Swift NSLog로 forward.
-  window.addEventListener("error", function(e) {
-    try {
-      window.webkit?.messageHandlers?.consoleLog?.postMessage(
-        "[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?")
-      );
-    } catch (err) {}
-  });
-  window.addEventListener("unhandledrejection", function(e) {
-    try {
-      window.webkit?.messageHandlers?.consoleLog?.postMessage(
-        "[unhandled] " + (e.reason && e.reason.message ? e.reason.message : String(e.reason))
-      );
-    } catch (err) {}
-  });
-</script>
+
 <script src="cm.bundle.js"></script>
 <script src="vendor/mermaid.min.js"></script>
 <script>

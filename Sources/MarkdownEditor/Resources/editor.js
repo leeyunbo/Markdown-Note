@@ -32,10 +32,13 @@ const {
   installPasteImageHandler,
   baseTheme,
   mdHighlight,
+  installDiagnostics,
 } = window.CM;
 
 // 하단 status bar — Ln/Col, 인코딩, format, tasks 진행, file size.
 // ----- 마크다운 단축키 (⌘B / ⌘I / ⌘K) -----
+
+installDiagnostics();
 
 
 
