@@ -1,5 +1,6 @@
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { markdownTagClasses } from './markdown-tags';
 
 // Mock A 토큰 (Variant A — Safe):
 //   body 13.5/22, h1 22/36, h2 17/30, h3 14.5/24, h4 13.5, h5 13, h6 13/secondary
@@ -43,4 +44,5 @@ export const mdHighlight = HighlightStyle.define([
   { tag: tags.function(tags.variableName), color: "#1e7d8c" },
   { tag: tags.className, color: "#1e7d8c" },
   { tag: tags.typeName, color: "#1e7d8c" },
+  ...[...markdownTagClasses],
 ]);

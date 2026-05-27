@@ -38,6 +38,7 @@ export {
 } from './commands/ime-list-continue';
 export { baseTheme } from './styling/base-theme';
 export { mdHighlight } from './styling/highlight';
+export { markdownTagClasses } from './styling/markdown-tags';
 export {
   postTextChanged,
   postCursorLine,
