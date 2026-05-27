@@ -13,3 +13,4 @@ export {
   mermaidActiveField,
   mermaidDecoField,
 } from './nodes/mermaid';
+export { taskLinePlugin } from './plugins/task-line';

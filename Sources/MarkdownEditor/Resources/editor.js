@@ -20,6 +20,7 @@ const {
   docFolderEffect, docFolderField,
   ImageWidget, imageField,
   toggleMermaidEffect, mermaidActiveField, mermaidDecoField,
+  taskLinePlugin,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -267,36 +268,6 @@ const mdHighlight = HighlightStyle.define([
   { tag: tags.className, color: "#1e7d8c" },
   { tag: tags.typeName, color: "#1e7d8c" },
 ]);
-
-// done task line: strikethrough + muted (mock A spec).
-// task marker `[x]` 자체엔 별도 인라인 클래스 (filled accent + white check 시각화 — CSS).
-const taskLinePlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    }
-  }
-  build(view) {
-    const builder = [];
-    const doc = view.state.doc;
-    for (let i = 1; i <= doc.lines; i++) {
-      const line = doc.line(i);
-      const m = line.text.match(/^(\s*[-*+]\s+\[)([ xX])(\])/);
-      if (!m) continue;
-      const checkClass = m[2].toLowerCase() === "x" ? "cm-task-checked" : "cm-task-unchecked";
-      // 라인 자체 (done 시 strikethrough 등)
-      if (m[2].toLowerCase() === "x") {
-        builder.push(Decoration.line({ class: "cm-task-done" }).range(line.from));
-      }
-      // 마커 [x]/[ ] 부분에 inline mark
-      const start = line.from + m[1].length - 1;  // [
-      const end = start + 3;
-      builder.push(Decoration.mark({ class: checkClass }).range(start, end));
-    }
-    return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
 
 // 하단 status bar — Ln/Col, 인코딩, format, tasks 진행, file size.
 function makeStatusPanel(view) {
