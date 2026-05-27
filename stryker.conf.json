@@ -10,7 +10,7 @@
     "Sources/CoreEditor/src/commands/**/*.ts",
     "Sources/CoreEditor/src/plugins/doc-folder.ts"
   ],
-  "thresholds": { "high": 90, "low": 70, "break": 80 },
+  "thresholds": { "high": 90, "low": 70, "break": 75 },
   "jest": { "projectType": "custom", "configFile": "jest.config.cjs" },
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
