@@ -25,6 +25,7 @@ const {
   statusBarPanel,
   wrapSelection,
   insertLinkCmd,
+  handleEnter,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -278,75 +279,6 @@ const mdHighlight = HighlightStyle.define([
 
 
 
-// ----- Enter 시 리스트 자동 컨티뉴 -----
-
-function handleEnter({ state, dispatch }) {
-  const sel = state.selection.main;
-  if (!sel.empty) return false;
-  const line = state.doc.lineAt(sel.head);
-  const text = line.text;
-  // checkbox 우선
-  let m = text.match(/^(\s*)([-*+])\s+\[([ xX])\]\s+(.*)$/);
-  if (m) {
-    const [, indent, mk, , content] = m;
-    if (content === "" && sel.head === line.to) {
-      // 빈 항목 → 마커 제거
-      dispatch(state.update({
-        changes: { from: line.from, to: line.to, insert: "" },
-        selection: { anchor: line.from },
-        scrollIntoView: true,
-      }));
-      return true;
-    }
-    const insert = `\n${indent}${mk} [ ] `;
-    dispatch(state.update({
-      changes: { from: sel.head, to: sel.head, insert },
-      selection: { anchor: sel.head + insert.length },
-      scrollIntoView: true,
-    }));
-    return true;
-  }
-  m = text.match(/^(\s*)([-*+])\s+(.*)$/);
-  if (m) {
-    const [, indent, mk, content] = m;
-    if (content === "" && sel.head === line.to) {
-      dispatch(state.update({
-        changes: { from: line.from, to: line.to, insert: "" },
-        selection: { anchor: line.from },
-        scrollIntoView: true,
-      }));
-      return true;
-    }
-    const insert = `\n${indent}${mk} `;
-    dispatch(state.update({
-      changes: { from: sel.head, to: sel.head, insert },
-      selection: { anchor: sel.head + insert.length },
-      scrollIntoView: true,
-    }));
-    return true;
-  }
-  m = text.match(/^(\s*)(\d+)\.\s+(.*)$/);
-  if (m) {
-    const [, indent, numStr, content] = m;
-    const num = parseInt(numStr, 10);
-    if (content === "" && sel.head === line.to) {
-      dispatch(state.update({
-        changes: { from: line.from, to: line.to, insert: "" },
-        selection: { anchor: line.from },
-        scrollIntoView: true,
-      }));
-      return true;
-    }
-    const insert = `\n${indent}${num + 1}. `;
-    dispatch(state.update({
-      changes: { from: sel.head, to: sel.head, insert },
-      selection: { anchor: sel.head + insert.length },
-      scrollIntoView: true,
-    }));
-    return true;
-  }
-  return false;  // default Enter 동작
-}
 
 // Enter 시 자동 list 마커 — 영문/한국어 IME 모두 한 경로로 처리.
 // 한국어 IME confirm Enter는 commit + \n을 한 transaction "녕\n" 형태로 보내는 케이스가
