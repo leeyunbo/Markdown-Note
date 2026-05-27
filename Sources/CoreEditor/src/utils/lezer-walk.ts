@@ -2,7 +2,7 @@ import { EditorState } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNodeRef } from '@lezer/common';
 
-export type NodeVisitor = (node: SyntaxNodeRef) => void;
+export type NodeVisitor = (node: SyntaxNodeRef) => boolean | void;
 
 /** Iterate the syntax tree for the given state, optionally restricted to a [from, to] range. */
 export function visitTree(
