@@ -14,6 +14,7 @@ const {
   parseAltAndSize, imageSrcForRender,
   listMarkPlugin,
   inlineCodePlugin,
+  indentedCodeResetPlugin,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -623,35 +624,6 @@ const mermaidDecoField = StateField.define({
   },
   provide: f => EditorView.decorations.from(f),
 });
-
-// IndentedCode (라인 시작 \t 또는 4 spaces) 노드 안의 라인은 lang-markdown이 CodeText로
-// 자식 인식해서 monospace 태그가 적용된다. 사용자가 Tab으로 들여쓰기한 일반 라인이
-// 의도와 달리 mono 폰트로 leak되는 시각 버그 — 라인 클래스로 강제 본문 폰트 복귀.
-const indentedCodeResetPlugin = ViewPlugin.fromClass(class {
-  constructor(view) { this.decorations = this.build(view); }
-  update(update) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    }
-  }
-  build(view) {
-    const builder = [];
-    const tree = syntaxTree(view.state);
-    const doc = view.state.doc;
-    tree.iterate({
-      enter(node) {
-        if (node.name !== "CodeBlock" && node.name !== "IndentedCode") return;
-        const startLine = doc.lineAt(node.from).number;
-        const endLine = doc.lineAt(node.to).number;
-        for (let n = startLine; n <= endLine; n++) {
-          const line = doc.line(n);
-          builder.push(Decoration.line({ class: "cm-indented-reset" }).range(line.from));
-        }
-      },
-    });
-    return Decoration.set(builder, true);
-  }
-}, { decorations: v => v.decorations });
 
 // Block decoration은 CodeMirror 6 룰상 ViewPlugin이 아니라 StateField에서만 만들 수 있다.
 function buildImageDecorations(state) {
