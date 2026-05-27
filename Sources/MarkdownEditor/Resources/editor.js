@@ -23,6 +23,7 @@ const {
   taskLinePlugin,
   lineKindGutter,
   statusBarPanel,
+  wrapSelection,
 } = window.CM;
 
 // ----- Theme + highlight style (Light/Dark/Sepia/Paper와 sync) -----
@@ -274,43 +275,6 @@ const mdHighlight = HighlightStyle.define([
 // 하단 status bar — Ln/Col, 인코딩, format, tasks 진행, file size.
 // ----- 마크다운 단축키 (⌘B / ⌘I / ⌘K) -----
 
-function wrapSelection(left, right) {
-  return ({ state, dispatch }) => {
-    const sel = state.selection.main;
-    const text = state.doc.sliceString(sel.from, sel.to);
-    let replacement, selStart, selEnd;
-    // 양옆 마커가 이미 있으면 unwrap
-    const before = state.doc.sliceString(Math.max(0, sel.from - left.length), sel.from);
-    const after = state.doc.sliceString(sel.to, Math.min(state.doc.length, sel.to + right.length));
-    if (before === left && after === right) {
-      // unwrap: selection 그대로 두고 좌우 마커 제거
-      dispatch(state.update({
-        changes: [
-          { from: sel.from - left.length, to: sel.from, insert: "" },
-          { from: sel.to, to: sel.to + right.length, insert: "" },
-        ],
-        selection: { anchor: sel.from - left.length, head: sel.to - left.length },
-        scrollIntoView: true,
-      }));
-      return true;
-    }
-    // wrap
-    if (sel.empty) {
-      replacement = left + right;
-      selStart = selEnd = sel.from + left.length;
-    } else {
-      replacement = left + text + right;
-      selStart = sel.from + left.length;
-      selEnd = selStart + text.length;
-    }
-    dispatch(state.update({
-      changes: { from: sel.from, to: sel.to, insert: replacement },
-      selection: { anchor: selStart, head: selEnd },
-      scrollIntoView: true,
-    }));
-    return true;
-  };
-}
 
 function insertLinkCmd({ state, dispatch }) {
   const sel = state.selection.main;

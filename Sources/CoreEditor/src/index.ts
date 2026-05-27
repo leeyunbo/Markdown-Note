@@ -16,3 +16,4 @@ export {
 export { taskLinePlugin } from './plugins/task-line';
 export { lineKindGutter } from './plugins/line-kind-gutter';
 export { statusBarPanel } from './plugins/status-bar';
+export { wrapSelection } from './commands/wrap-selection';
