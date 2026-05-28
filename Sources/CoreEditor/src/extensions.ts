@@ -30,10 +30,11 @@ import { statusBarPanel } from './plugins/status-bar';
 import { imageField } from './nodes/image';
 import { docFolderField } from './plugins/doc-folder';
 import { mermaidActiveField, mermaidDecoField } from './nodes/mermaid';
-import { listMarkPlugin } from './nodes/list-mark';
-import { inlineCodePlugin } from './nodes/inline-code';
-import { indentedCodeResetPlugin } from './nodes/indented-reset';
-import { codeBlockLinePlugin } from './nodes/code-block';
+import { listMarkMatcher } from './nodes/list-mark';
+import { inlineCodeMatcher } from './nodes/inline-code';
+import { indentedResetMatchers } from './nodes/indented-reset';
+import { codeBlockMatcher } from './nodes/code-block';
+import { matcherViewPlugin } from './utils/matchers/lezer';
 import { tableLinePlugin } from './nodes/table';
 import { taskLinePlugin } from './plugins/task-line';
 import { imeListContinueFilter } from './commands/ime-list-continue';
@@ -75,10 +76,12 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
     imageField,
     mermaidActiveField,
     mermaidDecoField,
-    listMarkPlugin,
-    inlineCodePlugin,
-    indentedCodeResetPlugin,
-    codeBlockLinePlugin,
+    matcherViewPlugin([
+      listMarkMatcher,
+      inlineCodeMatcher,
+      ...indentedResetMatchers,
+      codeBlockMatcher,
+    ]),
     tableLinePlugin,
     taskLinePlugin,
     themeCompartment.of(baseTheme),

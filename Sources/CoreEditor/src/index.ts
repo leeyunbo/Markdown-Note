@@ -12,10 +12,10 @@ export * from './cm-reexports';
 // Re-export everything so external callers / tests can import from a single root.
 export { parseAltAndSize, imageSrcForRender } from './nodes/image-utils';
 export { visitTree, collectNodes } from './utils/lezer-walk';
-export { listMarkPlugin } from './nodes/list-mark';
-export { inlineCodePlugin } from './nodes/inline-code';
-export { indentedCodeResetPlugin } from './nodes/indented-reset';
-export { codeBlockLinePlugin } from './nodes/code-block';
+export { listMarkMatcher } from './nodes/list-mark';
+export { inlineCodeMatcher } from './nodes/inline-code';
+export { indentedResetMatchers } from './nodes/indented-reset';
+export { codeBlockMatcher } from './nodes/code-block';
 export { tableLinePlugin } from './nodes/table';
 export { ImageWidget, imageField } from './nodes/image';
 export { docFolderEffect, docFolderField } from './plugins/doc-folder';
