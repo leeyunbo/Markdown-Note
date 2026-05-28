@@ -34,7 +34,7 @@ import { listMarkMatcher } from './nodes/list-mark';
 import { inlineCodeMatcher } from './nodes/inline-code';
 import { indentedResetMatchers } from './nodes/indented-reset';
 import { codeBlockMatcher } from './nodes/code-block';
-import { matcherViewPlugin } from './utils/matchers/lezer';
+import { matcherViewPlugin } from './utils/matchers/view-plugin';
 import { tableLinePlugin } from './nodes/table';
 import { taskLinePlugin } from './plugins/task-line';
 import { imeListContinueFilter } from './commands/ime-list-continue';

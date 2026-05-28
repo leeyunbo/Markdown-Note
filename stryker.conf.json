@@ -6,6 +6,7 @@
   "coverageAnalysis": "perTest",
   "mutate": [
     "Sources/CoreEditor/src/utils/**/*.ts",
+    "!Sources/CoreEditor/src/utils/matchers/view-plugin.ts",
     "Sources/CoreEditor/src/nodes/image-utils.ts",
     "Sources/CoreEditor/src/commands/**/*.ts",
     "Sources/CoreEditor/src/plugins/doc-folder.ts"

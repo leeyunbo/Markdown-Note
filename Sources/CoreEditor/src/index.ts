@@ -39,8 +39,9 @@ export {
 export { baseTheme } from './styling/base-theme';
 export { mdHighlight } from './styling/highlight';
 export { markdownTagClasses } from './styling/markdown-tags';
-export { nodeMatcher, runMatchers, matcherViewPlugin } from './utils/matchers/lezer';
+export { nodeMatcher, runMatchers } from './utils/matchers/lezer';
 export type { NodeMatcher, NodeDecorator } from './utils/matchers/lezer';
+export { matcherViewPlugin } from './utils/matchers/view-plugin';
 export {
   postTextChanged,
   postCursorLine,
