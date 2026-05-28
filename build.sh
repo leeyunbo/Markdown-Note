@@ -14,13 +14,13 @@ VERSION="1.4.0"
 
 # CodeMirror 번들이 없거나 entry보다 오래되면 다시 만들기
 if [[ ! -f Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
-   || [[ Sources/cm-bundle/index.js -nt Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
+   || [[ Sources/CoreEditor/src/index.ts -nt Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
    || [[ package.json -nt Sources/MarkdownEditor/Resources/cm.bundle.js ]]; then
     echo "▸ npm install (필요 시)"
     if [[ ! -d node_modules ]]; then
         npm install
     fi
-    echo "▸ esbuild Sources/cm-bundle/index.js → Resources/cm.bundle.js"
+    echo "▸ esbuild Sources/CoreEditor/src/index.ts → Resources/cm.bundle.js"
     npm run build
 fi
 

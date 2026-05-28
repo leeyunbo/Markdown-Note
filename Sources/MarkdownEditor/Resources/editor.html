@@ -124,9 +124,15 @@ body { overflow: hidden; height: 100vh; }
 /* CodeMirror 6는 selection layer DOM에 inline `z-index: -1`을 직접 박는다
    (drawSelection의 above: false). 그래서 .cm-codeblock-line 배경(#f3f3f5) 뒤에
    selection이 그려져 보이지 않음. !important로 inline style을 덮어 content 위로 올림.
-   cursor layer는 z-index 150이라 영향 없음. */
+   cursor layer는 z-index 150이라 영향 없음.
+
+   pointer-events: none을 명시하지 않으면 content 위로 올린 selection 레이어가
+   마우스 이벤트를 가로채서 "선택된 파란 영역을 클릭해도 deselect 안 됨" 증상이
+   발생한다. CodeMirror의 기본 layer는 이 속성을 가지지만, 우리가 z-index만
+   덮으면서 함께 명시해야 inline style 우선순위에서 살아남음. */
 .cm-editor .cm-selectionLayer {
   z-index: 1 !important;
+  pointer-events: none !important;
 }
 .cm-editor .cm-activeLine { background: transparent; }
 
@@ -277,23 +283,7 @@ body { overflow: hidden; height: 100vh; }
 </head>
 <body>
 <div id="editor-host"></div>
-<script>
-  // 진단: 글 안 보이는 원인 추적 — 어떤 JS 에러든 즉시 Swift NSLog로 forward.
-  window.addEventListener("error", function(e) {
-    try {
-      window.webkit?.messageHandlers?.consoleLog?.postMessage(
-        "[error] " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?")
-      );
-    } catch (err) {}
-  });
-  window.addEventListener("unhandledrejection", function(e) {
-    try {
-      window.webkit?.messageHandlers?.consoleLog?.postMessage(
-        "[unhandled] " + (e.reason && e.reason.message ? e.reason.message : String(e.reason))
-      );
-    } catch (err) {}
-  });
-</script>
+
 <script src="cm.bundle.js"></script>
 <script src="vendor/mermaid.min.js"></script>
 <script>
@@ -308,6 +298,8 @@ body { overflow: hidden; height: 100vh; }
     window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid init error: " + e.message);
   }
 </script>
-<script src="editor.js"></script>
+<script>
+  CM.bootEditor(document.getElementById("editor-host"));
+</script>
 </body>
 </html>

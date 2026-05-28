@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": ["progress", "clear-text", "html"],
+  "testRunner": "jest",
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "Sources/CoreEditor/src/utils/**/*.ts",
+    "!Sources/CoreEditor/src/utils/matchers/view-plugin.ts",
+    "Sources/CoreEditor/src/nodes/image-utils.ts",
+    "Sources/CoreEditor/src/commands/**/*.ts",
+    "Sources/CoreEditor/src/plugins/doc-folder.ts"
+  ],
+  "thresholds": { "high": 90, "low": 70, "break": 80 },
+  "jest": { "projectType": "custom", "configFile": "jest.config.cjs" },
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "timeoutMS": 60000,
+  "concurrency": 4
+}
