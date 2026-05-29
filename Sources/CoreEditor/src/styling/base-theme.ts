@@ -4,10 +4,12 @@ export const baseTheme = EditorView.theme({
   "&": { height: "100%" },
   // Mock A: body 13.5px / lh 22px, padTop 12 / padX 20, max line ~720
   ".cm-content": {
-    fontFamily: "inherit",
-    fontSize: "13.5px",
-    lineHeight: "22px",
-    letterSpacing: "-0.005em",
+    fontFamily: "var(--editor-font)",
+    fontSize: "16.5px",
+    lineHeight: "30px",
+    letterSpacing: "0.1px",
+    paddingLeft: "98px",
+    paddingRight: "24px",
   },
   ".cm-line": { padding: "0" },
 

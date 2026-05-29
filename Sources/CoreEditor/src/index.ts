@@ -37,6 +37,7 @@ export {
   extractNewlineInsertion,
 } from './commands/ime-list-continue';
 export { baseTheme } from './styling/base-theme';
+export { notebookPaper } from './styling/notebook-paper';
 export { mdHighlight } from './styling/highlight';
 export { markdownTagClasses } from './styling/markdown-tags';
 export { nodeMatcher, runMatchers } from './utils/matchers/lezer';

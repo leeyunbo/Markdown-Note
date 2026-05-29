@@ -24,6 +24,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 
 import { baseTheme } from './styling/base-theme';
+import { notebookPaper } from './styling/notebook-paper';
 import { mdHighlight } from './styling/highlight';
 import { lineKindGutter } from './plugins/line-kind-gutter';
 import { statusBarPanel } from './plugins/status-bar';
@@ -85,6 +86,7 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
     tableLinePlugin,
     taskLinePlugin,
     themeCompartment.of(baseTheme),
+    notebookPaper,
     imeListContinueFilter,
     keymap.of([
       { key: 'Mod-b', run: wrapSelection('**', '**') },
