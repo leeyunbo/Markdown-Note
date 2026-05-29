@@ -144,12 +144,13 @@ body { overflow: hidden; height: 100vh; }
   padding: 0;
 }
 .cm-editor .cm-cursor {
-  border-left-color: var(--fg);
+  border-left-color: var(--accent);
+  border-left-width: 1.5px;
 }
 .cm-editor .cm-selectionBackground,
 .cm-editor.cm-focused .cm-selectionBackground,
 .cm-editor ::selection {
-  background: rgba(0, 102, 204, 0.30) !important;
+  background: rgba(200,68,42,0.22) !important;
 }
 /* CodeMirror 6는 selection layer DOM에 inline `z-index: -1`을 직접 박는다
    (drawSelection의 above: false). 그래서 .cm-codeblock-line 배경(#f3f3f5) 뒤에
@@ -164,7 +165,11 @@ body { overflow: hidden; height: 100vh; }
   z-index: 1 !important;
   pointer-events: none !important;
 }
-.cm-editor .cm-activeLine { background: transparent; }
+.cm-editor .cm-activeLine {
+  background: var(--current-line);
+  border-left: 3px solid var(--accent);
+  margin-left: -3px;
+}
 
 /* List marker — depth별 색 cycle. ListMark만 색칠, 글자는 영향 없음 */
 .cm-content .md-list-mark { font-weight: 600; }
