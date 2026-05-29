@@ -88,7 +88,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
 
     /// 드래그된 file URL을 종류별로 분기:
     /// - 이미지: attachments/ 안이면 link만, 외부면 복사 후 link
-    /// - .md: 새 탭에서 열기
+    /// - .md: 새 창에서 열기
     /// - 기타: 무시
     func acceptDroppedFileURL(_ url: URL) {
         let ext = url.pathExtension.lowercased()
@@ -101,7 +101,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
                 handleImageData(data: data, suggestedName: url.lastPathComponent)
             }
         } else if ext == "md" || ext == "markdown" {
-            AppDelegate.shared?.openNewTab(with: url)
+            AppDelegate.shared?.openNewWindow(with: url)
         }
     }
 

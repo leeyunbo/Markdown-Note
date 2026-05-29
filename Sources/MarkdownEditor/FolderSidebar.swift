@@ -216,8 +216,8 @@ private struct NodeBranch: View {
                     if !node.isDirectory {
                         if node.kind == .markdown {
                             Button("열기") { state.selectFile(node.url) }
-                            Button("새 탭에서 열기") {
-                                AppDelegate.shared?.openNewTab(with: node.url)
+                            Button("새 창에서 열기") {
+                                AppDelegate.shared?.openNewWindow(with: node.url)
                             }
                         }
                         Divider()

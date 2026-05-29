@@ -48,8 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
 
         let controller = MainWindowController(state: state, frameAutosaveName: "MainEditorWindow")
-        controller.window?.tabbingMode = .preferred
-        controller.window?.tabbingIdentifier = "MarkdownEditorMain"
+        // native 탭 비활성화 — 커스텀 타이틀바 수술이 동적 탭바와 충돌(파일트리 관통).
+        // "새 탭" 대신 독립 윈도우로 띄운다.
+        controller.window?.tabbingMode = .disallowed
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -69,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// macOS Finder에서 .md 파일 더블클릭 / 기본앱 / "다음으로 열기"로 전달된 파일을 처리.
-    /// 다중 파일도 가능. 첫 파일은 메인 윈도우, 나머지는 새 탭으로 열어준다.
+    /// 다중 파일도 가능. 첫 파일은 메인 윈도우, 나머지는 새 윈도우로 열어준다.
     func application(_ application: NSApplication, open urls: [URL]) {
         if mainController == nil {
             pendingOpenURLs.append(contentsOf: urls)
@@ -101,8 +102,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
-        // 3) 다른 폴더면 새 탭으로 열어 작업 중이던 폴더 보존
-        openNewTab(with: url, folder: folder)
+        // 3) 다른 폴더면 새 창으로 열어 작업 중이던 폴더 보존
+        openNewWindow(with: url, folder: folder)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -121,23 +122,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// ⌘T — 같은 폴더를 공유하는 새 탭. AppState는 별도 인스턴스라 file selection /
-    /// documentText / undo history는 탭마다 독립. UserDefaults bookmark가 init에서
+    /// ⌘T — 같은 폴더를 공유하는 새 독립 윈도우. AppState는 별도 인스턴스라 file selection /
+    /// documentText / undo history는 윈도우마다 독립. UserDefaults bookmark가 init에서
     /// 자동 복원되므로 폴더 트리는 동일하게 보임.
-    @objc func menuNewTab() {
-        openNewTab(with: nil)
+    @objc func menuNewWindow() {
+        openNewWindow(with: nil)
     }
 
-    /// 특정 파일을 새 탭에서 연다. 사이드바 contextMenu / 에디터 drop / Finder open이 사용.
-    /// folder가 주어지면 새 탭의 rootFolder도 명시적으로 변경 (UserDefaults 복원 무시).
-    func openNewTab(with url: URL?, folder: URL? = nil) {
+    /// 특정 파일을 새 윈도우에서 연다. 사이드바 contextMenu / 에디터 drop / Finder open이 사용.
+    /// folder가 주어지면 새 윈도우의 rootFolder도 명시적으로 변경 (UserDefaults 복원 무시).
+    func openNewWindow(with url: URL?, folder: URL? = nil) {
         let newState = AppState()
         let newController = MainWindowController(state: newState)
         guard let newWindow = newController.window else { return }
-        newWindow.tabbingMode = .preferred
-        newWindow.tabbingIdentifier = "MarkdownEditorMain"
+        newWindow.tabbingMode = .disallowed
+        // 기존 key 윈도우에서 살짝 offset해 cascade (정확히 겹치지 않게)
         if let keyWindow = NSApp.keyWindow {
-            keyWindow.addTabbedWindow(newWindow, ordered: .above)
+            let origin = keyWindow.frame.origin
+            newWindow.setFrameOrigin(NSPoint(x: origin.x + 28, y: origin.y - 28))
         }
         newController.showWindow(nil)
         newWindow.makeKeyAndOrderFront(nil)
@@ -183,10 +185,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                      action: #selector(menuNewFile),
                                      keyEquivalent: "n")
             newFile.target = self
-            let newTab = NSMenuItem(title: "New Tab",
-                                    action: #selector(menuNewTab),
-                                    keyEquivalent: "t")
-            newTab.target = self
+            let newWindowItem = NSMenuItem(title: "New Window",
+                                           action: #selector(menuNewWindow),
+                                           keyEquivalent: "t")
+            newWindowItem.target = self
             let saveFile = NSMenuItem(title: "Save",
                                       action: #selector(menuSave),
                                       keyEquivalent: "s")
@@ -202,7 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fileMenu.insertItem(NSMenuItem.separator(), at: 0)
             fileMenu.insertItem(saveFile, at: 0)
             fileMenu.insertItem(NSMenuItem.separator(), at: 0)
-            fileMenu.insertItem(newTab, at: 0)
+            fileMenu.insertItem(newWindowItem, at: 0)
             fileMenu.insertItem(newFile, at: 0)
             fileMenu.insertItem(openFolder, at: 0)
         }

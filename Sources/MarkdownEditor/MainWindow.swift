@@ -354,14 +354,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     @objc func newFile() { state.newFile() }
     @objc func saveFile() { state.saveCurrent() }
 
-    /// macOS native ⌘T가 NSWindow 자동 tab 기능을 통해 이 메서드로 dispatch된다.
-    /// AppDelegate에 위임해서 새 탭 생성 (별도 AppState + 같은 tabbing identifier).
-    @IBAction override func newWindowForTab(_ sender: Any?) {
-        NSLog("[MD] newWindowForTab fired")
-        if let app = NSApp.delegate as? AppDelegate {
-            app.menuNewTab()
-        }
-    }
+    // native 탭은 비활성화됨(tabbingMode = .disallowed). ⌘T는 File 메뉴의 "New Window"
+    // 항목이 직접 처리하므로 newWindowForTab override는 제거했다.
 
     // MARK: - NSToolbarDelegate
 
