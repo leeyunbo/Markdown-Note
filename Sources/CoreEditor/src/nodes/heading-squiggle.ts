@@ -8,9 +8,12 @@ export function squiggleClassForHeading(nodeName: string): string | null {
 }
 
 function makeSquiggleMatcher(nodeName: string, cls: string): NodeMatcher {
-  return nodeMatcher(nodeName, (node, state) => {
-    const line = state.doc.lineAt(node.from);
-    return [Decoration.line({ class: cls }).range(line.from)];
+  // Mark (not line) decoration over the heading's text range so the squiggle
+  // background stretches to exactly the heading width. Background-only — no
+  // metric/padding change — so caret hitbox is unaffected.
+  return nodeMatcher(nodeName, (node) => {
+    if (node.to <= node.from) return [];
+    return [Decoration.mark({ class: cls }).range(node.from, node.to)];
   });
 }
 

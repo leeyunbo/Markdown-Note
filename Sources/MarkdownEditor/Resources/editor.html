@@ -107,9 +107,10 @@ body { overflow: hidden; height: 100vh; }
 .cm-content .md-list-mark { color: var(--accent); font-weight: 700; }
 .cm-content .cm-md-squiggle-h1,
 .cm-content .cm-md-squiggle-h2 {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="8" viewBox="0 0 160 8"><path d="M2,5 Q24,1 48,5 T96,5 T144,5" stroke="%23c8442a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>');
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="8" viewBox="0 0 160 8" preserveAspectRatio="none"><path d="M2,5 Q24,1 48,5 T96,5 T144,5" stroke="%23c8442a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>');
   background-repeat: no-repeat;
-  background-position: 98px bottom;
+  background-position: left bottom;
+  background-size: 100% 7px;
 }
 
 /* gutter width 강제 — CodeMirror가 spacer measurement로 inline style을 박는 경우
