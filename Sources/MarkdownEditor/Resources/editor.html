@@ -100,6 +100,11 @@ body { overflow: hidden; height: 100vh; }
 .cm-editor .cm-content {
   caret-color: var(--fg);
 }
+.cm-content .cm-md-header { font-family: var(--display-font); color: var(--fg); }
+.cm-content .cm-md-heading1 { font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -0.5px; }
+.cm-content .cm-md-heading2 { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.cm-content .cm-md-heading3 { font-size: 22px; font-weight: 700; }
+.cm-content .md-list-mark { color: var(--accent); font-weight: 700; }
 
 /* gutter width 강제 — CodeMirror가 spacer measurement로 inline style을 박는 경우
    CSS가 무시되므로 !important로 덮어쓴다. */
