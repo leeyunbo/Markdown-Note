@@ -9,7 +9,7 @@ final class AppState: ObservableObject {
     @Published var selectedFile: URL?
     @Published var documentText: String = ""
     @Published var theme: Theme = .light
-    @Published var editorFont: EditorFont = .system
+    @Published var editorFont: EditorFont = .kalam
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
     @Published var outline: [Heading] = []

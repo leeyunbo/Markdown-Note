@@ -1,14 +1,10 @@
 import { EditorView } from '@codemirror/view';
 
-/** Ruled-paper background (30px horizontal rules) + a red margin rule at 84px. */
+/** Red margin rule at 84px (double line). Horizontal ruled lines were removed —
+ *  with variable-height headings the text baseline couldn't reliably snap to a
+ *  fixed 30px rule, so the paper is kept plain (margin only). */
 export const notebookPaper = EditorView.theme({
   '.cm-scroller': { position: 'relative' },
-  '.cm-content': {
-    backgroundImage:
-      'repeating-linear-gradient(to bottom, transparent 0, transparent 29px, var(--rule) 29px, var(--rule) 30px)',
-    backgroundSize: '100% 30px',
-    backgroundAttachment: 'local',
-  },
   '.cm-content::before': {
     content: '""', position: 'absolute', left: '84px', top: '0', bottom: '0',
     width: '1.5px', background: 'var(--accent)', pointerEvents: 'none',

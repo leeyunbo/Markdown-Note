@@ -2,6 +2,7 @@ import Foundation
 
 /// 에디터 본문 폰트 옵션. 코드 블록은 항상 JetBrains Mono로 고정.
 enum EditorFont: String, CaseIterable, Identifiable {
+    case kalam
     case system
     case pretendard
     case jetbrainsMono
@@ -12,6 +13,7 @@ enum EditorFont: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
+        case .kalam: return "Kalam — 손글씨"
         case .system: return "System Default"
         case .pretendard: return "Pretendard"
         case .jetbrainsMono: return "JetBrains Mono"
@@ -24,6 +26,8 @@ enum EditorFont: String, CaseIterable, Identifiable {
     /// 시스템에 없는 폰트는 fallback chain으로 안전.
     var cssFontFamily: String {
         switch self {
+        case .kalam:
+            return "\"Kalam\", -apple-system, \"Apple SD Gothic Neo\", sans-serif"
         case .system:
             return "-apple-system, \"Helvetica Neue\", \"Apple SD Gothic Neo\", sans-serif"
         case .pretendard:
