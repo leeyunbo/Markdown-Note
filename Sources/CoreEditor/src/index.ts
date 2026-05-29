@@ -16,6 +16,7 @@ export { listMarkMatcher } from './nodes/list-mark';
 export { inlineCodeMatcher } from './nodes/inline-code';
 export { indentedResetMatchers } from './nodes/indented-reset';
 export { codeBlockMatcher } from './nodes/code-block';
+export { squiggleClassForHeading, headingSquiggleMatchers } from './nodes/heading-squiggle';
 export { tableLinePlugin } from './nodes/table';
 export { ImageWidget, imageField } from './nodes/image';
 export { docFolderEffect, docFolderField } from './plugins/doc-folder';

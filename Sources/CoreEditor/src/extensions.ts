@@ -35,6 +35,7 @@ import { listMarkMatcher } from './nodes/list-mark';
 import { inlineCodeMatcher } from './nodes/inline-code';
 import { indentedResetMatchers } from './nodes/indented-reset';
 import { codeBlockMatcher } from './nodes/code-block';
+import { headingSquiggleMatchers } from './nodes/heading-squiggle';
 import { matcherViewPlugin } from './utils/matchers/view-plugin';
 import { tableLinePlugin } from './nodes/table';
 import { taskLinePlugin } from './plugins/task-line';
@@ -82,6 +83,7 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       inlineCodeMatcher,
       ...indentedResetMatchers,
       codeBlockMatcher,
+      ...headingSquiggleMatchers,
     ]),
     tableLinePlugin,
     taskLinePlugin,
