@@ -30,7 +30,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     private weak var titlebarSeparator: NSView?
-    private var tocItem: NSSplitViewItem!
 
     // 발표 모드: borderless 윈도우를 메뉴바 위 level로 띄운다 (가짜 풀스크린).
     // NSWindow.toggleFullScreen은 우리 split + WKWebView 환경에서 안정적이지 않아 회피.
@@ -39,8 +38,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     init(state: AppState, frameAutosaveName: String? = nil) {
         self.state = state
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
         window.titlebarAppearsTransparent = true
@@ -48,7 +47,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.title = "Markdown Note"
         window.minSize = NSSize(width: 720, height: 480)
         window.isOpaque = true
-        window.backgroundColor = NSColor(srgbRed: 245.0/255, green: 245.0/255, blue: 247.0/255, alpha: 1)
+        window.backgroundColor = NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1)
         window.appearance = NSAppearance(named: .aqua)
         // autosave name은 default content rect를 적용한 직후, 화면에 표시되기 전에 set.
         // 그래야 saved frame이 default를 덮어쓰고 화면 표시는 saved frame 그대로 나온다.
@@ -93,20 +92,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         let editorItem = NSSplitViewItem(viewController: editor)
         editorItem.minimumThickness = 360
 
-        // TOC pane (right gutter, 200px)
-        let tocHost = NSHostingController(
-            rootView: TocPanel().environmentObject(state)
-        )
-        tocItem = NSSplitViewItem(viewController: tocHost)
-        tocItem.minimumThickness = 200
-        tocItem.maximumThickness = 240
-        tocItem.canCollapse = true
-        tocItem.holdingPriority = NSLayoutConstraint.Priority(rawValue: 250)
-
         splitVC = NSSplitViewController()
         splitVC.addSplitViewItem(sidebarItem)
         splitVC.addSplitViewItem(editorItem)
-        splitVC.addSplitViewItem(tocItem)
         splitVC.splitView.dividerStyle = .thin
         // NSSplitViewController 내부 setup을 깨지 않고 divider 색만 바꾸려면
         // 인스턴스 클래스를 런타임에 swap (KVO와 동일한 메커니즘)
@@ -163,14 +151,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.toggleSidebar()
-            }
-            .store(in: &cancellables)
-
-        // outline empty이면 TOC pane 자동 collapse
-        state.$outline
-            .receive(on: RunLoop.main)
-            .sink { [weak self] outline in
-                self?.tocItem?.animator().isCollapsed = outline.isEmpty
             }
             .store(in: &cancellables)
 
