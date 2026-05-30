@@ -44,10 +44,16 @@
 
 /* "Handwriting" 통합 패밀리 — unicode-range로 영어/특수문자는 Excalifont,
    한국어(한글)는 NanumPenScript가 자동 선택된다. */
+/* 영어(Excalifont)와 한국어(NanumPenScript)의 baseline·시각 크기 통일 —
+   두 @font-face에 동일한 ascent/descent/line-gap override를 적용하면 라인 박스
+   위치가 같아지고, NanumPenScript의 size-adjust만 글자 크기를 보정한다. */
 @font-face {
   font-family: "Handwriting";
   src: url("vendor/Excalifont-Regular.woff2") format("woff2");
   font-weight: 400 700; font-style: normal; font-display: swap;
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
   /* 라틴 + 라틴 확장 + 일반 부호 + 통화 + 기호 + 화살표 + 수학 + 도형 */
   unicode-range: U+0020-007F, U+00A0-024F, U+2000-206F, U+20A0-20CF,
                  U+2100-21FF, U+2200-22FF, U+25A0-25FF, U+2600-26FF;
@@ -56,9 +62,10 @@
   font-family: "Handwriting";
   src: url("vendor/NanumPenScript-Regular.ttf") format("truetype");
   font-weight: 400; font-style: normal; font-display: swap;
-  /* size-adjust: NanumPenScript의 글리프 박스가 Excalifont 대비 작아 같은 font-size에서
-     시각적으로 더 작게 보임 → 125%로 키워 영어/한글 글자 크기를 맞춤. */
-  size-adjust: 140%;
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+  size-adjust: 120%;
   /* 한글 자모 + 호환 자모 + 자모 확장 + 음절 */
   unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
 }
