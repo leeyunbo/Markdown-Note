@@ -41,6 +41,25 @@
   src: url("vendor/Kalam-Bold.ttf") format("truetype");
   font-weight: 700; font-style: normal; font-display: swap;
 }
+
+/* "Handwriting" 통합 패밀리 — unicode-range로 영어/특수문자는 Excalifont,
+   한국어(한글)는 NanumPenScript가 자동 선택된다. */
+@font-face {
+  font-family: "Handwriting";
+  src: url("vendor/Excalifont-Regular.woff2") format("woff2");
+  font-weight: 400 700; font-style: normal; font-display: swap;
+  /* 라틴 + 라틴 확장 + 일반 부호 + 통화 + 기호 + 화살표 + 수학 + 도형 */
+  unicode-range: U+0020-007F, U+00A0-024F, U+2000-206F, U+20A0-20CF,
+                 U+2100-21FF, U+2200-22FF, U+25A0-25FF, U+2600-26FF;
+}
+@font-face {
+  font-family: "Handwriting";
+  src: url("vendor/NanumPenScript-Regular.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap;
+  /* 한글 자모 + 호환 자모 + 자모 확장 + 음절 */
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
+}
+
 :root {
   --bg: #fdfbf5;
   --fg: #1a2a4a;
@@ -53,7 +72,7 @@
   --accent: #c8442a;
   --rule: #9bb8d480;
   --current-line: rgba(200,68,42,0.10);
-  --editor-font: "Kalam", -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --editor-font: "Handwriting", -apple-system, "Apple SD Gothic Neo", sans-serif;
   --display-font: "Caveat", "Apple SD Gothic Neo", cursive;
 }
 * { box-sizing: border-box; }

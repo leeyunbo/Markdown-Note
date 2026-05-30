@@ -13,7 +13,7 @@ enum EditorFont: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .kalam: return "Kalam — 손글씨"
+        case .kalam: return "Handwriting (Excalidraw + 나눔펜)"
         case .system: return "System Default"
         case .pretendard: return "Pretendard"
         case .jetbrainsMono: return "JetBrains Mono"
@@ -27,7 +27,9 @@ enum EditorFont: String, CaseIterable, Identifiable {
     var cssFontFamily: String {
         switch self {
         case .kalam:
-            return "\"Kalam\", -apple-system, \"Apple SD Gothic Neo\", sans-serif"
+            // "Handwriting" 패밀리는 editor.html의 @font-face가 unicode-range로
+            // Excalifont(라틴+기호) / NanumPenScript(한글)을 자동 선택한다.
+            return "\"Handwriting\", -apple-system, \"Apple SD Gothic Neo\", sans-serif"
         case .system:
             return "-apple-system, \"Helvetica Neue\", \"Apple SD Gothic Neo\", sans-serif"
         case .pretendard:
