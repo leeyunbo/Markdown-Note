@@ -39,6 +39,7 @@ import { headingSquiggleMatchers } from './nodes/heading-squiggle';
 import { matcherViewPlugin } from './utils/matchers/view-plugin';
 import { tableLinePlugin } from './nodes/table';
 import { taskLinePlugin } from './plugins/task-line';
+import { hideMarkersPlugin } from './plugins/hide-markers';
 import { imeListContinueFilter } from './commands/ime-list-continue';
 import { wrapSelection } from './commands/wrap-selection';
 import { insertLinkCmd } from './commands/insert-link';
@@ -87,6 +88,7 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
     ]),
     tableLinePlugin,
     taskLinePlugin,
+    hideMarkersPlugin,
     themeCompartment.of(baseTheme),
     notebookPaper,
     imeListContinueFilter,

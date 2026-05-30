@@ -26,6 +26,7 @@ export {
   mermaidDecoField,
 } from './nodes/mermaid';
 export { taskLinePlugin } from './plugins/task-line';
+export { hideMarkersPlugin } from './plugins/hide-markers';
 export { lineKindGutter } from './plugins/line-kind-gutter';
 export { statusBarPanel } from './plugins/status-bar';
 export { installPasteImageHandler } from './plugins/paste-image';
