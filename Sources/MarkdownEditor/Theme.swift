@@ -138,3 +138,13 @@ enum Theme: String, CaseIterable, Identifiable {
     /// SwiftUI ColorScheme 힌트 (사이드바 컨트롤이 자연스럽게 보이도록)
     var colorScheme: ColorScheme { self == .dark ? .dark : .light }
 }
+
+// MARK: - Notebook Light palette tokens (chrome reskin)
+
+extension Color {
+    static let nbPaper = Color(red: 253/255, green: 251/255, blue: 245/255)
+    static let nbInk = Color(red: 26/255, green: 42/255, blue: 74/255)
+    static let nbInkLight = Color(red: 90/255, green: 106/255, blue: 133/255)
+    static let nbAccent = Color(red: 200/255, green: 68/255, blue: 42/255)
+    static let nbCurrent = Color(red: 200/255, green: 68/255, blue: 42/255, opacity: 0.10)
+}

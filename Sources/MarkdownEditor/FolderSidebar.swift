@@ -6,8 +6,8 @@ struct FolderSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let root = state.rootFolder {
-                Header(rootURL: root)
+            if state.rootFolder != nil {
+                StampBox()
                 TreeView()
                 FolderFooter()
             } else {
@@ -15,47 +15,70 @@ struct FolderSidebar: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.nbPaper)
     }
 }
 
-// 사이드바 하단 — N items · X KB (Mock A spec)
+// MARK: - Composition Book 표지 라벨 (Name / Date / Subject)
+
+private struct StampBox: View {
+    @EnvironmentObject var state: AppState
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("Name:").font(.custom("Kalam", size: 13)).foregroundColor(.nbInkLight)
+                Text("").font(.custom("Kalam", size: 13)).foregroundColor(.nbInk)
+            }
+            HStack(spacing: 6) {
+                Text("Date:").font(.custom("Kalam", size: 13)).foregroundColor(.nbInkLight)
+                Text(Self.todayString()).font(.custom("Kalam", size: 13)).foregroundColor(.nbInk)
+            }
+            HStack(spacing: 6) {
+                Text("Subject:").font(.custom("Kalam", size: 13)).foregroundColor(.nbInkLight)
+                Text(state.rootFolder?.lastPathComponent ?? "markdown-note")
+                    .font(.custom("Caveat", size: 20))
+                    .fontWeight(.bold)
+                    .foregroundColor(.nbAccent)
+                    .underline()
+            }
+        }
+        .padding(12)
+        .background(Color.white)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.nbInk.opacity(0.4), lineWidth: 1.5))
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+    }
+    private static func todayString() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
+}
+
+// 사이드바 하단 — N pages · p. 8 / 100 (Composition Book footer)
 private struct FolderFooter: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
-        let stats = countFiles(state.fileTree)
-        HStack(spacing: 6) {
-            Text("\(stats.count) items")
-            Text("·").foregroundStyle(Color(red: 0.78, green: 0.78, blue: 0.81))
-            Text(formatBytes(stats.bytes))
+        HStack {
+            Text("\(mdCount()) pages")
+            Spacer()
+            Text("p. 8 / 100")
         }
-        .font(.system(size: 10, weight: .regular, design: .monospaced))
-        .foregroundStyle(Color(red: 0.63, green: 0.63, blue: 0.65))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .font(.custom("Caveat", size: 18))
+        .foregroundColor(.nbInkLight)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
     }
 
-    private func countFiles(_ nodes: [FileNode]) -> (count: Int, bytes: Int) {
-        var count = 0; var bytes = 0
+    private func mdCount() -> Int {
+        var count = 0
         func walk(_ ns: [FileNode]) {
             for n in ns {
                 if n.isDirectory { if let c = n.children { walk(c) } }
-                else {
-                    count += 1
-                    if let attrs = try? FileManager.default.attributesOfItem(atPath: n.url.path),
-                       let size = attrs[.size] as? Int { bytes += size }
-                }
+                else if n.kind == .markdown { count += 1 }
             }
         }
-        walk(nodes)
-        return (count, bytes)
-    }
-
-    private func formatBytes(_ b: Int) -> String {
-        if b < 1024 { return "\(b) B" }
-        if b < 1024 * 1024 { return String(format: "%.1f KB", Double(b) / 1024) }
-        return String(format: "%.1f MB", Double(b) / 1024 / 1024)
+        walk(state.fileTree)
+        return count
     }
 }
 
@@ -168,6 +191,10 @@ private struct NodeBranch: View {
                 .contentShape(Rectangle())
                 .background(rowBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(alignment: .leading) {
+                    // 현재 파일: 좌측 3px accent 보더 (Composition Book 강조)
+                    if isCurrentFile { Rectangle().fill(Color.nbAccent).frame(width: 3) }
+                }
                 .overlay(
                     // 폴더 자체에 drop 시 row 테두리 강조 (자식 영역과 구분)
                     RoundedRectangle(cornerRadius: 6)
@@ -272,9 +299,9 @@ private struct NodeBranch: View {
         HStack(spacing: 6) {
             Group {
                 if node.isDirectory {
-                    DesignIconView(image: DesignIcon.chevron, size: 9)
-                        .foregroundStyle(Color(red: 0.78, green: 0.78, blue: 0.81))
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                    Text(expanded ? "▾" : "▸")
+                        .font(.system(size: 10))
+                        .foregroundColor(.nbInkLight)
                 } else {
                     Color.clear
                 }
@@ -301,8 +328,9 @@ private struct NodeBranch: View {
                     }
             } else {
                 Text(displayName)
-                    .font(.system(.callout, weight: nameWeight))
-                    .foregroundStyle(nameColor)
+                    .font(.custom("Kalam", size: 15))
+                    .fontWeight(isCurrentFile ? .bold : nameWeight)
+                    .foregroundColor(.nbInk)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -311,9 +339,15 @@ private struct NodeBranch: View {
         }
     }
 
+    private var isCurrentFile: Bool {
+        !node.isDirectory && node.url == state.selectedFile
+    }
+
     private var rowBackground: some View {
         if dropTargeted {
             return AnyView(Color.accentColor.opacity(0.30))
+        } else if isCurrentFile {
+            return AnyView(Color.nbCurrent)
         } else if state.selectedFiles.contains(node.url) {
             return AnyView(Color.accentColor.opacity(0.18))
         } else if hovering && !isRenaming {
