@@ -2,12 +2,12 @@ import AppKit
 import SwiftUI
 import Combine
 
-/// fullSizeContentView 윈도우 상단(toolbar/titlebar 영역)의 빈 공간을 잡고
-/// 윈도우를 드래그할 수 있게 하는 투명 오버레이. WKWebView가 그 영역까지 올라와
-/// 클릭을 가로채는 걸 방지한다. NSToolbar 버튼·트래픽 라이트는 titlebar 레이어로
-/// 이 view보다 위에 그려져 영향을 받지 않는다.
+/// fullSizeContentView + titlebarAppearsTransparent 환경에서 titlebar 영역에
+/// paper 색을 깔되 클릭은 가로채지 않는 view. hitTest가 nil을 반환해 모든
+/// 클릭이 부모(NSTitlebarContainerView)로 통과되고, 거기서 macOS 기본 titlebar
+/// 드래그 처리가 작동한다. (draw와 hitTest는 별개라 색은 정상 표시.)
 private final class DraggableTitlebarOverlay: NSView {
-    override var mouseDownCanMoveWindow: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
 /// NSSplitView의 divider 색을 우리 디자인 토큰(rgba(0,0,0,0.10))로 강제.
