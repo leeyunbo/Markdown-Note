@@ -142,7 +142,9 @@ body { overflow: hidden; height: 100vh; }
 /* 마크다운 마커(`#`, `##`, `**`, `*`, `` ` ``, `>` 등) — 보이지만 흐리게
    (Notion/Obsidian 라이브프리뷰 패턴). 색을 marker token으로, 투명도로 더 옅게.
    :not(.md-list-mark) — 리스트 마커(-, 1. 등)는 dim 적용 제외(노트 필기 강조). */
-.cm-content .cm-md-marker:not(.md-list-mark) { color: var(--marker); opacity: 0.55; font-weight: 400; }
+/* opacity 대신 rgba — opacity는 후손 span(md-list-ordered 등)까지 반투명화 시켜
+   리스트 마커의 accent red가 회색으로 묻히는 부작용이 있었음. */
+.cm-content .cm-md-marker:not(.md-list-mark) { color: rgba(160, 174, 189, 0.6); font-weight: 400; }
 
 /* hideMarkersPlugin이 커서가 없는 라인의 마커에 입히는 클래스 — display:none으로 collapse. */
 .cm-content .cm-md-marker-hidden { display: none; }
