@@ -100,7 +100,28 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         // 인스턴스 클래스를 런타임에 swap (KVO와 동일한 메커니즘)
         object_setClass(splitVC.splitView, TonedSplitView.self)
 
-        window.contentViewController = splitVC
+        let container = NSView()
+        let spine = SpineView()
+        spine.translatesAutoresizingMaskIntoConstraints = false
+        let splitView = splitVC.view
+        splitView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(spine)
+        container.addSubview(splitView)
+        NSLayoutConstraint.activate([
+            spine.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            spine.topAnchor.constraint(equalTo: container.topAnchor),
+            spine.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            spine.widthAnchor.constraint(equalToConstant: 52),
+            splitView.leadingAnchor.constraint(equalTo: spine.trailingAnchor),
+            splitView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            splitView.topAnchor.constraint(equalTo: container.topAnchor),
+            splitView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        // splitVC를 child VC로 유지해 lifecycle/responder chain 보존
+        let rootVC = NSViewController()
+        rootVC.view = container
+        rootVC.addChild(splitVC)
+        window.contentViewController = rootVC
 
         // 이미지 미리보기는 EditorViewController 안에서 자체 처리한다 (에디터 영역만 차지).
 
