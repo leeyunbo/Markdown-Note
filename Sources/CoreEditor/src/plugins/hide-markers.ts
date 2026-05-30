@@ -51,7 +51,11 @@ export const hideMarkersPlugin = ViewPlugin.fromClass(
               if (nodeLineInfo.text[offsetInLine] === ' ') hideTo = node.to + 1;
             }
             if (hideTo > node.from) {
-              builder.push(Decoration.replace({}).range(node.from, hideTo));
+              // mark + CSS display:none — Decoration.replace이 다른 mark deco와
+              // 겹치며 collapse가 일관되게 안 먹는 케이스를 회피.
+              builder.push(
+                Decoration.mark({ class: 'cm-md-marker-hidden' }).range(node.from, hideTo),
+              );
             }
           },
         });
