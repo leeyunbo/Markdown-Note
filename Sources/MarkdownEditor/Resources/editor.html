@@ -213,8 +213,18 @@ body { overflow: hidden; height: 100vh; }
   margin-left: -3px;
 }
 
-/* 리스트 마커(-, *, +, 1. 2. 3.) — 모든 depth에서 노트 필기체 빨간 강조.
-   !important로 다른 모든 cascade(.cm-md-marker dim 등) 위에서 무조건 적용. */
+/* 리스트 마커 노트북 스타일 — README §Body typography:
+   "List bullet — red `·` at 20px, 10px right margin".
+   - 무순서(-, *, +): listMarkMatcher가 Decoration.replace로 BulletWidget 삽입.
+     실제 - / * / + char는 안 보이고 .md-list-bullet span의 · 글리프만 보임.
+   - 유순서(1. 2. 3.): 숫자는 그대로 보이되 .md-list-mark 클래스로 빨갛게. */
+.cm-content .md-list-bullet {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 20px;
+  margin-right: 10px;
+  line-height: 1;
+}
 .cm-content .md-list-mark,
 .cm-content .md-list-depth-0,
 .cm-content .md-list-depth-1,
@@ -223,7 +233,6 @@ body { overflow: hidden; height: 100vh; }
 .cm-content .md-list-depth-4 {
   color: var(--accent) !important;
   font-weight: 700 !important;
-  font-size: 1.15em !important;
   opacity: 1 !important;
 }
 
@@ -235,24 +244,29 @@ body { overflow: hidden; height: 100vh; }
   background: var(--code-bg);
 }
 /* Mock A: code block 4px radius, 6/12 padding, 2px vertical margin */
+/* 코드 블록 — README §HandBox: 손그림 사각형 outline + bg #fffaef.
+   JetBrains Mono (README §Fonts: "Mono | JetBrains Mono | code-block content").
+   각 라인에 좌·우 1px ink border + first에 상단, last에 하단 — 박스 형성.
+   살짝 wonky한 느낌은 HandBox SVG 적용(추후 widget으로 정밀화) 또는 outline-style:double. */
 .cm-content .cm-codeblock-line {
   background: var(--code-bg);
-  font-family: var(--editor-font);
-  font-size: 14px;
-  line-height: 22px;
-  padding-left: 12px;
-  padding-right: 12px;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-size: 13px;
+  line-height: 20px;
+  padding-left: 16px;
+  padding-right: 16px;
+  border-left: 1px solid var(--fg);
+  border-right: 1px solid var(--fg);
 }
-/* 노트북 손그림 박스 느낌 — 둥근 corner 제거, 위/아래에 점선 sketch border */
 .cm-content .cm-codeblock-line.cm-codeblock-first {
-  border-top: 1.5px dashed var(--secondary);
-  margin-top: 4px;
-  padding-top: 8px;
+  border-top: 1px solid var(--fg);
+  margin-top: 6px;
+  padding-top: 10px;
 }
 .cm-content .cm-codeblock-line.cm-codeblock-last {
-  border-bottom: 1.5px dashed var(--secondary);
-  margin-bottom: 4px;
-  padding-bottom: 8px;
+  border-bottom: 1px solid var(--fg);
+  margin-bottom: 6px;
+  padding-bottom: 10px;
 }
 
 /* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
@@ -270,7 +284,7 @@ body { overflow: hidden; height: 100vh; }
    마우스 클릭으로 인라인 코드 안에 커서를 놓지 못한다. 시각적 강조는 box-shadow와
    배경/색으로만 처리하고 글자 metrics는 본문과 동일하게 유지. */
 .cm-content .cm-inline-code {
-  font-family: var(--editor-font);
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   background: var(--code-bg);
   color: var(--code-fg);
   border-radius: 3px;
