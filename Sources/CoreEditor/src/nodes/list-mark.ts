@@ -40,10 +40,10 @@ export const listMarkMatcher = nodeMatcher('ListMark', (node, state: EditorState
       Decoration.replace({ widget: BULLET }).range(node.from, node.to),
     ];
   }
-  // Ordered (1., 2., ...): keep digits visible, just mark for color styling.
+  // Ordered (1., 2., ...): keep digits visible, mark with md-list-ordered for styling.
   return [
     Decoration.mark({
-      class: `md-list-mark md-list-depth-${depthOf(node)}`,
+      class: `md-list-mark md-list-ordered md-list-depth-${depthOf(node)}`,
     }).range(node.from, node.to),
   ];
 });

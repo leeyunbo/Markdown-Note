@@ -225,6 +225,15 @@ body { overflow: hidden; height: 100vh; }
   margin-right: 10px;
   line-height: 1;
 }
+/* 유순서 리스트 1. 2. 3. — 빨간 accent + 굵게 + 살짝 키워 노트 필기 강조.
+   md-list-ordered class는 list-mark.ts matcher가 ordered ListMark에만 부착. */
+.cm-content .md-list-ordered {
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+  font-size: 1.15em !important;
+  opacity: 1 !important;
+  letter-spacing: 0 !important;
+}
 .cm-content .md-list-mark,
 .cm-content .md-list-depth-0,
 .cm-content .md-list-depth-1,
