@@ -278,9 +278,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         tb.addSubview(line)
         titlebarSeparator = line
         // horizontal: toolbar 아래 경계 (경로 문자 위 가로 분리선)
+        // 0.08 alpha — 0.10보다 옅어 paper 위에서 부드럽게 가라앉는다.
         let hline = NSView(frame: NSRect(x: 0, y: 0, width: tb.bounds.width, height: 1))
         hline.wantsLayer = true
-        hline.layer?.backgroundColor = lineColor
+        hline.layer?.backgroundColor = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.08).cgColor
         hline.autoresizingMask = .width
         hline.identifier = NSUserInterfaceItemIdentifier("md-titlebar-hsep")
         tb.addSubview(hline)
