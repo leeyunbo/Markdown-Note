@@ -2,6 +2,14 @@ import AppKit
 import SwiftUI
 import Combine
 
+/// fullSizeContentView 윈도우 상단(toolbar/titlebar 영역)의 빈 공간을 잡고
+/// 윈도우를 드래그할 수 있게 하는 투명 오버레이. WKWebView가 그 영역까지 올라와
+/// 클릭을 가로채는 걸 방지한다. NSToolbar 버튼·트래픽 라이트는 titlebar 레이어로
+/// 이 view보다 위에 그려져 영향을 받지 않는다.
+private final class DraggableTitlebarOverlay: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+}
+
 /// NSSplitView의 divider 색을 우리 디자인 토큰(rgba(0,0,0,0.10))로 강제.
 /// NSSplitViewController가 만든 splitView 인스턴스의 class를 런타임에 swap해서 적용한다.
 private final class TonedSplitView: NSSplitView {
@@ -105,8 +113,17 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         spine.translatesAutoresizingMaskIntoConstraints = false
         let splitView = splitVC.view
         splitView.translatesAutoresizingMaskIntoConstraints = false
+        // fullSizeContentView 때문에 splitView/WKWebView가 toolbar 영역까지 올라와
+        // 빈 toolbar 영역 클릭이 텍스트 선택으로 빠진다. 상단 56px에 투명한 드래그
+        // 오버레이를 깔아 mouseDownCanMoveWindow=true로 윈도우 드래그를 가로챔.
+        // (NSToolbar 버튼·트래픽 라이트는 titlebar 레이어로 오버레이 위에 그려져
+        //  정상 동작한다.)
+        let titlebarDrag = DraggableTitlebarOverlay()
+        titlebarDrag.translatesAutoresizingMaskIntoConstraints = false
+
         container.addSubview(spine)
         container.addSubview(splitView)
+        container.addSubview(titlebarDrag)  // 마지막에 add — z-order 최상위
         NSLayoutConstraint.activate([
             spine.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             spine.topAnchor.constraint(equalTo: container.topAnchor),
@@ -116,6 +133,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             splitView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             splitView.topAnchor.constraint(equalTo: container.topAnchor),
             splitView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            titlebarDrag.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            titlebarDrag.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            titlebarDrag.topAnchor.constraint(equalTo: container.topAnchor),
+            titlebarDrag.heightAnchor.constraint(equalToConstant: 56),
         ])
         // splitVC를 child VC로 유지해 lifecycle/responder chain 보존
         let rootVC = NSViewController()
