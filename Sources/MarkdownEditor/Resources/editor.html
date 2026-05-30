@@ -140,6 +140,9 @@ body { overflow: hidden; height: 100vh; }
 .cm-content .cm-md-heading2 { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .cm-content .cm-md-heading3 { font-size: 22px; font-weight: 700; }
 .cm-content .md-list-mark { color: var(--accent); font-weight: 700; }
+/* 마크다운 마커(`#`, `##`, `**`, `*`, `` ` ``, `>` 등) — 보이지만 흐리게
+   (Notion/Obsidian 라이브프리뷰 패턴). 색을 marker token으로, 투명도로 더 옅게. */
+.cm-content .cm-md-marker { color: var(--marker); opacity: 0.55; font-weight: 400; }
 .cm-content .cm-md-squiggle-h1,
 .cm-content .cm-md-squiggle-h2 {
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="8" viewBox="0 0 160 8" preserveAspectRatio="none"><path d="M2,5 Q24,1 48,5 T96,5 T144,5" stroke="%23c8442a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>');
