@@ -56,6 +56,9 @@
   font-family: "Handwriting";
   src: url("vendor/NanumPenScript-Regular.ttf") format("truetype");
   font-weight: 400; font-style: normal; font-display: swap;
+  /* size-adjust: NanumPenScript의 글리프 박스가 Excalifont 대비 작아 같은 font-size에서
+     시각적으로 더 작게 보임 → 125%로 키워 영어/한글 글자 크기를 맞춤. */
+  size-adjust: 125%;
   /* 한글 자모 + 호환 자모 + 자모 확장 + 음절 */
   unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
 }
