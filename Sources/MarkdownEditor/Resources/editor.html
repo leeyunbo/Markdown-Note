@@ -230,23 +230,22 @@ body { overflow: hidden; height: 100vh; }
 /* Mock A: code block 4px radius, 6/12 padding, 2px vertical margin */
 .cm-content .cm-codeblock-line {
   background: var(--code-bg);
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 12px;
-  line-height: 18px;
+  font-family: var(--editor-font);
+  font-size: 14px;
+  line-height: 22px;
   padding-left: 12px;
   padding-right: 12px;
 }
+/* 노트북 손그림 박스 느낌 — 둥근 corner 제거, 위/아래에 점선 sketch border */
 .cm-content .cm-codeblock-line.cm-codeblock-first {
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
-  margin-top: 2px;
-  padding-top: 6px;
+  border-top: 1.5px dashed var(--secondary);
+  margin-top: 4px;
+  padding-top: 8px;
 }
 .cm-content .cm-codeblock-line.cm-codeblock-last {
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
-  margin-bottom: 2px;
-  padding-bottom: 6px;
+  border-bottom: 1.5px dashed var(--secondary);
+  margin-bottom: 4px;
+  padding-bottom: 8px;
 }
 
 /* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
@@ -264,7 +263,7 @@ body { overflow: hidden; height: 100vh; }
    마우스 클릭으로 인라인 코드 안에 커서를 놓지 못한다. 시각적 강조는 box-shadow와
    배경/색으로만 처리하고 글자 metrics는 본문과 동일하게 유지. */
 .cm-content .cm-inline-code {
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-family: var(--editor-font);
   background: var(--code-bg);
   color: var(--code-fg);
   border-radius: 3px;

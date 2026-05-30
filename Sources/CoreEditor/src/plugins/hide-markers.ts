@@ -15,11 +15,13 @@ const HIDE_MARKER_NAMES = new Set([
   'HeaderMark',
   'EmphasisMark',
   'CodeMark',
+  'CodeInfo',   // ``` 뒤의 language 식별자(예: java) — 펜스줄에 java만 남는 걸 방지
   'QuoteMark',
   'LinkMark',
+  'ListMark',   // -, *, +, 1. 2. 3. — 사용자 요청대로 라이브 프리뷰에서 숨김
 ]);
 
-const CONSUME_TRAILING_SPACE = new Set(['HeaderMark', 'QuoteMark']);
+const CONSUME_TRAILING_SPACE = new Set(['HeaderMark', 'QuoteMark', 'ListMark']);
 
 export const hideMarkersPlugin = ViewPlugin.fromClass(
   class {
