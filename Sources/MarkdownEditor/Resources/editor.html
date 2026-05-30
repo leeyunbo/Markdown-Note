@@ -90,10 +90,9 @@ body { overflow: hidden; height: 100vh; }
   padding: 0;  /* gutter는 화면 끝부터 시작, content는 자체 padding */
 }
 .cm-editor .cm-content {
-  /* 상단 60: fullSizeContentView로 본문이 툴바 뒤까지 올라와 첫 줄이 가려지는 걸 피함.
-     좌측 98: 84px 빨간 마진 + 14px gutter — 본문 시작 위치.
-     우측 24, 하단 50vh로 마지막 줄이 화면 중앙까지 스크롤. */
-  padding: 60px 24px 50vh 98px;
+  /* 좌측 98: 84px 빨간 마진 + 14px gutter — 본문 시작 위치.
+     상단 12, 우측 24, 하단 50vh로 마지막 줄이 화면 중앙까지 스크롤. */
+  padding: 12px 24px 50vh 98px;
   max-width: 1080px;    /* 좌측 패딩 98 + 본문 ~960 + 우측 24 */
 }
 .cm-editor.cm-focused {
