@@ -132,7 +132,10 @@ body { overflow: hidden; height: 100vh; }
 .cm-editor .cm-content {
   caret-color: var(--fg);
 }
-.cm-content .cm-md-header { font-family: var(--display-font); color: var(--fg); }
+/* 헤딩도 본문과 동일한 Handwriting(Excalifont+NanumPenScript) 패밀리 사용 —
+   영어 헤딩은 Excalifont, 한국어 헤딩은 NanumPenScript로 unicode-range 자동 분기.
+   크기(44/28/22px)만 시각 위계로. */
+.cm-content .cm-md-header { font-family: var(--editor-font); color: var(--fg); }
 .cm-content .cm-md-heading1 { font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -0.5px; }
 .cm-content .cm-md-heading2 { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .cm-content .cm-md-heading3 { font-size: 22px; font-weight: 700; }
