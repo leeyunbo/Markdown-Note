@@ -144,15 +144,6 @@ body { overflow: hidden; height: 100vh; }
    :not(.md-list-mark) — 리스트 마커(-, 1. 등)는 dim 적용 제외(노트 필기 강조). */
 .cm-content .cm-md-marker:not(.md-list-mark) { color: var(--marker); opacity: 0.55; font-weight: 400; }
 
-/* 리스트 마커(-, *, +, 1. 2. 3.) — 빨간 accent + 굵게 + 살짝 크게 — 노트 필기 느낌.
-   다른 cm-md-marker dim 규칙보다 specificity 높게 (.cm-content .cm-md-marker.md-list-mark). */
-.cm-content .cm-md-marker.md-list-mark,
-.cm-content .md-list-mark {
-  color: var(--accent);
-  font-weight: 700;
-  opacity: 1;
-  font-size: 1.1em;
-}
 /* hideMarkersPlugin이 커서가 없는 라인의 마커에 입히는 클래스 — display:none으로 collapse. */
 .cm-content .cm-md-marker-hidden { display: none; }
 .cm-content .cm-md-squiggle-h1,
@@ -222,13 +213,19 @@ body { overflow: hidden; height: 100vh; }
   margin-left: -3px;
 }
 
-/* List marker — depth별 색 cycle. ListMark만 색칠, 글자는 영향 없음 */
-.cm-content .md-list-mark { font-weight: 600; }
-.cm-content .md-list-depth-0 { color: var(--list); }
-.cm-content .md-list-depth-1 { color: #b14ad6; }
-.cm-content .md-list-depth-2 { color: #c69829; }
-.cm-content .md-list-depth-3 { color: #c14b4b; }
-.cm-content .md-list-depth-4 { color: #4a8fd6; }
+/* 리스트 마커(-, *, +, 1. 2. 3.) — 모든 depth에서 노트 필기체 빨간 강조.
+   !important로 다른 모든 cascade(.cm-md-marker dim 등) 위에서 무조건 적용. */
+.cm-content .md-list-mark,
+.cm-content .md-list-depth-0,
+.cm-content .md-list-depth-1,
+.cm-content .md-list-depth-2,
+.cm-content .md-list-depth-3,
+.cm-content .md-list-depth-4 {
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+  font-size: 1.15em !important;
+  opacity: 1 !important;
+}
 
 /* Fenced code block — lang-markdown의 FencedCode/CodeText에 배경 + monospace */
 .cm-content .tok-T-fenced-code,  /* placeholder, 실제 클래스는 아래 */
