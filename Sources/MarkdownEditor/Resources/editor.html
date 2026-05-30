@@ -139,10 +139,20 @@ body { overflow: hidden; height: 100vh; }
 .cm-content .cm-md-heading1 { font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -0.5px; }
 .cm-content .cm-md-heading2 { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .cm-content .cm-md-heading3 { font-size: 22px; font-weight: 700; }
-.cm-content .md-list-mark { color: var(--accent); font-weight: 700; }
 /* 마크다운 마커(`#`, `##`, `**`, `*`, `` ` ``, `>` 등) — 보이지만 흐리게
-   (Notion/Obsidian 라이브프리뷰 패턴). 색을 marker token으로, 투명도로 더 옅게. */
-.cm-content .cm-md-marker { color: var(--marker); opacity: 0.55; font-weight: 400; }
+   (Notion/Obsidian 라이브프리뷰 패턴). 색을 marker token으로, 투명도로 더 옅게.
+   :not(.md-list-mark) — 리스트 마커(-, 1. 등)는 dim 적용 제외(노트 필기 강조). */
+.cm-content .cm-md-marker:not(.md-list-mark) { color: var(--marker); opacity: 0.55; font-weight: 400; }
+
+/* 리스트 마커(-, *, +, 1. 2. 3.) — 빨간 accent + 굵게 + 살짝 크게 — 노트 필기 느낌.
+   다른 cm-md-marker dim 규칙보다 specificity 높게 (.cm-content .cm-md-marker.md-list-mark). */
+.cm-content .cm-md-marker.md-list-mark,
+.cm-content .md-list-mark {
+  color: var(--accent);
+  font-weight: 700;
+  opacity: 1;
+  font-size: 1.1em;
+}
 /* hideMarkersPlugin이 커서가 없는 라인의 마커에 입히는 클래스 — display:none으로 collapse. */
 .cm-content .cm-md-marker-hidden { display: none; }
 .cm-content .cm-md-squiggle-h1,
