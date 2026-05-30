@@ -113,17 +113,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         spine.translatesAutoresizingMaskIntoConstraints = false
         let splitView = splitVC.view
         splitView.translatesAutoresizingMaskIntoConstraints = false
-        // fullSizeContentView 때문에 splitView/WKWebView가 toolbar 영역까지 올라와
-        // 빈 toolbar 영역 클릭이 텍스트 선택으로 빠진다. 상단 56px에 투명한 드래그
-        // 오버레이를 깔아 mouseDownCanMoveWindow=true로 윈도우 드래그를 가로챔.
-        // (NSToolbar 버튼·트래픽 라이트는 titlebar 레이어로 오버레이 위에 그려져
-        //  정상 동작한다.)
-        let titlebarDrag = DraggableTitlebarOverlay()
-        titlebarDrag.translatesAutoresizingMaskIntoConstraints = false
-
         container.addSubview(spine)
         container.addSubview(splitView)
-        container.addSubview(titlebarDrag)  // 마지막에 add — z-order 최상위
         NSLayoutConstraint.activate([
             spine.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             spine.topAnchor.constraint(equalTo: container.topAnchor),
@@ -133,11 +124,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             splitView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             splitView.topAnchor.constraint(equalTo: container.topAnchor),
             splitView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            titlebarDrag.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            titlebarDrag.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            titlebarDrag.topAnchor.constraint(equalTo: container.topAnchor),
-            titlebarDrag.heightAnchor.constraint(equalToConstant: 56),
         ])
+        // titlebar 영역 드래그는 installTitlebarBackground이 titlebar 레이어에 깔아주는
+        // DraggableTitlebarOverlay(mouseDownCanMoveWindow=true)가 처리한다 —
+        // titlebar 레이어가 contentView보다 위에 있어 contentView에 깐 오버레이는
+        // hit-test가 닿지 못한다.
         // splitVC를 child VC로 유지해 lifecycle/responder chain 보존
         let rootVC = NSViewController()
         rootVC.view = container
@@ -353,10 +344,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             if sv.subviews.contains(where: { $0.identifier == Self.titlebarBgIdentifier }) {
                 return
             }
-            let bg = NSView(frame: sv.bounds)
+            let bg = DraggableTitlebarOverlay(frame: sv.bounds)
             bg.identifier = Self.titlebarBgIdentifier
             bg.wantsLayer = true
-            bg.layer?.backgroundColor = NSColor(srgbRed: 245.0/255, green: 245.0/255, blue: 247.0/255, alpha: 1).cgColor
+            // paper #fdfbf5 — 노트북 종이가 titlebar 뒤까지 연속
+            bg.layer?.backgroundColor = NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1).cgColor
             bg.autoresizingMask = [.width, .height]
             if let first = sv.subviews.first {
                 sv.addSubview(bg, positioned: .below, relativeTo: first)
