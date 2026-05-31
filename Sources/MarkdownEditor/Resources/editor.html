@@ -146,8 +146,6 @@ body { overflow: hidden; height: 100vh; }
    리스트 마커의 accent red가 회색으로 묻히는 부작용이 있었음. */
 .cm-content .cm-md-marker:not(.md-list-mark) { color: rgba(160, 174, 189, 0.6); font-weight: 400; }
 
-/* hideMarkersPlugin이 커서가 없는 라인의 마커에 입히는 클래스 — display:none으로 collapse. */
-.cm-content .cm-md-marker-hidden { display: none; }
 .cm-content .cm-md-squiggle-h1,
 .cm-content .cm-md-squiggle-h2 {
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="8" viewBox="0 0 160 8" preserveAspectRatio="none"><path d="M2,5 Q24,1 48,5 T96,5 T144,5" stroke="%23c8442a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>');
@@ -215,50 +213,17 @@ body { overflow: hidden; height: 100vh; }
   margin-left: -3px;
 }
 
-/* 리스트 마커 노트북 스타일 — README §Body typography:
-   "List bullet — red `·` at 20px, 10px right margin".
-   - 무순서(-, *, +): listMarkMatcher가 Decoration.replace로 BulletWidget 삽입.
-     실제 - / * / + char는 안 보이고 .md-list-bullet span의 · 글리프만 보임.
-   - 유순서(1. 2. 3.): 숫자는 그대로 보이되 .md-list-mark 클래스로 빨갛게. */
-/* 무순서 bullet — 원본 -/*/+ 글자를 그대로 보여주되 노트북 스타일로 강조.
-   font-size 변경은 라인 vertical 레이아웃을 살짝 바꿔 좌표 매핑이 어긋날 수
-   있어 size 변경 없이 색/굵기만. */
-.cm-content .md-list-bullet {
-  color: var(--accent) !important;
-  font-weight: 700 !important;
-}
-/* CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag)에서
-   cm-md-marker span으로 한 번 더 감싸면 위 .cm-md-marker:not(.md-list-mark)의
-   회색 dim 룰(specificity 0,3,0)이 INNER에 매칭돼 ListMark 색이 회색으로
-   묻힌다. 동일 specificity로 source order에서 이기게 후행 selector 작성. */
-.cm-content .md-list-mark .cm-md-marker,
-.cm-content .md-list-bullet .cm-md-marker,
-.cm-content .md-list-ordered .cm-md-marker {
-  color: var(--accent) !important;
-  opacity: 1 !important;
-  font-weight: 700 !important;
-}
-/* 유순서 리스트 1. 2. 3. — 빨간 accent + 굵게 + 살짝 키워 노트 필기 강조.
-   md-list-ordered class는 list-mark.ts matcher가 ordered ListMark에만 부착. */
-.cm-content .md-list-ordered {
-  color: var(--accent) !important;
-  font-weight: 700 !important;
-  font-size: 1.15em !important;
-  opacity: 1 !important;
-  letter-spacing: 0 !important;
-}
-/* CodeMirror가 cm-md-marker와 md-list-mark를 중첩 span으로 만들면 inner의 색이
-   이김 → 후손(.cm-content .md-list-mark *, .md-list-ordered *)까지 accent 강제. */
+/* 리스트 마커 노트북 스타일 — 원본 -/*/+ 1. 2. 3. 그대로 보이되 빨간 accent + 굵게.
+   CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag) 때문에
+   cm-md-marker span으로 한 번 더 감싸므로 후손까지 accent 강제 필요.
+   font-size 변경은 라인 vertical 메트릭을 어긋나게 해 좌표 매핑이 깨질 수 있어
+   금지(색/굵기만으로 강조). */
 .cm-content .md-list-mark,
 .cm-content .md-list-mark *,
+.cm-content .md-list-bullet,
+.cm-content .md-list-bullet *,
 .cm-content .md-list-ordered,
-.cm-content .md-list-ordered *,
-.cm-content .md-list-depth-0,
-.cm-content .md-list-depth-0 *,
-.cm-content .md-list-depth-1,
-.cm-content .md-list-depth-2,
-.cm-content .md-list-depth-3,
-.cm-content .md-list-depth-4 {
+.cm-content .md-list-ordered * {
   color: var(--accent) !important;
   font-weight: 700 !important;
   opacity: 1 !important;

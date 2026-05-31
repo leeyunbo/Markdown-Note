@@ -3,8 +3,15 @@ import { syntaxTree } from '@codemirror/language';
 import { Range } from '@codemirror/state';
 
 /** Notion/Obsidian "라이브 프리뷰" 패턴: 마크다운 마커를 현재 커서가 있는 줄이
- *  아닌 곳에서는 시각적으로 숨긴다 (Decoration.replace로 0폭 collapse). 커서가
- *  그 줄로 들어오면 마커가 다시 나타나 편집 가능.
+ *  아닌 곳에서는 시각적으로 숨긴다. 커서가 그 줄로 들어오면 마커가 다시 나타나
+ *  편집 가능.
+ *
+ *  반드시 Decoration.replace({})를 사용 — Decoration.mark + CSS display:none을
+ *  쓰면 CM6의 posAtCoords가 hidden char에서 getClientRects() 빈 배열을 받아
+ *  좌표 매핑이 다른 줄로 튀고, double-click word 선택이 줄 경계를 넘어가는
+ *  버그가 발생한다 (`InlineCoordsScan.scan` 분석 참조).
+ *  Decoration.replace는 WidgetTile(NullWidget.inline, length)로 해당 range를
+ *  정확한 줄에 zero-width 빈 span으로 렌더 → 좌표 매핑 + atomic 동작 모두 정상.
  *
  *  대상 마커: HeaderMark(#/##/###...), EmphasisMark(*), CodeMark(`),
  *           QuoteMark(>), LinkMark([] ()).
@@ -54,11 +61,10 @@ export const hideMarkersPlugin = ViewPlugin.fromClass(
               if (nodeLineInfo.text[offsetInLine] === ' ') hideTo = node.to + 1;
             }
             if (hideTo > node.from) {
-              // mark + CSS display:none — Decoration.replace이 다른 mark deco와
-              // 겹치며 collapse가 일관되게 안 먹는 케이스를 회피.
-              builder.push(
-                Decoration.mark({ class: 'cm-md-marker-hidden' }).range(node.from, hideTo),
-              );
+              // Decoration.replace({}) — CM6의 posAtCoords와 호환되는 유일한
+              // hiding 방식 (file-level docblock 참조). 절대 mark+display:none으로
+              // 회귀하지 말 것.
+              builder.push(Decoration.replace({}).range(node.from, hideTo));
             }
           },
         });
