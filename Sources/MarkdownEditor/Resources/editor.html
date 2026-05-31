@@ -236,8 +236,14 @@ body { overflow: hidden; height: 100vh; }
   opacity: 1 !important;
   letter-spacing: 0 !important;
 }
+/* CodeMirror가 cm-md-marker와 md-list-mark를 중첩 span으로 만들면 inner의 색이
+   이김 → 후손(.cm-content .md-list-mark *, .md-list-ordered *)까지 accent 강제. */
 .cm-content .md-list-mark,
+.cm-content .md-list-mark *,
+.cm-content .md-list-ordered,
+.cm-content .md-list-ordered *,
 .cm-content .md-list-depth-0,
+.cm-content .md-list-depth-0 *,
 .cm-content .md-list-depth-1,
 .cm-content .md-list-depth-2,
 .cm-content .md-list-depth-3,
@@ -259,11 +265,13 @@ body { overflow: hidden; height: 100vh; }
    JetBrains Mono (README §Fonts: "Mono | JetBrains Mono | code-block content").
    각 라인에 좌·우 1px ink border + first에 상단, last에 하단 — 박스 형성.
    살짝 wonky한 느낌은 HandBox SVG 적용(추후 widget으로 정밀화) 또는 outline-style:double. */
+/* line-height는 본문 30px와 동일 — CodeMirror hit-test가 라인 좌표를 본문 줄
+   기준으로 계산하므로 다르게 두면 클릭이 어긋남(살짝 위 클릭해야 커서 가는 현상). */
 .cm-content .cm-codeblock-line {
   background: var(--code-bg);
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   font-size: 13px;
-  line-height: 20px;
+  line-height: 30px;
   padding-left: 16px;
   padding-right: 16px;
   border-left: 1px solid var(--fg);
@@ -271,13 +279,9 @@ body { overflow: hidden; height: 100vh; }
 }
 .cm-content .cm-codeblock-line.cm-codeblock-first {
   border-top: 1px solid var(--fg);
-  margin-top: 6px;
-  padding-top: 10px;
 }
 .cm-content .cm-codeblock-line.cm-codeblock-last {
   border-bottom: 1px solid var(--fg);
-  margin-bottom: 6px;
-  padding-bottom: 10px;
 }
 
 /* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
