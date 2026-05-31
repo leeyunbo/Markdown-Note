@@ -220,25 +220,19 @@ body { overflow: hidden; height: 100vh; }
    - 무순서(-, *, +): listMarkMatcher가 Decoration.replace로 BulletWidget 삽입.
      실제 - / * / + char는 안 보이고 .md-list-bullet span의 · 글리프만 보임.
    - 유순서(1. 2. 3.): 숫자는 그대로 보이되 .md-list-mark 클래스로 빨갛게. */
-/* 무순서 bullet — 원래 -/*/+ 글자는 transparent로 숨기고 ::before로 빨간 ·
-   글리프를 띄움. mark decoration이라 atomic 아님 → double-click word 선택 정상. */
+/* 무순서 bullet — font-size:0으로 원본 -/*/+ 글자 폭을 0으로 만들고 ::before로
+   빨간 · 글리프를 띄움. mark decoration이라 atomic 아님 → double-click 정상. */
 .cm-content .md-list-bullet {
-  color: transparent !important;
-  position: relative;
-  display: inline-block;
-  width: 0;
+  font-size: 0 !important;
+  letter-spacing: 0 !important;
 }
 .cm-content .md-list-bullet::before {
   content: "·";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
   color: var(--accent);
   font-weight: 700;
   font-size: 20px;
-  line-height: 1;
   margin-right: 10px;
+  vertical-align: middle;
 }
 /* 유순서 리스트 1. 2. 3. — 빨간 accent + 굵게 + 살짝 키워 노트 필기 강조.
    md-list-ordered class는 list-mark.ts matcher가 ordered ListMark에만 부착. */
