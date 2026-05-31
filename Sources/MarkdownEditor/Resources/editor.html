@@ -265,8 +265,9 @@ body { overflow: hidden; height: 100vh; }
    JetBrains Mono (README §Fonts: "Mono | JetBrains Mono | code-block content").
    각 라인에 좌·우 1px ink border + first에 상단, last에 하단 — 박스 형성.
    살짝 wonky한 느낌은 HandBox SVG 적용(추후 widget으로 정밀화) 또는 outline-style:double. */
-/* line-height는 본문 30px와 동일 — CodeMirror hit-test가 라인 좌표를 본문 줄
-   기준으로 계산하므로 다르게 두면 클릭이 어긋남(살짝 위 클릭해야 커서 가는 현상). */
+/* 코드 블록 — README §4.3 HandBox: 손그림 SVG outline + bg #fffaef.
+   per-line CSS border 대신 background-image SVG(첫줄=상단부, 마지막줄=하단부,
+   중간줄=좌·우 세로 stroke)로 wonky corner 박스를 구현. */
 .cm-content .cm-codeblock-line {
   background: var(--code-bg);
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
@@ -274,14 +275,29 @@ body { overflow: hidden; height: 100vh; }
   line-height: 30px;
   padding-left: 16px;
   padding-right: 16px;
-  border-left: 1px solid var(--fg);
-  border-right: 1px solid var(--fg);
+  /* 좌·우 세로 stroke (SVG로 약간 wonky한 손그림 선) */
+  background-image:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>'),
+    none;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 .cm-content .cm-codeblock-line.cm-codeblock-first {
-  border-top: 1px solid var(--fg);
+  /* 첫줄: 상단 wonky 곡선 + 좌·우 시작 */
+  background-image:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
 .cm-content .cm-codeblock-line.cm-codeblock-last {
-  border-bottom: 1px solid var(--fg);
+  /* 마지막줄: 좌·우 끝 + 하단 wonky 곡선 */
+  background-image:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+/* 코드블록 라인이 cm-activeLine이 되면 margin-left:-3, border-left:3 accent가 적용돼
+   HandBox 좌측 stroke가 어그러진다 → activeLine 효과는 코드블록 안에서 disable. */
+.cm-editor .cm-activeLine.cm-codeblock-line {
+  background-color: var(--code-bg) !important;
+  border-left: 0 !important;
+  margin-left: 0 !important;
 }
 
 /* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
