@@ -277,7 +277,7 @@ body { overflow: hidden; height: 100vh; }
   padding-right: 16px;
   /* 좌·우 세로 stroke (SVG로 약간 wonky한 손그림 선) */
   background-image:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>'),
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%231a2a4a" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>'),
     none;
   background-repeat: no-repeat;
   background-size: 100% 100%;
@@ -285,12 +285,12 @@ body { overflow: hidden; height: 100vh; }
 .cm-content .cm-codeblock-line.cm-codeblock-first {
   /* 첫줄: 상단 wonky 곡선 + 좌·우 시작 */
   background-image:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%231a2a4a" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
 .cm-content .cm-codeblock-line.cm-codeblock-last {
   /* 마지막줄: 좌·우 끝 + 하단 wonky 곡선 */
   background-image:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%231a2a4a" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
 /* 코드블록 라인이 cm-activeLine이 되면 margin-left:-3, border-left:3 accent가 적용돼
    HandBox 좌측 stroke가 어그러진다 → activeLine 효과는 코드블록 안에서 disable. */
