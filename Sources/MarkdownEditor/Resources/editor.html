@@ -273,6 +273,9 @@ body { overflow: hidden; height: 100vh; }
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
   font-size: 13px;
   line-height: 30px;
+  /* hide-markers가 펜스 줄(```/```)의 텍스트를 display:none으로 숨겼을 때
+     라인이 0px로 collapse되면 SVG background도 0×0으로 안 그려진다 → min-height 강제. */
+  min-height: 30px;
   padding-left: 16px;
   padding-right: 16px;
   /* 좌·우 세로 stroke (SVG로 약간 wonky한 손그림 선) */
