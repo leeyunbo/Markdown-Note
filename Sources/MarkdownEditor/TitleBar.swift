@@ -1,25 +1,30 @@
 import SwiftUI
 
-/// toolbar 가운데에 표시되는 `파일명 — Edited 2분 전` 형태.
-/// mock A safe variant 토큰: 파일명 13/600, 시간 11/#a0a0a5.
+/// Toolbar (JSX Toolbar L233-248):
+///   title — Caveat 26/600 italic
+///   dirty dot — accent 7×7 circle
+///   flex
+///   ✎ auto-saved — Caveat 20 inkLight
 struct TitleBar: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         HStack(spacing: 8) {
             Text(state.selectedFile?.lastPathComponent ?? "Untitled")
-                .font(.custom("Caveat", size: 26))
-                .fontWeight(.semibold)
+                .font(.custom("NanumPenScript-Regular", size: 22))
                 .foregroundColor(.nbInk)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
             if state.isDirty {
                 Circle().fill(Color.nbAccent).frame(width: 7, height: 7)
             }
-            Spacer()
+            Spacer(minLength: 16)
             Text("✎ auto-saved")
-                .font(.custom("Caveat", size: 20))
+                .font(.custom("NanumPenScript-Regular", size: 18))
                 .foregroundColor(.nbInkLight)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.trailing, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

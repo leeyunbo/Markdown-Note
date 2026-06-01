@@ -26,7 +26,8 @@ import { languages } from '@codemirror/language-data';
 import { baseTheme } from './styling/base-theme';
 import { notebookPaper } from './styling/notebook-paper';
 import { mdHighlight } from './styling/highlight';
-import { lineKindGutter } from './plugins/line-kind-gutter';
+// lineKindGutter는 사용자 요청으로 비활성 — Composition Notebook 디자인에서 좌측에
+// h1/h2/¶/│ 같은 마커가 보이면 안 됨. 코드는 유지(plugins/line-kind-gutter.ts).
 import { statusBarPanel } from './plugins/status-bar';
 import { imageField } from './nodes/image';
 import { docFolderField } from './plugins/doc-folder';
@@ -73,7 +74,6 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       autocapitalize: 'off',
     }),
     highlightActiveLine(),
-    lineKindGutter,
     statusBarPanel,
     docFolderField,
     imageField,

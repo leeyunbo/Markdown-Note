@@ -9,8 +9,17 @@ export const baseTheme = EditorView.theme({
     lineHeight: "30px",
     letterSpacing: "0.1px",
     paddingLeft: "98px",
-    // 우상단 date stamp가 떠 있어 본문이 그 영역으로 들어가면 겹침. 100px 확보.
-    paddingRight: "100px",
+    // 우상단 date stamp가 떠 있어 본문이 그 영역으로 들어가면 겹침. 110px 확보.
+    paddingRight: "110px",
+  },
+  // 한국어 단어 음절 단위 wrap 차단("보장하기" → "보장하" + "기" 회피).
+  // CM6의 EditorView.lineWrapping은 .cm-content에 .cm-lineWrapping 클래스를 박고
+  // `overflow-wrap: anywhere`로 단어 안에서도 어디서나 wrap 허용 → keep-all이
+  // 무력화. selector를 .cm-content.cm-lineWrapping으로 specificity (0,2,0) 올리고
+  // overflow-wrap을 break-word로 덮어 단어 단위 wrap만 허용.
+  ".cm-content.cm-lineWrapping": {
+    wordBreak: "keep-all",
+    overflowWrap: "break-word",
   },
   ".cm-line": { padding: "0" },
 

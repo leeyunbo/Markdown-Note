@@ -30,7 +30,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.shared = self
     }
 
+    /// vendor/* 폰트를 CTFontManager로 process scope에 등록 → SwiftUI Font.custom 사용 가능.
+    /// NanumPenScript / Kalam / Caveat: TTF — 정상 등록.
+    /// Excalifont / JetBrainsMono / Pretendard: woff2 — macOS native 등록 미지원이라 실패해도
+    /// WKWebView @font-face는 별개로 동작하므로 로그만.
+    private static func registerBundledFonts() {
+        let names = [
+            "NanumPenScript-Regular.ttf",
+            "Kalam-Regular.ttf",
+            "Kalam-Bold.ttf",
+            "Caveat[wght].ttf",
+            "Excalifont-Regular.woff2",
+        ]
+        for name in names {
+            let url = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "vendor")
+                ?? Bundle.main.url(forResource: name, withExtension: nil)
+            guard let fontURL = url else {
+                NSLog("[MD-FONT] not found in bundle: %@", name)
+                continue
+            }
+            var error: Unmanaged<CFError>?
+            if CTFontManagerRegisterFontsForURL(fontURL as CFURL, .process, &error) {
+                NSLog("[MD-FONT] registered: %@", name)
+            } else {
+                let desc = error?.takeRetainedValue().localizedDescription ?? "unknown"
+                NSLog("[MD-FONT] register FAIL %@: %@", name, desc)
+            }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.registerBundledFonts()
+
         // Stage Manager / Mission Control 카드의 overlay 아이콘은 NSApp.applicationIconImage를 사용.
         // Info.plist + .icns만으로 인식 안 되는 경우가 있어 명시적으로 set.
         if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),

@@ -22,6 +22,19 @@ enum EditorFont: String, CaseIterable, Identifiable {
         }
     }
 
+    /// SwiftUI `Font.custom` 이름. nil이면 system 기본.
+    /// 사이드바(StampBox / 파일트리 / 푸터)가 editor와 동일 font를 쓰도록 사용.
+    var swiftUIFontName: String? {
+        switch self {
+        case .kalam: return "Kalam"  // 한글은 시스템 fallback
+        case .system: return nil
+        case .pretendard: return "Pretendard"
+        case .jetbrainsMono: return "JetBrains Mono"
+        case .sfMono: return nil  // Font.system(.monospaced)로 대체
+        case .iaWriterQuattro: return "iA Writer Quattro"
+        }
+    }
+
     /// JS body/.cm-content fontFamily에 그대로 박는 CSS 값.
     /// 시스템에 없는 폰트는 fallback chain으로 안전.
     var cssFontFamily: String {

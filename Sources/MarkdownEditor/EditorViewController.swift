@@ -144,6 +144,13 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             }
             .store(in: &cancellables)
 
+        state.$selectedFileMtime
+            .receive(on: RunLoop.main)
+            .sink { [weak self] date in
+                self?.applyDocDate(date)
+            }
+            .store(in: &cancellables)
+
         state.$documentText
             .receive(on: RunLoop.main)
             .sink { [weak self] text in
@@ -241,6 +248,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         applyTheme(state.theme)
         applyEditorFont(state.editorFont)
         applyDocFolder(for: state.selectedFile)
+        applyDocDate(state.selectedFileMtime)
         applyText(pendingText ?? state.documentText)
         pendingText = nil
     }
@@ -357,6 +365,18 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         let escaped = font.cssFontFamily.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
         web.evaluateJavaScript("window.appBridge.setFontFamily(\"\(escaped)\");", completionHandler: nil)
+    }
+
+    /// 우상단 date stamp를 현재 파일 mtime으로 갱신. nil이면 stamp 숨김.
+    /// 포맷은 JS 측에서 Intl.DateTimeFormat("en-US")으로 "Mon · 1 Jun" 식으로.
+    private func applyDocDate(_ date: Date?) {
+        guard ready else { return }
+        let iso = date.map { ISO8601DateFormatter().string(from: $0) } ?? ""
+        let escaped = iso.replacingOccurrences(of: "\"", with: "\\\"")
+        web.evaluateJavaScript(
+            "if (window.appBridge && window.appBridge.setDocDate) window.appBridge.setDocDate(\"\(escaped)\");",
+            completionHandler: nil
+        )
     }
 
     func scrollToLine(_ lineIdx: Int) {

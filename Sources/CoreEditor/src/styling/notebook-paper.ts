@@ -11,12 +11,9 @@ import { EditorView } from '@codemirror/view';
  *    84–85.5 solid red (--accent) 1.5px — 주 margin line
  *    85.5+   transparent
  *
- *  ## 가로 ruled (horizontal, .cm-content)
- *  README §"Window & layout": 30px 간격 1px rule, color `--rule` (#9bb8d4 50%).
- *  스크롤 따라가게 .cm-content에 붙임(.cm-scroller에 붙이면 viewport 고정이라
- *  텍스트가 스크롤될 때 줄만 제자리). 줄 간격은 baseTheme의 lineHeight 30px과
- *  일치시켜 시각 리듬을 맞추되, 폰트별 baseline 차이로 정확한 정렬은 보장 X.
- *  background-position 0 22px는 첫 줄을 본문 baseline 근처로 내리기 위한 오프셋.
+ *  ## 가로 ruled (horizontal, .cm-content gradient)
+ *  30px 주기 1px 줄을 .cm-content background로 깐다. 텍스트와 룰의 정렬은
+ *  보장하지 않음 — 글자가 룰 위에 걸쳐 보여도 의도된 "노트 배경" 데코.
  */
 export const notebookPaper = EditorView.theme({
   '.cm-scroller': {

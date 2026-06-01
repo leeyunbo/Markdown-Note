@@ -1,6 +1,13 @@
 import SwiftUI
 import AppKit
 
+/// 사이드바/툴바 전역 손글씨 폰트 — NanumPenScript (한글) 기본,
+/// macOS는 Latin/특수문자에 대해 system 손글씨 fallback.
+/// (Excalifont는 woff2라 CTFontManager 등록 실패 → WKWebView 전용.)
+func sidebarFont(_ font: EditorFont, size: CGFloat) -> Font {
+    .custom("NanumPenScript-Regular", size: size)
+}
+
 struct FolderSidebar: View {
     @EnvironmentObject var state: AppState
 
@@ -47,10 +54,10 @@ private struct StampBox: View {
     private func field(label: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("\(label):")
-                .font(.custom("Kalam", size: 12.5))
+                .font(sidebarFont(state.editorFont, size: 12.5))
                 .foregroundColor(.nbInkLight)
             Text(value)
-                .font(.custom("Kalam", size: 12.5))
+                .font(sidebarFont(state.editorFont, size: 12.5))
                 .foregroundColor(.nbInk)
                 .overlay(alignment: .bottom) {
                     // borderBottom 0.5px ink40
@@ -62,10 +69,10 @@ private struct StampBox: View {
     private func subjectField(value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Subject:")
-                .font(.custom("Kalam", size: 12.5))
+                .font(sidebarFont(state.editorFont, size: 12.5))
                 .foregroundColor(.nbInkLight)
             Text(value)
-                .font(.custom("Caveat", size: 20))
+                .font(sidebarFont(state.editorFont, size: 15))
                 .fontWeight(.bold)
                 .foregroundColor(.nbAccent)
                 .overlay(alignment: .bottom) {
@@ -122,7 +129,7 @@ private struct FolderFooter: View {
             Spacer()
             Text("p. 8 / 100")
         }
-        .font(.custom("Caveat", size: 18))
+        .font(sidebarFont(state.editorFont, size: 14))
         .foregroundColor(.nbInkLight)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -388,7 +395,7 @@ private struct NodeBranch: View {
                     }
             } else {
                 Text(displayName)
-                    .font(.custom("Kalam", size: 15))
+                    .font(sidebarFont(state.editorFont, size: 14))
                     .fontWeight(isCurrentFile ? .bold : nameWeight)
                     .foregroundColor(.nbInk)
                     .lineLimit(1)

@@ -16,6 +16,7 @@ export interface AppBridge {
   setTheme(vars: Record<string, string>): void;
   setFontFamily(family: string): void;
   setDocFolder(url: string): void;
+  setDocDate(iso: string): void;
   openSearch(): boolean;
   scrollToLine(lineIdx: number): boolean;
   insertImage(alt: string, path: string): boolean;
@@ -66,6 +67,16 @@ export function installAppBridge(view: EditorView, opts: InstallOptions): AppBri
     },
     setDocFolder(url: string) {
       view.dispatch({ effects: docFolderEffect.of(url || '') });
+    },
+    setDocDate(iso: string) {
+      // 빈 문자열 → mtime 없음 → "Untitled" 식으로 stamp는 오늘 fallback.
+      const row = document.querySelector('#nb-date-stamp .nb-date-stamp-row');
+      if (!row) return;
+      const d = iso ? new Date(iso) : new Date();
+      if (Number.isNaN(d.getTime())) return;
+      const wk = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(d);
+      const mo = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(d);
+      row.textContent = `${wk} · ${d.getDate()} ${mo}`;
     },
     openSearch() {
       const existing = view.dom.querySelector('.cm-search');

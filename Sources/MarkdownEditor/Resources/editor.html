@@ -177,33 +177,34 @@ body { overflow: hidden; height: 100vh; }
    리스트 마커의 accent red가 회색으로 묻히는 부작용이 있었음. */
 .cm-content .cm-md-marker:not(.md-list-mark) { color: rgba(160, 174, 189, 0.6); font-weight: 400; }
 
-/* 우측 상단 date stamp (JSX L310-320) — Caveat 18 inkLight rotate -2°.
-   본문 H1과 겹침 회피: paper 배경색을 깔아 "스티커" 형태로 위에 덮음.
-   본문 우측 padding(.cm-content padding-right)을 함께 키워 H1이 이 영역으로
-   밀려들지 않도록. */
+/* 우측 상단 date stamp — Caveat 24 inkLight rotate -2°, paper 배경 스티커. */
 #nb-date-stamp {
   position: fixed;
   top: 10px;
-  right: 18px;
+  right: 20px;
   z-index: 9000;
   text-align: right;
   font-family: var(--display-font);
-  font-size: 18px;
+  font-size: 22px;
   color: var(--secondary);
-  line-height: 1.3;
+  line-height: 1.25;
   transform: rotate(-2deg);
   pointer-events: none;
   user-select: none;
   background: var(--bg);
-  padding: 4px 10px 4px 14px;
-  border-radius: 3px;
+  padding: 6px 14px 6px 18px;
+  border-radius: 4px;
 }
 #nb-date-stamp .nb-date-stamp-row {
   display: inline-block;
   border-bottom: 1.5px solid var(--secondary);
-  padding-bottom: 1px;
+  padding-bottom: 2px;
 }
-#nb-date-stamp .nb-date-stamp-page { font-size: 14px; }
+#nb-date-stamp .nb-date-stamp-page { font-size: 16px; margin-top: 1px; }
+/* 윈도우가 좁아지면 stamp가 본문을 침범 → 일정 너비 이하에서는 stamp 숨김. */
+@media (max-width: 720px) {
+  #nb-date-stamp { display: none; }
+}
 
 /* 빈 문서 가이드 (JSX L401-414) — Caveat 19 inkLight rotate -2.5°, 우측 110/100. */
 #nb-empty-hint {
@@ -497,20 +498,26 @@ body[data-doc-empty="1"] #nb-empty-hint { opacity: 1; }
    마우스 클릭으로 인라인 코드 안에 커서를 못 놓는다. 글자 metrics는 본문과 일치시키고
    시각 강조는 background + SVG outline + box-shadow만 사용. */
 .cm-content .cm-inline-code {
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  /* outer mark — outline + 본문 폰트 사이즈 유지. font-size 건드리지 말 것
+     (테두리가 같이 줄어듦). 글자 축소는 inner .cm-inline-code-text가 담당. */
   background-color: var(--code-bg);
   color: var(--code-fg);
   border-radius: 4px;
-  /* JSX Code(L389-404) path를 텍스트 가장자리에 더 붙도록 조정.
-     원본은 0-100 viewBox 안에 4-96 inset이라 wide text(processed_message 등)에서
-     우측 글자가 outline 밖으로 spill. 0-100 가장자리에 가까운 wonky-curve로 교체. */
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,4 Q0,0 5,1 L95,0 Q100,1 99,5 L99,95 Q100,99 95,99 L5,100 Q0,99 1,95 Z" stroke="%23c8442a" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" opacity="0.45"/></svg>');
+  /* 손그림 outline — 0-100 viewBox 가장자리에 붙되 각 변 중간에 미세한 quad wobble
+     (진폭 0.5~1.2 unit)로 "펜 손떨림" 표현. 큰 진폭 zigzag는 종이찢은 듯 보여 금물. */
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M2,3 Q0,1 4,1.4 Q25,0.8 50,1.6 Q75,0.9 96,1.5 Q100,1 99,4 Q98.5,25 99.6,50 Q98.7,75 99,96 Q100,99 96,98.6 Q75,99.2 50,98.4 Q25,99.1 4,98.5 Q0,99 1,96 Q1.3,75 0.6,50 Q1.4,25 1,4 Z" stroke="%23c8442a" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" opacity="0.55"/></svg>');
   background-repeat: no-repeat;
   background-size: 100% 100%;
   box-shadow: 3px 0 0 var(--code-bg), -3px 0 0 var(--code-bg);
 }
 :root[data-theme="dark"] .cm-content .cm-inline-code {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,4 Q0,0 5,1 L95,0 Q100,1 99,5 L99,95 Q100,99 95,99 L5,100 Q0,99 1,95 Z" stroke="%23e8826b" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" opacity="0.45"/></svg>');
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,4 Q0,0 5,1 Q25,2.5 50,0.5 Q75,2 95,1 Q100,0 99,5 Q97,25 100,50 Q98,75 99,95 Q100,99 95,99 Q75,97.5 50,99.5 Q25,98 5,99 Q0,100 1,95 Q3,75 0,50 Q2,25 1,4 Z" stroke="%23e8826b" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" opacity="0.55"/></svg>');
+}
+/* inner mark — JetBrains Mono + font-size 축소. outer는 본문 사이즈 유지하므로
+   테두리(outer background-image)는 안 줄어들고 글자만 작아짐. */
+.cm-content .cm-inline-code-text {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-size: 0.85em;
 }
 
 /* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */

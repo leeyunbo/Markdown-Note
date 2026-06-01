@@ -6,7 +6,7 @@ final class SpineView: NSView {
 
     private let label: NSTextField = {
         let t = NSTextField(labelWithString: "Composition · 100 sheets")
-        t.font = NSFont(name: "Caveat", size: 17) ?? NSFont.systemFont(ofSize: 17, weight: .bold)
+        t.font = NSFont(name: "NanumPenScript-Regular", size: 16) ?? NSFont.systemFont(ofSize: 16, weight: .bold)
         t.textColor = NSColor(srgbRed: 0x1a/255, green: 0x1a/255, blue: 0x1a/255, alpha: 1)
         t.alignment = .center
         t.drawsBackground = true
