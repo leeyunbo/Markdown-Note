@@ -358,6 +358,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(NSMenuItem(title: "Select All",
                                     action: NSSelectorFromString("selectAll:"),
                                     keyEquivalent: "a"))
+        editMenu.addItem(.separator())
+        let find = NSMenuItem(title: "Find…",
+                              action: #selector(menuOpenFind),
+                              keyEquivalent: "f")
+        find.target = self
+        editMenu.addItem(find)
 
         let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
         editMenuItem.submenu = editMenu
@@ -407,6 +413,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc func menuToggleSidebar() {
         NotificationCenter.default.post(name: .toggleSidebarRequested, object: nil)
+    }
+    @objc func menuOpenFind() {
+        NotificationCenter.default.post(name: .openSearchRequested, object: nil)
     }
     @objc func menuSetTheme(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String,
