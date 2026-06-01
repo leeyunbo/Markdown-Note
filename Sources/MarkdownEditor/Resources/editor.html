@@ -213,17 +213,25 @@ body { overflow: hidden; height: 100vh; }
   margin-left: -3px;
 }
 
-/* 리스트 마커 노트북 스타일 — 원본 -/*/+ 1. 2. 3. 그대로 보이되 빨간 accent + 굵게.
-   CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag) 때문에
-   cm-md-marker span으로 한 번 더 감싸므로 후손까지 accent 강제 필요.
+/* 리스트 마커 노트북 스타일 — 원본 -/+/* 1. 2. 3. 그대로 보이되 빨간 accent + 굵게.
+   CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag)으로
+   cm-md-marker span 안에 한 번 더 감싸기 때문에:
+     outer: <span class="cm-md-marker md-list-mark md-list-bullet ...">
+     inner: <span class="cm-md-marker">-</span>
+   outer는 md-list-mark가 있어 위쪽 dim 규칙의 :not(.md-list-mark)에서 빠지지만,
+   inner는 cm-md-marker만 있어 dim 규칙 (0,3,0)에 매칭돼 회색이 됨.
+   → 내려가는 룰을 (0,3,0) 이상으로 올려 inner까지 accent로 덮어쓴다.
    font-size 변경은 라인 vertical 메트릭을 어긋나게 해 좌표 매핑이 깨질 수 있어
    금지(색/굵기만으로 강조). */
+.cm-content .md-list-mark.cm-md-marker,
+.cm-content .md-list-mark .cm-md-marker,
+.cm-content .md-list-bullet.cm-md-marker,
+.cm-content .md-list-bullet .cm-md-marker,
+.cm-content .md-list-ordered.cm-md-marker,
+.cm-content .md-list-ordered .cm-md-marker,
 .cm-content .md-list-mark,
-.cm-content .md-list-mark *,
 .cm-content .md-list-bullet,
-.cm-content .md-list-bullet *,
-.cm-content .md-list-ordered,
-.cm-content .md-list-ordered * {
+.cm-content .md-list-ordered {
   color: var(--accent) !important;
   font-weight: 700 !important;
   opacity: 1 !important;

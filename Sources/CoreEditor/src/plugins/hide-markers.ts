@@ -6,12 +6,11 @@ import { Range } from '@codemirror/state';
  *  아닌 곳에서는 시각적으로 숨긴다. 커서가 그 줄로 들어오면 마커가 다시 나타나
  *  편집 가능.
  *
- *  반드시 Decoration.replace({})를 사용 — Decoration.mark + CSS display:none을
- *  쓰면 CM6의 posAtCoords가 hidden char에서 getClientRects() 빈 배열을 받아
- *  좌표 매핑이 다른 줄로 튀고, double-click word 선택이 줄 경계를 넘어가는
- *  버그가 발생한다 (`InlineCoordsScan.scan` 분석 참조).
- *  Decoration.replace는 WidgetTile(NullWidget.inline, length)로 해당 range를
- *  정확한 줄에 zero-width 빈 span으로 렌더 → 좌표 매핑 + atomic 동작 모두 정상.
+ *  Decoration.replace({}) 사용 — 해당 range를 doc 레벨에서 collapse하여
+ *  posAtCoords/IME/measurement이 hidden char를 일관되게 zero-length로 다룸.
+ *  과거 Decoration.mark + CSS display:none을 잠시 검토했으나, mark는 chars를
+ *  DOM에 그대로 둔 채 시각적으로만 가리는 방식이라 measurement edge case에서
+ *  불일치 위험이 있어 replace로 통일.
  *
  *  대상 마커: HeaderMark(#/##/###...), EmphasisMark(*), CodeMark(`),
  *           QuoteMark(>), LinkMark([] ()).
@@ -61,9 +60,6 @@ export const hideMarkersPlugin = ViewPlugin.fromClass(
               if (nodeLineInfo.text[offsetInLine] === ' ') hideTo = node.to + 1;
             }
             if (hideTo > node.from) {
-              // Decoration.replace({}) — CM6의 posAtCoords와 호환되는 유일한
-              // hiding 방식 (file-level docblock 참조). 절대 mark+display:none으로
-              // 회귀하지 말 것.
               builder.push(Decoration.replace({}).range(node.from, hideTo));
             }
           },
