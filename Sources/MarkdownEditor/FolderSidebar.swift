@@ -1,13 +1,20 @@
 import SwiftUI
 import AppKit
 
+/// 사이드바/툴바 전역 손글씨 폰트 — NanumPenScript (한글) 기본,
+/// macOS는 Latin/특수문자에 대해 system 손글씨 fallback.
+/// (Excalifont는 woff2라 CTFontManager 등록 실패 → WKWebView 전용.)
+func sidebarFont(_ font: EditorFont, size: CGFloat) -> Font {
+    .custom("NanumPenScript-Regular", size: size)
+}
+
 struct FolderSidebar: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let root = state.rootFolder {
-                Header(rootURL: root)
+            if state.rootFolder != nil {
+                StampBox()
                 TreeView()
                 FolderFooter()
             } else {
@@ -15,47 +22,129 @@ struct FolderSidebar: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.nbPaper)
     }
 }
 
-// 사이드바 하단 — N items · X KB (Mock A spec)
+// MARK: - Composition Book 표지 라벨 (Name / Date / Subject)
+// JSX composition-full.jsx L149-159 + SidebarField L178-190 정확값:
+//   - container: padding 10px 12px, 손그림 SVG outline(stroke ink, width 1.2)
+//   - label: Kalam 12.5px inkLight
+//   - value: Kalam 12.5px ink + borderBottom 0.5px ink40
+//   - Subject emphasis: Caveat 20/700 accent
+
+private struct StampBox: View {
+    @EnvironmentObject var state: AppState
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            field(label: "Name", value: Host.userName)
+            field(label: "Date", value: Self.todayString())
+            subjectField(value: state.rootFolder?.lastPathComponent ?? "markdown-note")
+        }
+        .padding(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
+        .background(
+            // 손그림 SVG outline — JSX HandBox path 그대로.
+            HandDrawnOutline(stroke: Color.nbInk, strokeWidth: 1.2)
+        )
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+    }
+    @ViewBuilder
+    private func field(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("\(label):")
+                .font(sidebarFont(state.editorFont, size: 12.5))
+                .foregroundColor(.nbInkLight)
+            Text(value)
+                .font(sidebarFont(state.editorFont, size: 12.5))
+                .foregroundColor(.nbInk)
+                .overlay(alignment: .bottom) {
+                    // borderBottom 0.5px ink40
+                    Rectangle().fill(Color.nbInk.opacity(0.25)).frame(height: 0.5)
+                }
+        }
+    }
+    @ViewBuilder
+    private func subjectField(value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("Subject:")
+                .font(sidebarFont(state.editorFont, size: 12.5))
+                .foregroundColor(.nbInkLight)
+            Text(value)
+                .font(sidebarFont(state.editorFont, size: 15))
+                .fontWeight(.bold)
+                .foregroundColor(.nbAccent)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.nbAccent.opacity(0.45)).frame(height: 1)
+                }
+        }
+    }
+    private static func todayString() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
+    private enum Host {
+        static var userName: String {
+            ProcessInfo.processInfo.fullUserName
+                .components(separatedBy: " ").first ?? NSUserName()
+        }
+    }
+}
+
+/// JSX HandBox SVG path를 SwiftUI Shape로 옮긴 손그림 사각형 outline.
+/// path: M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z
+/// (0..100 정규화 좌표, non-scaling-stroke 시각으로 stroke 굵기 일정).
+private struct HandDrawnOutline: View {
+    let stroke: Color
+    let strokeWidth: CGFloat
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            Path { p in
+                func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                    CGPoint(x: x / 100 * w, y: y / 100 * h)
+                }
+                p.move(to: pt(1, 3))
+                p.addQuadCurve(to: pt(3, 1), control: pt(1, 1))
+                p.addLine(to: pt(97, 2))
+                p.addQuadCurve(to: pt(99, 4), control: pt(99, 2))
+                p.addLine(to: pt(98.5, 96))
+                p.addQuadCurve(to: pt(96, 99), control: pt(98.5, 99))
+                p.addLine(to: pt(4, 98.5))
+                p.addQuadCurve(to: pt(1.2, 96), control: pt(1, 98.5))
+                p.closeSubpath()
+            }
+            .stroke(stroke, lineWidth: strokeWidth)
+        }
+    }
+}
+
+// 사이드바 하단 — N pages · p. 8 / 100 (Composition Book footer)
 private struct FolderFooter: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
-        let stats = countFiles(state.fileTree)
-        HStack(spacing: 6) {
-            Text("\(stats.count) items")
-            Text("·").foregroundStyle(Color(red: 0.78, green: 0.78, blue: 0.81))
-            Text(formatBytes(stats.bytes))
+        HStack {
+            Text("\(mdCount()) pages")
+            Spacer()
+            Text("p. 8 / 100")
         }
-        .font(.system(size: 10, weight: .regular, design: .monospaced))
-        .foregroundStyle(Color(red: 0.63, green: 0.63, blue: 0.65))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .font(sidebarFont(state.editorFont, size: 14))
+        .foregroundColor(.nbInkLight)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
     }
 
-    private func countFiles(_ nodes: [FileNode]) -> (count: Int, bytes: Int) {
-        var count = 0; var bytes = 0
+    private func mdCount() -> Int {
+        var count = 0
         func walk(_ ns: [FileNode]) {
             for n in ns {
                 if n.isDirectory { if let c = n.children { walk(c) } }
-                else {
-                    count += 1
-                    if let attrs = try? FileManager.default.attributesOfItem(atPath: n.url.path),
-                       let size = attrs[.size] as? Int { bytes += size }
-                }
+                else if n.kind == .markdown { count += 1 }
             }
         }
-        walk(nodes)
-        return (count, bytes)
-    }
-
-    private func formatBytes(_ b: Int) -> String {
-        if b < 1024 { return "\(b) B" }
-        if b < 1024 * 1024 { return String(format: "%.1f KB", Double(b) / 1024) }
-        return String(format: "%.1f MB", Double(b) / 1024 / 1024)
+        walk(state.fileTree)
+        return count
     }
 }
 
@@ -161,13 +250,18 @@ private struct NodeBranch: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             row
-                .padding(.leading, CGFloat(depth) * 12 + 6)
+                // README §Sidebar — indent `depth*14 + 8`.
+                .padding(.leading, CGFloat(depth) * 14 + 8)
                 .padding(.trailing, 8)
                 .padding(.vertical, 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .background(rowBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(alignment: .leading) {
+                    // 현재 파일: 좌측 3px accent 보더 (Composition Book 강조)
+                    if isCurrentFile { Rectangle().fill(Color.nbAccent).frame(width: 3) }
+                }
                 .overlay(
                     // 폴더 자체에 drop 시 row 테두리 강조 (자식 영역과 구분)
                     RoundedRectangle(cornerRadius: 6)
@@ -272,9 +366,9 @@ private struct NodeBranch: View {
         HStack(spacing: 6) {
             Group {
                 if node.isDirectory {
-                    DesignIconView(image: DesignIcon.chevron, size: 9)
-                        .foregroundStyle(Color(red: 0.78, green: 0.78, blue: 0.81))
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                    Text(expanded ? "▾" : "▸")
+                        .font(.system(size: 10))
+                        .foregroundColor(.nbInkLight)
                 } else {
                     Color.clear
                 }
@@ -301,8 +395,9 @@ private struct NodeBranch: View {
                     }
             } else {
                 Text(displayName)
-                    .font(.system(.callout, weight: nameWeight))
-                    .foregroundStyle(nameColor)
+                    .font(sidebarFont(state.editorFont, size: 14))
+                    .fontWeight(isCurrentFile ? .bold : nameWeight)
+                    .foregroundColor(.nbInk)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -311,9 +406,15 @@ private struct NodeBranch: View {
         }
     }
 
+    private var isCurrentFile: Bool {
+        !node.isDirectory && node.url == state.selectedFile
+    }
+
     private var rowBackground: some View {
         if dropTargeted {
             return AnyView(Color.accentColor.opacity(0.30))
+        } else if isCurrentFile {
+            return AnyView(Color.nbCurrent)
         } else if state.selectedFiles.contains(node.url) {
             return AnyView(Color.accentColor.opacity(0.18))
         } else if hovering && !isRenaming {

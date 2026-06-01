@@ -2,6 +2,14 @@ import AppKit
 import SwiftUI
 import Combine
 
+/// fullSizeContentView + titlebarAppearsTransparent 환경에서 titlebar 영역에
+/// paper 색을 깔되 클릭은 가로채지 않는 view. hitTest가 nil을 반환해 모든
+/// 클릭이 부모(NSTitlebarContainerView)로 통과되고, 거기서 macOS 기본 titlebar
+/// 드래그 처리가 작동한다. (draw와 hitTest는 별개라 색은 정상 표시.)
+private final class DraggableTitlebarOverlay: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 /// NSSplitView의 divider 색을 우리 디자인 토큰(rgba(0,0,0,0.10))로 강제.
 /// NSSplitViewController가 만든 splitView 인스턴스의 class를 런타임에 swap해서 적용한다.
 private final class TonedSplitView: NSSplitView {
@@ -30,7 +38,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     private weak var titlebarSeparator: NSView?
-    private var tocItem: NSSplitViewItem!
 
     // 발표 모드: borderless 윈도우를 메뉴바 위 level로 띄운다 (가짜 풀스크린).
     // NSWindow.toggleFullScreen은 우리 split + WKWebView 환경에서 안정적이지 않아 회피.
@@ -39,7 +46,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     init(state: AppState, frameAutosaveName: String? = nil) {
         self.state = state
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
+            contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false)
@@ -48,7 +55,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.title = "Markdown Note"
         window.minSize = NSSize(width: 720, height: 480)
         window.isOpaque = true
-        window.backgroundColor = NSColor(srgbRed: 245.0/255, green: 245.0/255, blue: 247.0/255, alpha: 1)
+        window.backgroundColor = NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1)
         window.appearance = NSAppearance(named: .aqua)
         // autosave name은 default content rect를 적용한 직후, 화면에 표시되기 전에 set.
         // 그래야 saved frame이 default를 덮어쓰고 화면 표시는 saved frame 그대로 나온다.
@@ -93,31 +100,47 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         let editorItem = NSSplitViewItem(viewController: editor)
         editorItem.minimumThickness = 360
 
-        // TOC pane (right gutter, 200px)
-        let tocHost = NSHostingController(
-            rootView: TocPanel().environmentObject(state)
-        )
-        tocItem = NSSplitViewItem(viewController: tocHost)
-        tocItem.minimumThickness = 200
-        tocItem.maximumThickness = 240
-        tocItem.canCollapse = true
-        tocItem.holdingPriority = NSLayoutConstraint.Priority(rawValue: 250)
-
         splitVC = NSSplitViewController()
         splitVC.addSplitViewItem(sidebarItem)
         splitVC.addSplitViewItem(editorItem)
-        splitVC.addSplitViewItem(tocItem)
         splitVC.splitView.dividerStyle = .thin
         // NSSplitViewController 내부 setup을 깨지 않고 divider 색만 바꾸려면
         // 인스턴스 클래스를 런타임에 swap (KVO와 동일한 메커니즘)
         object_setClass(splitVC.splitView, TonedSplitView.self)
 
-        window.contentViewController = splitVC
+        let container = NSView()
+        let spine = SpineView()
+        spine.translatesAutoresizingMaskIntoConstraints = false
+        let splitView = splitVC.view
+        splitView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(spine)
+        container.addSubview(splitView)
+        NSLayoutConstraint.activate([
+            spine.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            spine.topAnchor.constraint(equalTo: container.topAnchor),
+            spine.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            spine.widthAnchor.constraint(equalToConstant: 52),
+            splitView.leadingAnchor.constraint(equalTo: spine.trailingAnchor),
+            splitView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            splitView.topAnchor.constraint(equalTo: container.topAnchor),
+            splitView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        // titlebar 영역 드래그는 installTitlebarBackground이 titlebar 레이어에 깔아주는
+        // DraggableTitlebarOverlay(mouseDownCanMoveWindow=true)가 처리한다 —
+        // titlebar 레이어가 contentView보다 위에 있어 contentView에 깐 오버레이는
+        // hit-test가 닿지 못한다.
+        // splitVC를 child VC로 유지해 lifecycle/responder chain 보존
+        let rootVC = NSViewController()
+        rootVC.view = container
+        rootVC.addChild(splitVC)
+        window.contentViewController = rootVC
 
         // 이미지 미리보기는 EditorViewController 안에서 자체 처리한다 (에디터 영역만 차지).
 
         // Toolbar — autosavesConfiguration로 사용자 customization 보존
-        let toolbar = NSToolbar(identifier: "MainToolbar")
+        // identifier bump — 디자인 spec(title + auto-saved만)에 맞춰 default 변경되면서
+        // 사용자가 이전 customization으로 가진 sidebar/new/search 아이콘이 부활하지 않게.
+        let toolbar = NSToolbar(identifier: "MainToolbarV2")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -163,14 +186,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.toggleSidebar()
-            }
-            .store(in: &cancellables)
-
-        // outline empty이면 TOC pane 자동 collapse
-        state.$outline
-            .receive(on: RunLoop.main)
-            .sink { [weak self] outline in
-                self?.tocItem?.animator().isCollapsed = outline.isEmpty
             }
             .store(in: &cancellables)
 
@@ -268,30 +283,16 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             }
         }
         guard let tb = titlebar else { return }
-        let lineColor = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.10).cgColor
-        // vertical: sidebar boundary
-        let line = NSView()
-        line.wantsLayer = true
-        line.layer?.backgroundColor = lineColor
-        line.identifier = NSUserInterfaceItemIdentifier("md-titlebar-sep")
-        tb.addSubview(line)
-        titlebarSeparator = line
-        // horizontal: toolbar 아래 경계 (경로 문자 위 가로 분리선)
-        let hline = NSView(frame: NSRect(x: 0, y: 0, width: tb.bounds.width, height: 1))
-        hline.wantsLayer = true
-        hline.layer?.backgroundColor = lineColor
+        // 사이드바 경계 세로선은 사용자 요청으로 비활성 — toolbar 영역에 시각적으로 잡음.
+        // horizontal: toolbar 아래 경계 — 디자인 spec(JSX Toolbar) "1px dashed separator".
+        let hline = DashedLineView(frame: NSRect(x: 0, y: 0, width: tb.bounds.width, height: 1))
         hline.autoresizingMask = .width
         hline.identifier = NSUserInterfaceItemIdentifier("md-titlebar-hsep")
         tb.addSubview(hline)
-        updateTitlebarSeparatorFrame()
     }
 
     private func updateTitlebarSeparatorFrame() {
-        guard let line = titlebarSeparator, let parent = line.superview else { return }
-        let sidebarWidth = sidebarItem?.viewController.view.frame.width ?? 0
-        // sidebar collapse 시 width=0 → 0이면 숨긴다
-        line.isHidden = sidebarWidth < 1
-        line.frame = NSRect(x: sidebarWidth, y: 0, width: 1, height: parent.bounds.height)
+        // 사이드바 경계 세로선 제거됨 — 이 함수는 sidebar resize subscriber에서만 호출.
     }
 
     /// sidebarWithViewController는 NSVisualEffectView가 sidebar host를 wrap하므로
@@ -330,10 +331,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             if sv.subviews.contains(where: { $0.identifier == Self.titlebarBgIdentifier }) {
                 return
             }
-            let bg = NSView(frame: sv.bounds)
+            let bg = DraggableTitlebarOverlay(frame: sv.bounds)
             bg.identifier = Self.titlebarBgIdentifier
             bg.wantsLayer = true
-            bg.layer?.backgroundColor = NSColor(srgbRed: 245.0/255, green: 245.0/255, blue: 247.0/255, alpha: 1).cgColor
+            // paper #fdfbf5 — 노트북 종이가 titlebar 뒤까지 연속
+            bg.layer?.backgroundColor = NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1).cgColor
             bg.autoresizingMask = [.width, .height]
             if let first = sv.subviews.first {
                 sv.addSubview(bg, positioned: .below, relativeTo: first)
@@ -427,6 +429,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             host.translatesAutoresizingMaskIntoConstraints = false
             item.view = host
             item.label = ""
+            // toolbar에서 다른 시스템 아이템이 압축하지 않도록 충분한 범위 부여.
+            // height 28은 NSToolbar의 일반 item bezel + Caveat 26 baseline 여유.
+            item.minSize = NSSize(width: 240, height: 28)
+            item.maxSize = NSSize(width: 8000, height: 28)
             return item
         default:
             return nil
@@ -434,12 +440,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // sidebarTrackingSeparator: sidebar 영역(traffic light 위)은 비우고
-        // separator 오른쪽(에디터 영역)부터 sidebar | + 가 시작
-        [.sidebarTrackingSeparator,
-         ItemID.sidebar, ItemID.newFile, .flexibleSpace,
-         ItemID.title,
-         .flexibleSpace, ItemID.search]
+        // 디자인 spec(JSX Toolbar): title + dirty dot + flex + ✎ auto-saved 만.
+        // sidebar/new/search 아이콘은 키보드 단축키(⌘⇧D / ⌘N / ⌘F) + 메뉴바로
+        // 접근. customization에서 사용자가 다시 꺼낼 순 있음(Allowed에 남음).
+        [.sidebarTrackingSeparator, ItemID.title]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -482,4 +486,24 @@ extension Notification.Name {
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
     static let outlineNavigateRequested = Notification.Name("outlineNavigateRequested")
     static let openSearchRequested = Notification.Name("openSearchRequested")
+}
+
+/// 디자인 spec(JSX Toolbar)의 `1px dashed separator`를 NSView로 구현.
+/// CALayer로 dash 표현이 어렵고 0.5px 단위 fractional alignment이 깔끔치 않아
+/// override draw + NSBezierPath.setLineDash로 직접 그린다.
+private final class DashedLineView: NSView {
+    override var isFlipped: Bool { true }
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.25).setStroke()
+        let path = NSBezierPath()
+        path.lineWidth = 1
+        path.lineCapStyle = .butt
+        let pattern: [CGFloat] = [4, 3]
+        path.setLineDash(pattern, count: pattern.count, phase: 0)
+        let y = bounds.midY
+        path.move(to: NSPoint(x: bounds.minX, y: y))
+        path.line(to: NSPoint(x: bounds.maxX, y: y))
+        path.stroke()
+    }
 }

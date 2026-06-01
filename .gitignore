@@ -14,3 +14,5 @@ markdown editor_files/
 reports/
 coverage/
 *.tsbuildinfo
+# MarkEdit 참조용 vendored 소스 — 우리 빌드에 포함 안 되며 절대 commit 금지.
+MarkEdit-*/

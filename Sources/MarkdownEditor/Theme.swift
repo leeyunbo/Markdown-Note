@@ -26,10 +26,12 @@ enum Theme: String, CaseIterable, Identifiable {
 
     // MARK: - NSColor (에디터/룰러용)
 
+    // PAL_LIGHT: #fdfbf5 paper, #1a2a4a ink, #c8442a accent (README §Design tokens).
+    // PAL_NIGHT: #1b2233 paper, #f0e8d3 ink, #e8826b accent.
     var editorBackgroundNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 1.00, green: 1.00, blue: 1.00, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
+        case .light: return NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed:  27.0/255, green:  34.0/255, blue:  51.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.97, green: 0.94, blue: 0.89, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.98, green: 0.98, blue: 0.97, alpha: 1)
         }
@@ -37,28 +39,28 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var foregroundNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.92, green: 0.92, blue: 0.94, alpha: 1)
+        case .light: return NSColor(srgbRed:  26.0/255, green:  42.0/255, blue:  74.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 240.0/255, green: 232.0/255, blue: 211.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.23, green: 0.18, blue: 0.14, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.14, green: 0.16, blue: 0.18, alpha: 1)
         }
     }
 
-    /// 마크다운 마커(`#`, `**`, `[]()` 등) — 강하게 흐리게
+    /// 마크다운 마커(`#`, `**`, `[]()` 등) — 강하게 흐리게. inkFaint 톤.
     var markerNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.78, green: 0.78, blue: 0.81, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.40, green: 0.40, blue: 0.43, alpha: 1)
+        case .light: return NSColor(srgbRed: 160.0/255, green: 174.0/255, blue: 189.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 107.0/255, green:  94.0/255, blue:  68.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.62, green: 0.55, blue: 0.45, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.70, green: 0.71, blue: 0.74, alpha: 1)
         }
     }
 
-    /// 보조 텍스트 (인용문 본문 등)
+    /// 보조 텍스트 (인용문 본문 등). inkLight 톤.
     var secondaryNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.43, green: 0.43, blue: 0.45, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.65, green: 0.65, blue: 0.68, alpha: 1)
+        case .light: return NSColor(srgbRed:  90.0/255, green: 106.0/255, blue: 133.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 168.0/255, green: 152.0/255, blue: 120.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.45, green: 0.38, blue: 0.30, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.42, green: 0.44, blue: 0.46, alpha: 1)
         }
@@ -66,8 +68,8 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var codeBackgroundNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.95, green: 0.95, blue: 0.96, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.16, green: 0.16, blue: 0.17, alpha: 1)
+        case .light: return NSColor(srgbRed: 255.0/255, green: 250.0/255, blue: 239.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.04)
         case .sepia: return NSColor(srgbRed: 0.93, green: 0.89, blue: 0.81, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.94, green: 0.94, blue: 0.93, alpha: 1)
         }
@@ -75,9 +77,8 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var codeForegroundNS: NSColor {
         switch self {
-        // mock A spec: #c71f3a
-        case .light: return NSColor(srgbRed: 0.78, green: 0.12, blue: 0.23, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.95, green: 0.55, blue: 0.66, alpha: 1)
+        case .light: return NSColor(srgbRed: 200.0/255, green:  68.0/255, blue:  42.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 232.0/255, green: 130.0/255, blue: 107.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.55, green: 0.20, blue: 0.10, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.62, green: 0.18, blue: 0.36, alpha: 1)
         }
@@ -85,8 +86,8 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var linkNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.00, green: 0.40, blue: 0.80, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.42, green: 0.71, blue: 1.00, alpha: 1)
+        case .light: return NSColor(srgbRed: 200.0/255, green:  68.0/255, blue:  42.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 232.0/255, green: 130.0/255, blue: 107.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.55, green: 0.29, blue: 0.10, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.04, green: 0.41, blue: 0.85, alpha: 1)
         }
@@ -94,8 +95,8 @@ enum Theme: String, CaseIterable, Identifiable {
 
     var listMarkerNS: NSColor {
         switch self {
-        case .light: return NSColor(srgbRed: 0.20, green: 0.65, blue: 0.62, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 0.46, green: 0.85, blue: 0.82, alpha: 1)
+        case .light: return NSColor(srgbRed: 200.0/255, green:  68.0/255, blue:  42.0/255, alpha: 1)
+        case .dark:  return NSColor(srgbRed: 232.0/255, green: 130.0/255, blue: 107.0/255, alpha: 1)
         case .sepia: return NSColor(srgbRed: 0.45, green: 0.55, blue: 0.30, alpha: 1)
         case .paper: return NSColor(srgbRed: 0.30, green: 0.60, blue: 0.55, alpha: 1)
         }
@@ -126,7 +127,8 @@ enum Theme: String, CaseIterable, Identifiable {
     var sidebarBackgroundStrong: Color {
         switch self {
         case .light: return Color(red: 0.95, green: 0.95, blue: 0.97)
-        case .dark:  return Color(red: 0.13, green: 0.13, blue: 0.14)
+        // README §Dark — sidebarBg #161c2b (paper보다 약간 더 어둡게).
+        case .dark:  return Color(red: 22/255, green: 28/255, blue: 43/255)
         case .sepia: return Color(red: 0.93, green: 0.89, blue: 0.81)
         case .paper: return Color(red: 0.95, green: 0.95, blue: 0.94)
         }
@@ -137,4 +139,14 @@ enum Theme: String, CaseIterable, Identifiable {
 
     /// SwiftUI ColorScheme 힌트 (사이드바 컨트롤이 자연스럽게 보이도록)
     var colorScheme: ColorScheme { self == .dark ? .dark : .light }
+}
+
+// MARK: - Notebook Light palette tokens (chrome reskin)
+
+extension Color {
+    static let nbPaper = Color(red: 253/255, green: 251/255, blue: 245/255)
+    static let nbInk = Color(red: 26/255, green: 42/255, blue: 74/255)
+    static let nbInkLight = Color(red: 90/255, green: 106/255, blue: 133/255)
+    static let nbAccent = Color(red: 200/255, green: 68/255, blue: 42/255)
+    static let nbCurrent = Color(red: 200/255, green: 68/255, blue: 42/255, opacity: 0.10)
 }

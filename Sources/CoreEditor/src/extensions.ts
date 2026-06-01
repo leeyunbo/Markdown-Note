@@ -24,8 +24,10 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 
 import { baseTheme } from './styling/base-theme';
+import { notebookPaper } from './styling/notebook-paper';
 import { mdHighlight } from './styling/highlight';
-import { lineKindGutter } from './plugins/line-kind-gutter';
+// lineKindGutter는 사용자 요청으로 비활성 — Composition Notebook 디자인에서 좌측에
+// h1/h2/¶/│ 같은 마커가 보이면 안 됨. 코드는 유지(plugins/line-kind-gutter.ts).
 import { statusBarPanel } from './plugins/status-bar';
 import { imageField } from './nodes/image';
 import { docFolderField } from './plugins/doc-folder';
@@ -34,9 +36,11 @@ import { listMarkMatcher } from './nodes/list-mark';
 import { inlineCodeMatcher } from './nodes/inline-code';
 import { indentedResetMatchers } from './nodes/indented-reset';
 import { codeBlockMatcher } from './nodes/code-block';
+import { headingSquiggleMatchers } from './nodes/heading-squiggle';
 import { matcherViewPlugin } from './utils/matchers/view-plugin';
 import { tableLinePlugin } from './nodes/table';
 import { taskLinePlugin } from './plugins/task-line';
+import { hideMarkersPlugin } from './plugins/hide-markers';
 import { imeListContinueFilter } from './commands/ime-list-continue';
 import { wrapSelection } from './commands/wrap-selection';
 import { insertLinkCmd } from './commands/insert-link';
@@ -70,7 +74,6 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       autocapitalize: 'off',
     }),
     highlightActiveLine(),
-    lineKindGutter,
     statusBarPanel,
     docFolderField,
     imageField,
@@ -81,10 +84,13 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       inlineCodeMatcher,
       ...indentedResetMatchers,
       codeBlockMatcher,
+      ...headingSquiggleMatchers,
     ]),
     tableLinePlugin,
     taskLinePlugin,
+    hideMarkersPlugin,
     themeCompartment.of(baseTheme),
+    notebookPaper,
     imeListContinueFilter,
     keymap.of([
       { key: 'Mod-b', run: wrapSelection('**', '**') },

@@ -144,6 +144,13 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             }
             .store(in: &cancellables)
 
+        state.$selectedFileMtime
+            .receive(on: RunLoop.main)
+            .sink { [weak self] date in
+                self?.applyDocDate(date)
+            }
+            .store(in: &cancellables)
+
         state.$documentText
             .receive(on: RunLoop.main)
             .sink { [weak self] text in
@@ -241,6 +248,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         applyTheme(state.theme)
         applyEditorFont(state.editorFont)
         applyDocFolder(for: state.selectedFile)
+        applyDocDate(state.selectedFileMtime)
         applyText(pendingText ?? state.documentText)
         pendingText = nil
     }
@@ -341,7 +349,15 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         ]
         let json = (try? JSONSerialization.data(withJSONObject: vars))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        web.evaluateJavaScript("window.appBridge.setTheme(\(json));", completionHandler: nil)
+        // data-theme="dark" 박아 editor.html의 :root[data-theme="dark"]
+        // SYN palette override + 다크 모드 inline-code outline 색상이 활성.
+        // light/sepia/paper는 data-theme를 비워 PAL_LIGHT 기본값을 그대로 사용.
+        let dataTheme = (theme == .dark) ? "dark" : ""
+        let setDataTheme = "document.documentElement.setAttribute('data-theme', '\(dataTheme)');"
+        web.evaluateJavaScript(
+            "\(setDataTheme) window.appBridge.setTheme(\(json));",
+            completionHandler: nil
+        )
     }
 
     private func applyEditorFont(_ font: EditorFont) {
@@ -349,6 +365,18 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         let escaped = font.cssFontFamily.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
         web.evaluateJavaScript("window.appBridge.setFontFamily(\"\(escaped)\");", completionHandler: nil)
+    }
+
+    /// 우상단 date stamp를 현재 파일 mtime으로 갱신. nil이면 stamp 숨김.
+    /// 포맷은 JS 측에서 Intl.DateTimeFormat("en-US")으로 "Mon · 1 Jun" 식으로.
+    private func applyDocDate(_ date: Date?) {
+        guard ready else { return }
+        let iso = date.map { ISO8601DateFormatter().string(from: $0) } ?? ""
+        let escaped = iso.replacingOccurrences(of: "\"", with: "\\\"")
+        web.evaluateJavaScript(
+            "if (window.appBridge && window.appBridge.setDocDate) window.appBridge.setDocDate(\"\(escaped)\");",
+            completionHandler: nil
+        )
     }
 
     func scrollToLine(_ lineIdx: Int) {

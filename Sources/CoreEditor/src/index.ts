@@ -16,6 +16,7 @@ export { listMarkMatcher } from './nodes/list-mark';
 export { inlineCodeMatcher } from './nodes/inline-code';
 export { indentedResetMatchers } from './nodes/indented-reset';
 export { codeBlockMatcher } from './nodes/code-block';
+export { squiggleClassForHeading, headingSquiggleMatchers } from './nodes/heading-squiggle';
 export { tableLinePlugin } from './nodes/table';
 export { ImageWidget, imageField } from './nodes/image';
 export { docFolderEffect, docFolderField } from './plugins/doc-folder';
@@ -25,6 +26,7 @@ export {
   mermaidDecoField,
 } from './nodes/mermaid';
 export { taskLinePlugin } from './plugins/task-line';
+export { hideMarkersPlugin } from './plugins/hide-markers';
 export { lineKindGutter } from './plugins/line-kind-gutter';
 export { statusBarPanel } from './plugins/status-bar';
 export { installPasteImageHandler } from './plugins/paste-image';
@@ -37,6 +39,7 @@ export {
   extractNewlineInsertion,
 } from './commands/ime-list-continue';
 export { baseTheme } from './styling/base-theme';
+export { notebookPaper } from './styling/notebook-paper';
 export { mdHighlight } from './styling/highlight';
 export { markdownTagClasses } from './styling/markdown-tags';
 export { nodeMatcher, runMatchers } from './utils/matchers/lezer';

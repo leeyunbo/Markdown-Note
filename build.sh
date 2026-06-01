@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 CONFIG="${1:-release}"
 APP_NAME="Markdown Note"
 BUNDLE_ID="com.daou.markdowneditor"
-VERSION="1.4.0"
+VERSION="2.0.0"
 
 # CodeMirror 번들이 없거나 entry보다 오래되면 다시 만들기
 if [[ ! -f Sources/MarkdownEditor/Resources/cm.bundle.js ]] \
@@ -68,6 +68,7 @@ cat > "$APP_ROOT/Contents/Info.plist" <<EOF
     <key>CFBundleVersion</key><string>$VERSION</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+    <key>ATSApplicationFontsPath</key><string>vendor</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSSupportsAutomaticTermination</key><true/>

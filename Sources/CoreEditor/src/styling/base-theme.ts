@@ -4,10 +4,22 @@ export const baseTheme = EditorView.theme({
   "&": { height: "100%" },
   // Mock A: body 13.5px / lh 22px, padTop 12 / padX 20, max line ~720
   ".cm-content": {
-    fontFamily: "inherit",
-    fontSize: "13.5px",
-    lineHeight: "22px",
-    letterSpacing: "-0.005em",
+    fontFamily: "var(--editor-font)",
+    fontSize: "16.5px",
+    lineHeight: "30px",
+    letterSpacing: "0.1px",
+    paddingLeft: "98px",
+    // 우상단 date stamp가 떠 있어 본문이 그 영역으로 들어가면 겹침. 110px 확보.
+    paddingRight: "110px",
+  },
+  // 한국어 단어 음절 단위 wrap 차단("보장하기" → "보장하" + "기" 회피).
+  // CM6의 EditorView.lineWrapping은 .cm-content에 .cm-lineWrapping 클래스를 박고
+  // `overflow-wrap: anywhere`로 단어 안에서도 어디서나 wrap 허용 → keep-all이
+  // 무력화. selector를 .cm-content.cm-lineWrapping으로 specificity (0,2,0) 올리고
+  // overflow-wrap을 break-word로 덮어 단어 단위 wrap만 허용.
+  ".cm-content.cm-lineWrapping": {
+    wordBreak: "keep-all",
+    overflowWrap: "break-word",
   },
   ".cm-line": { padding: "0" },
 
@@ -137,18 +149,16 @@ export const baseTheme = EditorView.theme({
     opacity: "0.6",
   },
 
-  // done task line — strikethrough + muted
+  // done task — README §Hand-drawn primitives "HandStrike: wavy horizontal strike".
+  // textDecoration line-through 대신 SVG wavy stroke를 background로 깔아 손그림 strike.
+  // 색은 inkLight(secondary)로 dim.
   ".cm-content .cm-task-done": {
     color: "var(--secondary)",
-    textDecoration: "line-through",
-  },
-  // task checkbox — [x] / [ ] inline mark
-  ".cm-content .cm-task-checked": {
-    color: "var(--link)",
-    fontWeight: "600",
-  },
-  ".cm-content .cm-task-unchecked": {
-    color: "var(--marker)",
+    backgroundImage:
+      'url(\'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 200 4"><path d="M2,2 Q14,0.4 28,2 Q42,3.6 56,2 Q70,0.4 84,2 Q98,3.6 112,2 Q126,0.4 140,2 Q154,3.6 168,2 Q182,0.4 196,2" stroke="%23c8442a" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.7"/></svg>\')',
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: '100% 4px',
+    backgroundPosition: '0 56%',
   },
 
   // 라인 gutter — 좌측에 h1/h2/¶/│ 등 작은 라벨
