@@ -73,6 +73,7 @@
 }
 
 :root {
+  /* PAL_LIGHT (README §Design tokens) — "Day". */
   --bg: #fdfbf5;
   --fg: #1a2a4a;
   --marker: #a0aebd;
@@ -86,6 +87,36 @@
   --current-line: rgba(200,68,42,0.10);
   --editor-font: "Handwriting", -apple-system, "Apple SD Gothic Neo", sans-serif;
   --display-font: "Caveat", "Apple SD Gothic Neo", cursive;
+  /* SYN — README §Code blocks. 따뜻한 톤(크림 위에 sit). */
+  --syn-keyword: #c8442a;
+  --syn-type: #3f6a3a;
+  --syn-string: #b5701a;
+  --syn-number: #2a6a8a;
+  --syn-function: #1a2a4a;
+  --syn-comment: #9a8c6a;
+  --syn-punctuation: #6a5f4a;
+}
+/* PAL_NIGHT — Theme.swift가 :root에 data-theme="dark" 박을 때 override. */
+:root[data-theme="dark"] {
+  --bg: #1b2233;
+  --fg: #f0e8d3;
+  --marker: #6b5e44;
+  --secondary: #a89878;
+  --code-bg: rgba(255,255,255,0.04);
+  --code-fg: #e8826b;
+  --link: #e8826b;
+  --list: #e8826b;
+  --accent: #e8826b;
+  --rule: rgba(220,200,140,0.10);
+  --current-line: rgba(232,130,107,0.10);
+  /* SYN night — relationships 유지, floor 띄움. */
+  --syn-keyword: #e8826b;
+  --syn-type: #8fb87a;
+  --syn-string: #e0a35a;
+  --syn-number: #7fb8d0;
+  --syn-function: #f0e8d3;
+  --syn-comment: #7a6e52;
+  --syn-punctuation: #a89878;
 }
 * { box-sizing: border-box; }
 html, body {
@@ -145,6 +176,19 @@ body { overflow: hidden; height: 100vh; }
 /* opacity 대신 rgba — opacity는 후손 span(md-list-ordered 등)까지 반투명화 시켜
    리스트 마커의 accent red가 회색으로 묻히는 부작용이 있었음. */
 .cm-content .cm-md-marker:not(.md-list-mark) { color: rgba(160, 174, 189, 0.6); font-weight: 400; }
+
+/* HandCheckbox — README §Hand-drawn primitives. inline-block, baseline에 맞춰 정렬,
+   18px square, vertical-align로 텍스트 baseline과 시각 정렬. */
+.cm-hand-check {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+  margin-right: 6px;
+  cursor: pointer;
+  line-height: 0;
+}
+.cm-hand-check svg { display: block; }
 
 .cm-content .cm-md-squiggle-h1,
 .cm-content .cm-md-squiggle-h2 {
@@ -211,7 +255,28 @@ body { overflow: hidden; height: 100vh; }
   background: var(--current-line);
   border-left: 3px solid var(--accent);
   margin-left: -3px;
+  position: relative;
 }
+/* PenNib — README §Hand-drawn primitives. 현재 라인 우측 끝에 작은 펜닙 SVG.
+   penblink 1.2s 깜빡임(opacity 1 ↔ 0.35). pointer-events:none으로 클릭 통과. */
+.cm-editor .cm-activeLine::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 14px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 14"><path d="M1,7 L11.5,2 Q14.5,1.2 16,3.4 Q17,5.4 17,7 Q17,8.6 16,10.6 Q14.5,12.8 11.5,12 Z" fill="%23c8442a"/><path d="M6,7 L14,7" stroke="%23fdfbf5" stroke-width="0.8" stroke-linecap="round"/><circle cx="11" cy="7" r="0.9" fill="%23fdfbf5"/></svg>') center/contain no-repeat;
+  pointer-events: none;
+  animation: penblink 1.2s ease-in-out infinite;
+}
+@keyframes penblink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+/* 코드블록 안 activeLine에서는 PenNib 안 그림 — 코드 박스 안에 어색함. */
+.cm-editor .cm-activeLine.cm-codeblock-line::after { content: none; }
 
 /* 리스트 마커 노트북 스타일 — 원본 -/+/* 1. 2. 3. 그대로 보이되 빨간 accent + 굵게.
    CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag)으로
@@ -287,6 +352,64 @@ body { overflow: hidden; height: 100vh; }
   margin-left: 0 !important;
 }
 
+/* Fenced code 첫 줄 — lang tab(좌) + copy chip(우)를 absolute로 띄움.
+   첫 줄을 position:relative anchor로 삼아 widget이 그 상대좌표에 떠 있게 함. */
+.cm-content .cm-codeblock-line.cm-codeblock-first {
+  position: relative;
+}
+/* Lang tab — Caveat 18/700 흰글씨 on accent flag, rotate -1.5deg.
+   README §Code blocks: "top:-13 left:18, border-radius 4". */
+.cm-code-lang-tab {
+  position: absolute;
+  top: -13px;
+  left: 18px;
+  z-index: 2;
+  display: inline-block;
+  padding: 1px 10px 2px;
+  background: var(--accent);
+  color: #fffaef;
+  font-family: var(--display-font);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 4px;
+  transform: rotate(-1.5deg);
+  user-select: none;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+/* Copy chip — top:-11 right:16, paper bg pill, 1.4px border, mono 11px.
+   default = mono "copy" inkLight, active = "copied!" green. */
+.cm-code-copy-chip {
+  position: absolute;
+  top: -11px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px 3px;
+  background: var(--bg);
+  color: var(--secondary);
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-size: 11px;
+  border: 1.4px solid var(--secondary);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 0.02em;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.cm-code-copy-chip:hover { color: var(--fg); border-color: var(--fg); }
+.cm-code-copy-chip-done {
+  color: #3f6a3a !important;
+  border-color: #3f6a3a !important;
+}
+:root[data-theme="dark"] .cm-code-copy-chip-done {
+  color: #8fb87a !important;
+  border-color: #8fb87a !important;
+}
+
 /* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
    본문 폰트로 강제 복귀. Tab으로 들여쓰기한 일반 텍스트가 mono로 leak되는 버그 차단. */
 .cm-content .cm-line.cm-indented-reset,
@@ -297,16 +420,23 @@ body { overflow: hidden; height: 100vh; }
   color: var(--fg) !important;
 }
 
-/* Inline code (단일 ` ` 안) — mock A 톤.
-   font-size / padding을 mark decoration에 주면 CM이 caret hitbox를 잘못 계산해서
-   마우스 클릭으로 인라인 코드 안에 커서를 놓지 못한다. 시각적 강조는 box-shadow와
-   배경/색으로만 처리하고 글자 metrics는 본문과 동일하게 유지. */
+/* Inline code (` `) — README §Inline code: accent text on codeBg + 손그림 outline 0.45 opacity.
+   font-size / padding을 mark decoration에 직접 주면 CM caret hitbox 계산이 꼬여서
+   마우스 클릭으로 인라인 코드 안에 커서를 못 놓는다. 글자 metrics는 본문과 일치시키고
+   시각 강조는 background + SVG outline + box-shadow만 사용. */
 .cm-content .cm-inline-code {
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  background: var(--code-bg);
+  background-color: var(--code-bg);
   color: var(--code-fg);
-  border-radius: 3px;
-  box-shadow: 1px 0 0 var(--code-bg), -1px 0 0 var(--code-bg);
+  border-radius: 4px;
+  /* 손그림 SVG outline — 살짝 wonky한 사각형, 옅은 ink stroke. */
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M2,4 Q1,2 4,1.5 L96,2.5 Q99,2 99,5 L98.5,95 Q99,98.5 96,98.5 L4,98 Q1,98.5 1.5,95 Z" stroke="%231a2a4a" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/></svg>');
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: 2px 0 0 var(--code-bg), -2px 0 0 var(--code-bg);
+}
+:root[data-theme="dark"] .cm-content .cm-inline-code {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M2,4 Q1,2 4,1.5 L96,2.5 Q99,2 99,5 L98.5,95 Q99,98.5 96,98.5 L4,98 Q1,98.5 1.5,95 Z" stroke="%23f0e8d3" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/></svg>');
 }
 
 /* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */

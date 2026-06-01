@@ -341,7 +341,15 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         ]
         let json = (try? JSONSerialization.data(withJSONObject: vars))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        web.evaluateJavaScript("window.appBridge.setTheme(\(json));", completionHandler: nil)
+        // data-theme="dark" 박아 editor.html의 :root[data-theme="dark"]
+        // SYN palette override + 다크 모드 inline-code outline 색상이 활성.
+        // light/sepia/paper는 data-theme를 비워 PAL_LIGHT 기본값을 그대로 사용.
+        let dataTheme = (theme == .dark) ? "dark" : ""
+        let setDataTheme = "document.documentElement.setAttribute('data-theme', '\(dataTheme)');"
+        web.evaluateJavaScript(
+            "\(setDataTheme) window.appBridge.setTheme(\(json));",
+            completionHandler: nil
+        )
     }
 
     private func applyEditorFont(_ font: EditorFont) {

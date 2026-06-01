@@ -184,7 +184,8 @@ private struct NodeBranch: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             row
-                .padding(.leading, CGFloat(depth) * 12 + 6)
+                // README §Sidebar — indent `depth*14 + 8`.
+                .padding(.leading, CGFloat(depth) * 14 + 8)
                 .padding(.trailing, 8)
                 .padding(.vertical, 2)
                 .frame(maxWidth: .infinity, alignment: .leading)

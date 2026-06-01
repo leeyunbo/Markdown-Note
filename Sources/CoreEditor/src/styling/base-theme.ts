@@ -139,18 +139,16 @@ export const baseTheme = EditorView.theme({
     opacity: "0.6",
   },
 
-  // done task line — strikethrough + muted
+  // done task — README §Hand-drawn primitives "HandStrike: wavy horizontal strike".
+  // textDecoration line-through 대신 SVG wavy stroke를 background로 깔아 손그림 strike.
+  // 색은 inkLight(secondary)로 dim.
   ".cm-content .cm-task-done": {
     color: "var(--secondary)",
-    textDecoration: "line-through",
-  },
-  // task checkbox — [x] / [ ] inline mark
-  ".cm-content .cm-task-checked": {
-    color: "var(--link)",
-    fontWeight: "600",
-  },
-  ".cm-content .cm-task-unchecked": {
-    color: "var(--marker)",
+    backgroundImage:
+      'url(\'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 200 4"><path d="M2,2 Q14,0.4 28,2 Q42,3.6 56,2 Q70,0.4 84,2 Q98,3.6 112,2 Q126,0.4 140,2 Q154,3.6 168,2 Q182,0.4 196,2" stroke="%23c8442a" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.7"/></svg>\')',
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: '100% 4px',
+    backgroundPosition: '0 56%',
   },
 
   // 라인 gutter — 좌측에 h1/h2/¶/│ 등 작은 라벨
