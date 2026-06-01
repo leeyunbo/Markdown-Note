@@ -20,36 +20,95 @@ struct FolderSidebar: View {
 }
 
 // MARK: - Composition Book 표지 라벨 (Name / Date / Subject)
+// JSX composition-full.jsx L149-159 + SidebarField L178-190 정확값:
+//   - container: padding 10px 12px, 손그림 SVG outline(stroke ink, width 1.2)
+//   - label: Kalam 12.5px inkLight
+//   - value: Kalam 12.5px ink + borderBottom 0.5px ink40
+//   - Subject emphasis: Caveat 20/700 accent
 
 private struct StampBox: View {
     @EnvironmentObject var state: AppState
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("Name:").font(.custom("Kalam", size: 13)).foregroundColor(.nbInkLight)
-                Text("").font(.custom("Kalam", size: 13)).foregroundColor(.nbInk)
-            }
-            HStack(spacing: 6) {
-                Text("Date:").font(.custom("Kalam", size: 13)).foregroundColor(.nbInkLight)
-                Text(Self.todayString()).font(.custom("Kalam", size: 13)).foregroundColor(.nbInk)
-            }
-            HStack(spacing: 6) {
-                Text("Subject:").font(.custom("Kalam", size: 13)).foregroundColor(.nbInkLight)
-                Text(state.rootFolder?.lastPathComponent ?? "markdown-note")
-                    .font(.custom("Caveat", size: 20))
-                    .fontWeight(.bold)
-                    .foregroundColor(.nbAccent)
-                    .underline()
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            field(label: "Name", value: Host.userName)
+            field(label: "Date", value: Self.todayString())
+            subjectField(value: state.rootFolder?.lastPathComponent ?? "markdown-note")
         }
-        .padding(12)
-        .background(Color.white)
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.nbInk.opacity(0.4), lineWidth: 1.5))
-        .padding(.horizontal, 12)
+        .padding(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
+        .background(
+            // 손그림 SVG outline — JSX HandBox path 그대로.
+            HandDrawnOutline(stroke: Color.nbInk, strokeWidth: 1.2)
+        )
+        .padding(.horizontal, 14)
         .padding(.top, 8)
+        .padding(.bottom, 8)
+    }
+    @ViewBuilder
+    private func field(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("\(label):")
+                .font(.custom("Kalam", size: 12.5))
+                .foregroundColor(.nbInkLight)
+            Text(value)
+                .font(.custom("Kalam", size: 12.5))
+                .foregroundColor(.nbInk)
+                .overlay(alignment: .bottom) {
+                    // borderBottom 0.5px ink40
+                    Rectangle().fill(Color.nbInk.opacity(0.25)).frame(height: 0.5)
+                }
+        }
+    }
+    @ViewBuilder
+    private func subjectField(value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("Subject:")
+                .font(.custom("Kalam", size: 12.5))
+                .foregroundColor(.nbInkLight)
+            Text(value)
+                .font(.custom("Caveat", size: 20))
+                .fontWeight(.bold)
+                .foregroundColor(.nbAccent)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.nbAccent.opacity(0.45)).frame(height: 1)
+                }
+        }
     }
     private static func todayString() -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+    }
+    private enum Host {
+        static var userName: String {
+            ProcessInfo.processInfo.fullUserName
+                .components(separatedBy: " ").first ?? NSUserName()
+        }
+    }
+}
+
+/// JSX HandBox SVG path를 SwiftUI Shape로 옮긴 손그림 사각형 outline.
+/// path: M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z
+/// (0..100 정규화 좌표, non-scaling-stroke 시각으로 stroke 굵기 일정).
+private struct HandDrawnOutline: View {
+    let stroke: Color
+    let strokeWidth: CGFloat
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            Path { p in
+                func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                    CGPoint(x: x / 100 * w, y: y / 100 * h)
+                }
+                p.move(to: pt(1, 3))
+                p.addQuadCurve(to: pt(3, 1), control: pt(1, 1))
+                p.addLine(to: pt(97, 2))
+                p.addQuadCurve(to: pt(99, 4), control: pt(99, 2))
+                p.addLine(to: pt(98.5, 96))
+                p.addQuadCurve(to: pt(96, 99), control: pt(98.5, 99))
+                p.addLine(to: pt(4, 98.5))
+                p.addQuadCurve(to: pt(1.2, 96), control: pt(1, 98.5))
+                p.closeSubpath()
+            }
+            .stroke(stroke, lineWidth: strokeWidth)
+        }
     }
 }
 

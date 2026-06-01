@@ -52,6 +52,13 @@ export const hideMarkersPlugin = ViewPlugin.fromClass(
           to,
           enter(node) {
             if (!HIDE_MARKER_NAMES.has(node.name)) return;
+            // LinkMark는 부모가 Link/Image일 때만 숨김 — 일반 `[x]` / `[ ]` 같은
+            // 비-링크 브래킷은 lezer-markdown이 LinkMark 토큰을 부착해도 사라지면
+            // 안 됨(예: 체크박스 raw 입력, 각주 참조 등).
+            if (node.name === 'LinkMark') {
+              const parent = node.node.parent?.name;
+              if (parent !== 'Link' && parent !== 'Image') return;
+            }
             const nodeLineInfo = doc.lineAt(node.from);
             if (nodeLineInfo.number === cursorLine) return;
             let hideTo = node.to;

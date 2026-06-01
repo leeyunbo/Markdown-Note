@@ -177,6 +177,60 @@ body { overflow: hidden; height: 100vh; }
    리스트 마커의 accent red가 회색으로 묻히는 부작용이 있었음. */
 .cm-content .cm-md-marker:not(.md-list-mark) { color: rgba(160, 174, 189, 0.6); font-weight: 400; }
 
+/* 우측 상단 date stamp (JSX L310-320) — Caveat 18 inkLight rotate -2°.
+   본문 H1과 겹침 회피: paper 배경색을 깔아 "스티커" 형태로 위에 덮음.
+   본문 우측 padding(.cm-content padding-right)을 함께 키워 H1이 이 영역으로
+   밀려들지 않도록. */
+#nb-date-stamp {
+  position: fixed;
+  top: 10px;
+  right: 18px;
+  z-index: 9000;
+  text-align: right;
+  font-family: var(--display-font);
+  font-size: 18px;
+  color: var(--secondary);
+  line-height: 1.3;
+  transform: rotate(-2deg);
+  pointer-events: none;
+  user-select: none;
+  background: var(--bg);
+  padding: 4px 10px 4px 14px;
+  border-radius: 3px;
+}
+#nb-date-stamp .nb-date-stamp-row {
+  display: inline-block;
+  border-bottom: 1.5px solid var(--secondary);
+  padding-bottom: 1px;
+}
+#nb-date-stamp .nb-date-stamp-page { font-size: 14px; }
+
+/* 빈 문서 가이드 (JSX L401-414) — Caveat 19 inkLight rotate -2.5°, 우측 110/100. */
+#nb-empty-hint {
+  position: fixed;
+  top: 110px;
+  right: 100px;
+  width: 220px;
+  z-index: 9000;
+  transform: rotate(-2.5deg);
+  font-family: var(--display-font);
+  font-size: 19px;
+  color: var(--secondary);
+  line-height: 1.5;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+#nb-empty-hint > div:first-child { margin-bottom: 8px; }
+#nb-empty-hint svg {
+  display: block;
+  margin-top: 6px;
+  transform: rotate(180deg);
+  color: var(--secondary);
+}
+body[data-doc-empty="1"] #nb-empty-hint { opacity: 1; }
+
 /* HandCheckbox — README §Hand-drawn primitives. inline-block, baseline에 맞춰 정렬,
    18px square, vertical-align로 텍스트 baseline과 시각 정렬. */
 .cm-hand-check {
@@ -255,28 +309,7 @@ body { overflow: hidden; height: 100vh; }
   background: var(--current-line);
   border-left: 3px solid var(--accent);
   margin-left: -3px;
-  position: relative;
 }
-/* PenNib — README §Hand-drawn primitives. 현재 라인 우측 끝에 작은 펜닙 SVG.
-   penblink 1.2s 깜빡임(opacity 1 ↔ 0.35). pointer-events:none으로 클릭 통과. */
-.cm-editor .cm-activeLine::after {
-  content: "";
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 14px;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 14"><path d="M1,7 L11.5,2 Q14.5,1.2 16,3.4 Q17,5.4 17,7 Q17,8.6 16,10.6 Q14.5,12.8 11.5,12 Z" fill="%23c8442a"/><path d="M6,7 L14,7" stroke="%23fdfbf5" stroke-width="0.8" stroke-linecap="round"/><circle cx="11" cy="7" r="0.9" fill="%23fdfbf5"/></svg>') center/contain no-repeat;
-  pointer-events: none;
-  animation: penblink 1.2s ease-in-out infinite;
-}
-@keyframes penblink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-/* 코드블록 안 activeLine에서는 PenNib 안 그림 — 코드 박스 안에 어색함. */
-.cm-editor .cm-activeLine.cm-codeblock-line::after { content: none; }
 
 /* 리스트 마커 노트북 스타일 — 원본 -/+/* 1. 2. 3. 그대로 보이되 빨간 accent + 굵게.
    CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag)으로
@@ -302,72 +335,106 @@ body { overflow: hidden; height: 100vh; }
   opacity: 1 !important;
 }
 
-/* Fenced code block — lang-markdown의 FencedCode/CodeText에 배경 + monospace */
-.cm-content .tok-T-fenced-code,  /* placeholder, 실제 클래스는 아래 */
-.cm-line:has(.tok-FencedCode),
-.cm-line:has(.cm-codeblock-line),
-.cm-line.cm-codeblock-line {
-  background: var(--code-bg);
+/* Fenced code block — JSX HandBox(notebook.jsx L59-72) +
+   composition-screens.jsx CodeBlock 정확값.
+     HandBox path:  M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z
+                    stroke=#1a2a4a strokeWidth=0.5 (CSS pixels, non-scaling),
+                    fill=transparent. 라인별 SVG 분할 — 본문 한 줄짜리에도 first+last
+                    동시 매칭으로 위·아래 arc 다 그림.
+     padding inside box: 16/16/14 (top/horizontal/bottom).
+     line-height: 24px (JetBrains Mono 14px). */
+
+/* fence 줄(```/```) — 0px collapse. content 줄들이 box arc/stroke 다 그림. */
+.cm-content .cm-codeblock-line.cm-codeblock-fence {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+  background: transparent;
 }
-/* Mock A: code block 4px radius, 6/12 padding, 2px vertical margin */
-/* 코드 블록 — README §HandBox: 손그림 사각형 outline + bg #fffaef.
-   JetBrains Mono (README §Fonts: "Mono | JetBrains Mono | code-block content").
-   각 라인에 좌·우 1px ink border + first에 상단, last에 하단 — 박스 형성.
-   살짝 wonky한 느낌은 HandBox SVG 적용(추후 widget으로 정밀화) 또는 outline-style:double. */
-/* 코드 블록 — README §4.3 HandBox: 손그림 SVG outline + bg #fffaef.
-   per-line CSS border 대신 background-image SVG(첫줄=상단부, 마지막줄=하단부,
-   중간줄=좌·우 세로 stroke)로 wonky corner 박스를 구현. */
-.cm-content .cm-codeblock-line {
-  background: var(--code-bg);
+
+/* 본문 줄 공통 — JetBrains Mono, codeBg, 좌·우 vertical stroke. */
+.cm-content .cm-codeblock-line.cm-codeblock-content {
+  background-color: var(--code-bg);
   font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 13px;
-  line-height: 30px;
-  /* hide-markers가 펜스 줄(```/```)의 텍스트를 display:none으로 숨겼을 때
-     라인이 0px로 collapse되면 SVG background도 0×0으로 안 그려진다 → min-height 강제. */
-  min-height: 30px;
+  font-size: 14px;
+  line-height: 24px;
+  min-height: 24px;
   padding-left: 16px;
   padding-right: 16px;
-  /* 좌·우 세로 stroke (SVG로 약간 wonky한 손그림 선) */
-  background-image:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%231a2a4a" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>'),
-    none;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>');
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  position: relative;
 }
-.cm-content .cm-codeblock-line.cm-codeblock-first {
-  /* 첫줄: 상단 wonky 곡선 + 좌·우 시작 */
-  background-image:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%231a2a4a" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+
+/* 첫 content 줄 — HandBox 위쪽 arc + 좌·우 stroke. padding-top 16. */
+.cm-content .cm-codeblock-line.cm-codeblock-content-first {
+  padding-top: 16px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
-.cm-content .cm-codeblock-line.cm-codeblock-last {
-  /* 마지막줄: 좌·우 끝 + 하단 wonky 곡선 */
-  background-image:
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%231a2a4a" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+/* 마지막 content 줄 — HandBox 아래쪽 arc + 좌·우 stroke. padding-bottom 14. */
+.cm-content .cm-codeblock-line.cm-codeblock-content-last {
+  padding-bottom: 14px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
-/* 코드블록 라인이 cm-activeLine이 되면 margin-left:-3, border-left:3 accent가 적용돼
-   HandBox 좌측 stroke가 어그러진다 → activeLine 효과는 코드블록 안에서 disable. */
-.cm-editor .cm-activeLine.cm-codeblock-line {
+/* 단일 content 줄(```js\nfoo\n```) — HandBox 전체(위·좌·우·아래). */
+.cm-content .cm-codeblock-line.cm-codeblock-content-first.cm-codeblock-content-last {
+  padding-top: 16px;
+  padding-bottom: 14px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+
+/* 다크 모드 — 같은 path/stroke-width이지만 stroke 색 ink(#f0e8d3)로 교체. */
+:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>');
+}
+:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content-first {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content-last {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content-first.cm-codeblock-content-last {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+
+/* 코드블록 라인의 activeLine 효과(margin-left:-3 + border-left:3)는 HandBox 좌측
+   stroke를 어그러뜨려 끔. */
+.cm-editor .cm-activeLine.cm-codeblock-content {
   background-color: var(--code-bg) !important;
   border-left: 0 !important;
   margin-left: 0 !important;
 }
 
-/* Fenced code 첫 줄 — lang tab(좌) + copy chip(우)를 absolute로 띄움.
-   첫 줄을 position:relative anchor로 삼아 widget이 그 상대좌표에 떠 있게 함. */
-.cm-content .cm-codeblock-line.cm-codeblock-first {
-  position: relative;
+/* Line number widget — 28px gutter, 12px 우측 padding, JetBrains Mono 12px, inkFaint. */
+.cm-codeblock-linenum {
+  display: inline-block;
+  width: 28px;
+  padding-right: 12px;
+  text-align: right;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  font-size: 12px;
+  color: var(--marker);
+  user-select: none;
+  pointer-events: none;
+  vertical-align: baseline;
 }
-/* Lang tab — Caveat 18/700 흰글씨 on accent flag, rotate -1.5deg.
-   README §Code blocks: "top:-13 left:18, border-radius 4". */
+
+/* Lang tab — JSX: Caveat 18/700 white-on-accent, padding 2px 12px 3px,
+   border-radius 4, rotate(-1.5deg), top:-13 left:18, soft drop shadow. */
 .cm-code-lang-tab {
   position: absolute;
   top: -13px;
   left: 18px;
   z-index: 2;
   display: inline-block;
-  padding: 1px 10px 2px;
+  padding: 2px 12px 3px;
   background: var(--accent);
-  color: #fffaef;
+  color: #fff;
   font-family: var(--display-font);
   font-size: 18px;
   font-weight: 700;
@@ -376,10 +443,10 @@ body { overflow: hidden; height: 100vh; }
   transform: rotate(-1.5deg);
   user-select: none;
   pointer-events: none;
-  letter-spacing: 0.02em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
-/* Copy chip — top:-11 right:16, paper bg pill, 1.4px border, mono 11px.
-   default = mono "copy" inkLight, active = "copied!" green. */
+/* Copy chip — JSX: Caveat 16/600, paper bg, 1.4px separator border, inkLight color,
+   padding 2px 9px, border-radius 4, gap 5, clipboard SVG icon. */
 .cm-code-copy-chip {
   position: absolute;
   top: -11px;
@@ -387,27 +454,32 @@ body { overflow: hidden; height: 100vh; }
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 9px 3px;
+  gap: 5px;
+  padding: 2px 9px;
   background: var(--bg);
   color: var(--secondary);
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 11px;
-  border: 1.4px solid var(--secondary);
-  border-radius: 999px;
+  font-family: var(--display-font);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  border: 1.4px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
   cursor: pointer;
   user-select: none;
-  letter-spacing: 0.02em;
   transition: color 0.12s ease, border-color 0.12s ease;
 }
-.cm-code-copy-chip:hover { color: var(--fg); border-color: var(--fg); }
-.cm-code-copy-chip-done {
-  color: #3f6a3a !important;
-  border-color: #3f6a3a !important;
+.cm-code-copy-chip svg { display: block; }
+.cm-code-copy-chip:hover { color: var(--fg); }
+.cm-code-copy-chip.cm-code-copy-chip-done {
+  color: #3f6a3a;
+  border-color: #3f6a3a;
 }
-:root[data-theme="dark"] .cm-code-copy-chip-done {
-  color: #8fb87a !important;
-  border-color: #8fb87a !important;
+:root[data-theme="dark"] .cm-code-copy-chip {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] .cm-code-copy-chip.cm-code-copy-chip-done {
+  color: #8fb87a;
+  border-color: #8fb87a;
 }
 
 /* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
@@ -429,14 +501,16 @@ body { overflow: hidden; height: 100vh; }
   background-color: var(--code-bg);
   color: var(--code-fg);
   border-radius: 4px;
-  /* 손그림 SVG outline — 살짝 wonky한 사각형, 옅은 ink stroke. */
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M2,4 Q1,2 4,1.5 L96,2.5 Q99,2 99,5 L98.5,95 Q99,98.5 96,98.5 L4,98 Q1,98.5 1.5,95 Z" stroke="%231a2a4a" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/></svg>');
+  /* JSX Code(L389-404) path를 텍스트 가장자리에 더 붙도록 조정.
+     원본은 0-100 viewBox 안에 4-96 inset이라 wide text(processed_message 등)에서
+     우측 글자가 outline 밖으로 spill. 0-100 가장자리에 가까운 wonky-curve로 교체. */
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,4 Q0,0 5,1 L95,0 Q100,1 99,5 L99,95 Q100,99 95,99 L5,100 Q0,99 1,95 Z" stroke="%23c8442a" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" opacity="0.45"/></svg>');
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  box-shadow: 2px 0 0 var(--code-bg), -2px 0 0 var(--code-bg);
+  box-shadow: 3px 0 0 var(--code-bg), -3px 0 0 var(--code-bg);
 }
 :root[data-theme="dark"] .cm-content .cm-inline-code {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M2,4 Q1,2 4,1.5 L96,2.5 Q99,2 99,5 L98.5,95 Q99,98.5 96,98.5 L4,98 Q1,98.5 1.5,95 Z" stroke="%23f0e8d3" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/></svg>');
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,4 Q0,0 5,1 L95,0 Q100,1 99,5 L99,95 Q100,99 95,99 L5,100 Q0,99 1,95 Z" stroke="%23e8826b" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" opacity="0.45"/></svg>');
 }
 
 /* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */
@@ -526,6 +600,26 @@ body { overflow: hidden; height: 100vh; }
 </style>
 </head>
 <body>
+<!-- 우측 상단 손글씨 date stamp (JSX composition-full.jsx L310-320).
+     position fixed로 뷰포트 우상단 14/36, Caveat 18 inkLight rotate -2°,
+     날짜 줄 borderBottom 1.5px, page line(p.X) 14px. -->
+<div id="nb-date-stamp" aria-hidden="true">
+  <div class="nb-date-stamp-row"></div>
+  <div class="nb-date-stamp-page">p. 1</div>
+</div>
+<!-- 빈 문서 가이드 노트 (JSX composition-full.jsx L401-414).
+     body[data-doc-empty="1"]일 때만 보이는 손글씨 메모 + 손그림 화살표. -->
+<div id="nb-empty-hint" aria-hidden="true">
+  <div>※ 마크다운 그대로 쓰면 돼요</div>
+  <div># 헤딩 · - 리스트</div>
+  <div>- [ ] 할 일 · &gt; 인용</div>
+  <div>`인라인 코드` · ```블록</div>
+  <svg width="60" height="50" viewBox="0 0 60 50">
+    <path d="M5,5 Q25,15 40,30 L40,30 M30,28 L40,30 L36,20"
+          stroke="currentColor" stroke-width="1.4" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</div>
 <div id="editor-host"></div>
 
 <script src="cm.bundle.js"></script>
@@ -543,7 +637,31 @@ body { overflow: hidden; height: 100vh; }
   }
 </script>
 <script>
-  CM.bootEditor(document.getElementById("editor-host"));
+  const __view = CM.bootEditor(document.getElementById("editor-host"));
+  // 우상단 date stamp — 오늘 날짜를 JSX 포맷("Wed · 14 May")으로 채움.
+  (() => {
+    const row = document.querySelector("#nb-date-stamp .nb-date-stamp-row");
+    if (!row) return;
+    const d = new Date();
+    const wk = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d);
+    const mo = new Intl.DateTimeFormat("en-US", { month: "short" }).format(d);
+    row.textContent = `${wk} · ${d.getDate()} ${mo}`;
+  })();
+  // 빈 문서 가이드 토글 — doc 길이를 polling으로 확인(가벼움, 1줄짜리 setInterval).
+  // editorView 내부 state 변화 hook 없이 외부에서 보기 위한 fallback.
+  (() => {
+    let last = null;
+    const tick = () => {
+      const empty = __view.state.doc.length === 0;
+      const flag = empty ? "1" : "";
+      if (flag !== last) {
+        document.body.dataset.docEmpty = flag;
+        last = flag;
+      }
+    };
+    tick();
+    setInterval(tick, 250);
+  })();
 </script>
 </body>
 </html>

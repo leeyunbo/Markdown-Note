@@ -9,7 +9,8 @@ export const baseTheme = EditorView.theme({
     lineHeight: "30px",
     letterSpacing: "0.1px",
     paddingLeft: "98px",
-    paddingRight: "24px",
+    // 우상단 date stamp가 떠 있어 본문이 그 영역으로 들어가면 겹침. 100px 확보.
+    paddingRight: "100px",
   },
   ".cm-line": { padding: "0" },
 
