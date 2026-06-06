@@ -209,16 +209,17 @@ html, body {
 }
 
 /* === Header === */
-/* .fullSizeContentView + titlebarAppearsTransparent → traffic light가 contentView
-   위에 overlay (y=8-22, x=8-78). 헤더 46px이지만 items를 traffic light(y=15)와
-   같은 줄에 두려면 flex-start + padding-top: 4 — items top y=4 이라
-   center y≈16. traffic light center y=15와 일치.
-   padding-left 78 → cluster(x=8-78) 회피. */
+/* contentView 최상단 46pt 줄. .fullSizeContentView + titlebarAppearsTransparent
+   + titleVisibility=.hidden에서 traffic light가 헤더 위에 overlay됨.
+   핵심:
+     - top 패딩/마진 0 (여기서 빈 띠가 생김 → 금지)
+     - left 78pt (신호등 자리)
+     - items 수직 정렬은 자연스럽게 center로(y=23, 46pt 한가운데) */
 #refract-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 4px 16px 0 78px;
+  padding: 0 16px 0 78px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   position: relative;
