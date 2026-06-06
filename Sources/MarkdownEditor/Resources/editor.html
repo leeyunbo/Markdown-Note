@@ -202,17 +202,17 @@ html, body {
 
 #refract-shell {
   display: grid;
-  grid-template-rows: 38px 1fr;
+  grid-template-rows: 46px 1fr;
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
 }
 
 /* === Header === */
-/* .fullSizeContentView → traffic light가 contentView 위에 overlay (y=10-24).
-   헤더 38px + align-items: center → items 수직 중심 y=19, traffic light 중심
-   y=17과 거의 일치 → 같은 가로 줄에 정렬됨.
-   padding-left 80px → traffic light cluster(x=8-78) 회피. */
+/* JSX spec height 46. .fullSizeContentView로 traffic light가 contentView 위에
+   overlay되므로 padding-left 80px로 cluster(x=8-78) 회피.
+   items align-items: center → 46px 중심 y=23, traffic light y=8-22.
+   items 우측에서 traffic light 아래로 자연스럽게 이어지는 layout. */
 #refract-header {
   display: flex;
   align-items: center;
@@ -275,7 +275,7 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 .r-view-toggle button {
   background: transparent;
   border: none;
-  height: 20px;
+  height: 22px;
   padding: 0 10px;
   border-radius: 6px;
   font-family: var(--ui-font);
@@ -294,9 +294,9 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
   gap: 7px;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   padding: 0 10px 0 6px;
-  height: 24px;
+  height: 26px;
   color: var(--sub);
   font-size: 12px;
   cursor: pointer;
