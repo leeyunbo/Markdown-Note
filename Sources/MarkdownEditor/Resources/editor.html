@@ -209,15 +209,14 @@ html, body {
 }
 
 /* === Header === */
-/* JSX spec height 46. .fullSizeContentView로 traffic light가 contentView 위에
-   overlay되므로 padding-left 80px로 cluster(x=8-78) 회피.
-   items align-items: center → 46px 중심 y=23, traffic light y=8-22.
-   items 우측에서 traffic light 아래로 자연스럽게 이어지는 layout. */
+/* JSX spec height 46. .fullSizeContentView 안 쓰므로 traffic light(시스템 titlebar)
+   는 contentView 위쪽에 따로 그려짐 → 헤더는 그 아래 정상 시작. padding-left 16
+   (시스템 titlebar 아래라 traffic light 회피 padding 불필요). */
 #refract-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px 0 80px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   position: relative;
