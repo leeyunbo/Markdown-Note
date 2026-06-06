@@ -15,6 +15,7 @@ interface HighlightJs {
   highlightAuto(code: string): { value: string };
   getLanguage(name: string): unknown;
 }
+// window.mermaid 타입은 nodes/mermaid.ts에서 이미 declare. 여기선 재사용만.
 
 declare global {
   interface Window {
@@ -48,7 +49,8 @@ function ensureMarkedConfigured(): void {
   configured = true;
 }
 
-/** Wrap each <pre><code> with a header chrome (lang chip + copy label) + lined gutter. */
+/** Wrap each <pre><code> with a header chrome (lang chip + copy label) + lined gutter.
+ *  ```mermaid 블록은 별도 처리 — mermaid.render로 SVG. */
 function decorateCodeBlocks(html: string): string {
   if (typeof document === 'undefined') return html;
   const tmp = document.createElement('div');
@@ -56,11 +58,33 @@ function decorateCodeBlocks(html: string): string {
   tmp.querySelectorAll('pre').forEach((pre) => {
     const code = pre.querySelector('code');
     if (!code) return;
-    // detect language
     const cls = Array.from(code.classList).find((c) => c.startsWith('language-'));
     const lang = cls ? cls.slice('language-'.length) : '';
 
-    // Build header
+    // Mermaid block → SVG render. 헤더 chip은 'mermaid' 유지.
+    if (lang === 'mermaid') {
+      const defText = code.textContent ?? '';
+      pre.classList.add('mermaid-pre');
+      pre.innerHTML = '';
+      const header = document.createElement('div');
+      header.className = 'code-header';
+      const chip = document.createElement('span');
+      chip.className = 'lang-chip';
+      chip.textContent = 'mermaid';
+      header.appendChild(chip);
+      pre.appendChild(header);
+      const svgHost = document.createElement('div');
+      svgHost.className = 'mermaid-host';
+      pre.appendChild(svgHost);
+      const id = 'mmd-' + Math.random().toString(36).slice(2);
+      window.mermaid
+        ?.render(id, defText)
+        .then((res) => { svgHost.innerHTML = res.svg; })
+        .catch((e: unknown) => { svgHost.textContent = `mermaid error: ${String(e)}`; });
+      return;
+    }
+
+    // 일반 코드블록: header + line-numbered code.
     const header = document.createElement('div');
     header.className = 'code-header';
     const chip = document.createElement('span');
@@ -74,10 +98,8 @@ function decorateCodeBlocks(html: string): string {
     header.appendChild(copy);
     pre.insertBefore(header, code);
 
-    // Wrap each line in line-number + line-content
     const raw = code.innerHTML;
     const lines = raw.split('\n');
-    // 마지막 라인이 빈 줄이면 제외 (코드블록 닫는 ``` 직전 newline 효과)
     if (lines.length && lines[lines.length - 1] === '') lines.pop();
     const out = lines
       .map(
@@ -88,6 +110,20 @@ function decorateCodeBlocks(html: string): string {
     code.innerHTML = out;
   });
   return tmp.innerHTML;
+}
+
+/** 깨진 이미지 fallback — `<img>` onerror에서 placeholder div로 교체. */
+function attachImageFallback(host: HTMLElement): void {
+  host.querySelectorAll('img').forEach((img) => {
+    img.addEventListener('error', () => {
+      const alt = img.alt || 'image';
+      const src = img.src.split('/').pop() ?? '';
+      const wrap = document.createElement('div');
+      wrap.className = 'img-placeholder';
+      wrap.innerHTML = `<div class="ph-body">image · ${alt}</div><div class="ph-caption">↳ ${src}</div>`;
+      img.replaceWith(wrap);
+    }, { once: true });
+  });
 }
 
 /** Render markdown to HTML and inject into the preview host. */
@@ -113,6 +149,7 @@ export function renderPreview(host: HTMLElement, markdown: string): void {
     li.classList.add('task-list-item');
     if ((checkbox as HTMLInputElement).checked) li.classList.add('checked');
   });
+  attachImageFallback(host);
   // Copy chip 클릭 핸들러
   host.querySelectorAll('[data-action="copy-code"]').forEach((el) => {
     el.addEventListener('click', (e) => {
