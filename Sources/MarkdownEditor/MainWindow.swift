@@ -112,6 +112,21 @@ final class MainWindowController: NSWindowController {
 
         // 이미지 미리보기는 EditorViewController 안에서 자체 처리한다 (에디터 영역만 차지).
 
+        // ⌘K palette overlay — splitVC view 위에 hosting view로 띄움.
+        let paletteHost = NSHostingView(
+            rootView: PaletteOverlayWrapper(state: state)
+        )
+        paletteHost.translatesAutoresizingMaskIntoConstraints = false
+        if let cv = window.contentViewController?.view {
+            cv.addSubview(paletteHost)
+            NSLayoutConstraint.activate([
+                paletteHost.leadingAnchor.constraint(equalTo: cv.leadingAnchor),
+                paletteHost.trailingAnchor.constraint(equalTo: cv.trailingAnchor),
+                paletteHost.topAnchor.constraint(equalTo: cv.topAnchor),
+                paletteHost.bottomAnchor.constraint(equalTo: cv.bottomAnchor),
+            ])
+        }
+
         // 파일명 → window title (toolbar의 title view는 SwiftUI가 직접 binding)
         state.$selectedFile
             .receive(on: RunLoop.main)

@@ -392,6 +392,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                               keyEquivalent: "f")
         find.target = self
         editMenu.addItem(find)
+        let palette = NSMenuItem(title: "Quick Open…",
+                                 action: #selector(menuOpenPalette),
+                                 keyEquivalent: "k")
+        palette.target = self
+        editMenu.addItem(palette)
 
         let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
         editMenuItem.submenu = editMenu
@@ -444,6 +449,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc func menuOpenFind() {
         NotificationCenter.default.post(name: .openSearchRequested, object: nil)
+    }
+    @objc func menuOpenPalette() {
+        state.paletteOpen = true
     }
     @objc func menuSetTheme(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String,

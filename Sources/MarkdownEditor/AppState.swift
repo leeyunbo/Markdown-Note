@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
     @Published var theme: Theme = .night
     @Published var viewMode: String = "split"  // "source" | "split" | "preview"
     @Published var editorFont: EditorFont = .kalam
+    @Published var paletteOpen: Bool = false
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
     @Published var outline: [Heading] = []
