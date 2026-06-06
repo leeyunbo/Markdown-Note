@@ -301,12 +301,25 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
   font-family: var(--ui-font);
 }
 .r-theme-button:hover { background: var(--active); color: var(--ink); }
+/* 미니 에디터 모양 swatch — codeCard bg + 4 syntax 점. */
 .r-theme-button .swatch {
-  width: 16px; height: 16px;
-  border-radius: 4px;
-  background: var(--accent);
+  width: 22px; height: 16px;
+  border-radius: 3px;
+  background: var(--codeCard);
+  border: 1px solid var(--line);
   flex-shrink: 0;
+  position: relative;
+  display: inline-block;
 }
+.r-theme-button .swatch .dot {
+  position: absolute;
+  width: 2.5px; height: 2.5px;
+  border-radius: 50%;
+}
+.r-theme-button .swatch .d1 { top: 3px; left: 3px;    background: var(--syn-keyword); }
+.r-theme-button .swatch .d2 { top: 3px; right: 3px;   background: var(--syn-function); }
+.r-theme-button .swatch .d3 { bottom: 3px; left: 3px; background: var(--syn-string); }
+.r-theme-button .swatch .d4 { bottom: 3px; right: 3px; background: var(--syn-number); }
 .r-theme-button .caret {
   font-size: 8px;
   color: var(--faint);
@@ -1052,10 +1065,60 @@ body[data-typing="1"] #counter-pill .typing { display: inline; }
 }
 #theme-popover .row.active .check { display: inline; }
 #theme-popover .row .mini-swatch {
-  width: 24px; height: 16px;
+  width: 28px; height: 18px;
   border-radius: 4px;
   flex-shrink: 0;
   border: 1px solid rgba(255,255,255,0.08);
+  position: relative;
+  display: inline-block;
+}
+/* 각 테마 미니 에디터 — 자신의 codeCard + 4 syntax 점.
+   (.r-theme-button 헤더의 swatch는 현재 활성 테마 var(--codeCard)을 그대로 쓰지만,
+   popover의 row swatches는 각 테마 색을 정확히 표시해야 하므로 정적 hex. */
+#theme-popover .mini-swatch::after {
+  content: "";
+  position: absolute;
+  left: 3px; right: 3px; top: 3px; bottom: 3px;
+}
+#theme-popover .theme-night { background: #15172480; }
+#theme-popover .theme-night::after {
+  background:
+    radial-gradient(circle 1.5px at 25% 25%, #bb9af7 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 25%, #82aaff 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 25% 75%, #9ece6a 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 75%, #ff9e64 100%, transparent 100%);
+}
+#theme-popover .theme-day { background: #f7f7fc; }
+#theme-popover .theme-day::after {
+  background:
+    radial-gradient(circle 1.5px at 25% 25%, #d6336c 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 25%, #6741d9 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 25% 75%, #2f9e44 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 75%, #e8590c 100%, transparent 100%);
+}
+#theme-popover .theme-sepia { background: #efe4ca; }
+#theme-popover .theme-sepia::after {
+  background:
+    radial-gradient(circle 1.5px at 25% 25%, #a83232 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 25%, #8a5a2b 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 25% 75%, #5b8a3a 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 75%, #c2701c 100%, transparent 100%);
+}
+#theme-popover .theme-forest { background: #0f1c17; }
+#theme-popover .theme-forest::after {
+  background:
+    radial-gradient(circle 1.5px at 25% 25%, #e394dd 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 25%, #7ee0b8 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 25% 75%, #c3e88d 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 75%, #ffcb6b 100%, transparent 100%);
+}
+#theme-popover .theme-paper { background: #f2ead7; }
+#theme-popover .theme-paper::after {
+  background:
+    radial-gradient(circle 1.5px at 25% 25%, #c0392b 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 25%, #2f6fb0 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 25% 75%, #b5701a 100%, transparent 100%),
+    radial-gradient(circle 1.5px at 75% 75%, #2a6a8a 100%, transparent 100%);
 }
 #theme-popover .row[data-key="paper"] .label { font-family: "Caveat", cursive; font-size: 16px; }
 </style>
@@ -1074,16 +1137,22 @@ body[data-typing="1"] #counter-pill .typing { display: inline; }
     <span class="r-filename">Untitled</span>
     <span class="r-dirty-dot"></span>
     <span class="r-spacer"></span>
+    <!-- 스펙 JSX RefractView L290-291: extraHeader(theme) 먼저, ViewToggle 뒤. -->
+    <button class="r-theme-button" id="r-theme-button">
+      <span class="swatch">
+        <span class="dot d1"></span>
+        <span class="dot d2"></span>
+        <span class="dot d3"></span>
+        <span class="dot d4"></span>
+      </span>
+      <span class="label">Night</span>
+      <span class="caret">▼</span>
+    </button>
     <div class="r-view-toggle" id="r-view-toggle">
       <button data-mode="source">소스</button>
       <button data-mode="split" class="active">분할</button>
       <button data-mode="preview">미리보기</button>
     </div>
-    <button class="r-theme-button" id="r-theme-button">
-      <span class="swatch"></span>
-      <span class="label">Night</span>
-      <span class="caret">▼</span>
-    </button>
   </div>
   <div id="refract-body">
     <div id="source-column">
@@ -1107,11 +1176,26 @@ body[data-typing="1"] #counter-pill .typing { display: inline; }
 </div>
 <div id="theme-popover">
   <div class="caption">테마 — ⌘⇧L 로 순환</div>
-  <div class="row" data-key="night"><span class="mini-swatch" style="background:#8b94ff"></span><span class="label">Night</span><span class="check">✓</span></div>
-  <div class="row" data-key="day"><span class="mini-swatch" style="background:#5b5cf0"></span><span class="label">Day</span><span class="check">✓</span></div>
-  <div class="row" data-key="sepia"><span class="mini-swatch" style="background:#b5651d"></span><span class="label">Sepia</span><span class="check">✓</span></div>
-  <div class="row" data-key="forest"><span class="mini-swatch" style="background:#58c896"></span><span class="label">Forest</span><span class="check">✓</span></div>
-  <div class="row" data-key="paper"><span class="mini-swatch" style="background:#d2543e"></span><span class="label">손글씨</span><span class="check">✓</span></div>
+  <div class="row" data-key="night">
+    <span class="mini-swatch theme-night"></span>
+    <span class="label">Night</span><span class="check">✓</span>
+  </div>
+  <div class="row" data-key="day">
+    <span class="mini-swatch theme-day"></span>
+    <span class="label">Day</span><span class="check">✓</span>
+  </div>
+  <div class="row" data-key="sepia">
+    <span class="mini-swatch theme-sepia"></span>
+    <span class="label">Sepia</span><span class="check">✓</span>
+  </div>
+  <div class="row" data-key="forest">
+    <span class="mini-swatch theme-forest"></span>
+    <span class="label">Forest</span><span class="check">✓</span>
+  </div>
+  <div class="row" data-key="paper">
+    <span class="mini-swatch theme-paper"></span>
+    <span class="label">손글씨</span><span class="check">✓</span>
+  </div>
 </div>
 
 <script src="cm.bundle.js"></script>

@@ -84,11 +84,13 @@ final class MainWindowController: NSWindowController {
         )
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
         sidebarItem.minimumThickness = 200
-        sidebarItem.maximumThickness = 360
+        sidebarItem.maximumThickness = 280
         sidebarItem.canCollapse = true
         sidebarItem.holdingPriority = NSLayoutConstraint.Priority(rawValue: 250)
-        // toolbar 영역에서 sidebar boundary에 1px line 자동 표시
         sidebarItem.titlebarSeparatorStyle = .line
+        // Refract spec: "no file sidebar" — 기본 collapsed로 두고 ⌘⇧D로 토글.
+        // 폴더 미선택 상태에서는 펴줘서 "Open Folder" 버튼 보이게.
+        sidebarItem.isCollapsed = (state.rootFolder != nil)
 
         // Main = AppKit (NSTextView 직접 호스팅, SwiftUI 합성 밖)
         let editor = EditorViewController(state: state)
