@@ -202,20 +202,21 @@ html, body {
 
 #refract-shell {
   display: grid;
-  grid-template-rows: 46px 1fr;
+  grid-template-rows: 52px 1fr;
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
 }
 
 /* === Header === */
-/* JSX: height 46, padding 0 16, gap 12, border-bottom line. macOS traffic light는
-   윈도우 좌측 상단(약 80px)에 있으므로 padding-left 92px로 회피. */
+/* JSX spec height 46. 우리는 .fullSizeContentView라 traffic light가 contentView 위에
+   overlay되므로 padding-left 92px(traffic light cluster 회피) + padding-top 8px로
+   items를 traffic light 시각 영역 아래로 push. 결과 시각 높이는 spec 46 유지. */
 #refract-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px 0 92px;
+  padding: 8px 16px 0 92px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   position: relative;
