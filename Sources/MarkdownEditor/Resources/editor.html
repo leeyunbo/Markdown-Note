@@ -209,15 +209,17 @@ html, body {
 }
 
 /* === Header === */
+/* JSX: height 46, padding 0 16, gap 12, border-bottom line. macOS traffic light는
+   윈도우 좌측 상단(약 80px)에 있으므로 padding-left 92px로 회피. */
 #refract-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px;
+  padding: 0 16px 0 92px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
-  /* macOS traffic light 영역 확보 (왼쪽 ~80px) */
-  padding-left: 92px;
+  position: relative;
+  z-index: 4;
   -webkit-app-region: drag;
   user-select: none;
 }
@@ -225,7 +227,7 @@ html, body {
 .r-glyph {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 2.5px;
 }
 .r-glyph .bar {
   width: 3.5px; height: 15px; border-radius: 2px;
@@ -260,7 +262,7 @@ html, body {
   display: none;
 }
 body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
-.r-spacer { flex: 1; }
+.r-spacer { flex: 1; min-width: 8px; }
 .r-view-toggle {
   display: inline-flex;
   background: var(--rawBg);
@@ -333,40 +335,45 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 #source-column { background: var(--rawBg); }
 #preview-column { background: var(--renBg); }
 
+/* JSX 스펙: 헤더 padding 14/16/8/18 + flex row + mono label. */
 .r-col-label {
-  position: absolute;
-  top: 10px;
-  left: 16px;
+  flex-shrink: 0;
+  padding: 14px 16px 8px 18px;
   font-family: var(--mono-font);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.5px;
   color: var(--faint);
-  opacity: 0.5;
   text-transform: uppercase;
   pointer-events: none;
-  z-index: 5;
 }
 
 #editor-host {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 #preview-host {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 38px 36px 40px;
+  padding: 0 30px 24px 28px;
   font-family: var(--body-font);
   font-size: calc(14px * var(--fs));
-  line-height: 1.71;
+  line-height: calc(24px * var(--fs));
   color: var(--sub);
-  /* paper ruling — paper 테마에서만 ruled 줄 표시 */
+}
+/* PREVIEW 콘텐츠 max-width 제약은 inner wrapper로 — 페이퍼 ruling은 wrapper 안에. */
+#preview-host > * {
+  max-width: 560px;
+}
+:root[data-theme="paper"] #preview-host {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
-    transparent calc(1.71em * var(--fs) - 1px),
-    var(--rule) calc(1.71em * var(--fs) - 1px),
-    var(--rule) calc(1.71em * var(--fs))
+    transparent calc(24px * var(--fs) - 1px),
+    var(--rule) calc(24px * var(--fs) - 1px),
+    var(--rule) calc(24px * var(--fs))
   );
 }
 
@@ -390,6 +397,30 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 :root[data-theme="sepia"] #prism-seam,
 :root[data-theme="paper"] #prism-seam {
   box-shadow: 0 0 12px rgba(99,102,241,0.35);
+}
+/* 굴절 글로우 — 가로 130×80 blurred spectrum, seam 중심에서 좌→우 페이드. */
+#refraction-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 130px;
+  height: 80px;
+  transform: translateY(-50%);
+  background: linear-gradient(100deg,
+    rgba(99,102,241,0) 0%, rgba(14,165,233,0.5) 13%,
+    rgba(16,185,129,0.5) 26%, rgba(245,158,11,0.5) 39%,
+    rgba(239,68,68,0.5) 52%, rgba(236,72,153,0.5) 65%, rgba(139,92,246,0) 78%);
+  opacity: 0.45;
+  filter: blur(10px);
+  pointer-events: none;
+  z-index: 8;
+  -webkit-mask-image: linear-gradient(90deg, #000, transparent);
+          mask-image: linear-gradient(90deg, #000, transparent);
+}
+:root[data-theme="day"] #refraction-glow,
+:root[data-theme="sepia"] #refraction-glow,
+:root[data-theme="paper"] #refraction-glow {
+  opacity: 0.3;
 }
 /* Seam flash — 타이핑 시 0.5s ease-out으로 깜빡임. ink-ripple과 같은 트리거. */
 #prism-seam.flash::before {
@@ -430,6 +461,7 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 }
 
 /* === SOURCE — CodeMirror === */
+/* JSX spec: mono 12.5 / line-height 22 / letter-spacing -0.2 / 34px gutter */
 .cm-editor {
   height: 100%;
   background: var(--rawBg);
@@ -443,7 +475,7 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
   outline: none;
 }
 .cm-content {
-  padding: 38px 16px 40px 0;
+  padding: 8px 14px 44px 0;
   caret-color: var(--accent);
 }
 .cm-scroller {
@@ -453,18 +485,23 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
   background: var(--rawBg);
   border-right: none;
   color: var(--faint);
-  opacity: 0.5;
+}
+.cm-gutter.cm-lineNumbers {
+  min-width: 34px;
 }
 .cm-gutter.cm-lineNumbers .cm-gutterElement {
-  padding: 0 8px 0 14px;
+  padding: 0 12px 0 0;
   font-size: 11px;
   min-width: 34px;
   text-align: right;
+  color: var(--faint);
+  opacity: 0.5;
+  user-select: none;
 }
 .cm-activeLineGutter {
-  background: transparent;
-  color: var(--accent);
-  opacity: 1;
+  background: transparent !important;
+  color: var(--accent) !important;
+  opacity: 1 !important;
 }
 .cm-activeLine {
   background: var(--active);
@@ -563,51 +600,43 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 }
 
 /* === PREVIEW markdown rendering === */
-#preview-host h1 {
+/* JSX spec: heading notch absolute left:-16, top:50% translateY(-50%), height: fs*0.8 */
+#preview-host h1, #preview-host h2, #preview-host h3 {
   font-family: var(--head-font);
+  color: var(--ink);
+  letter-spacing: -0.4px;
+  position: relative;
+  margin: 18px 0 5px;
+}
+#preview-host h1 {
   font-size: calc(25px * var(--fs));
   font-weight: 700;
-  letter-spacing: -0.4px;
   line-height: 1.2;
-  color: var(--ink);
-  margin: 0 0 0.5em;
-  position: relative;
-}
-#preview-host h1::before {
-  content: "";
-  position: absolute;
-  left: -16px;
-  top: 0.2em;
-  width: 4px;
-  height: 0.8em;
-  background: var(--accent);
-  border-radius: 2px;
+  margin-top: 0;
 }
 #preview-host h2 {
-  font-family: var(--head-font);
   font-size: calc(18.5px * var(--fs));
   font-weight: 650;
-  color: var(--ink);
-  margin: 1.2em 0 0.5em;
-  position: relative;
 }
-#preview-host h2::before {
+#preview-host h3 {
+  font-size: calc(15.5px * var(--fs));
+  font-weight: 650;
+}
+#preview-host h1::before,
+#preview-host h2::before,
+#preview-host h3::before {
   content: "";
   position: absolute;
   left: -16px;
-  top: 0.2em;
+  top: 50%;
+  transform: translateY(-50%);
   width: 4px;
-  height: 0.8em;
   background: var(--accent);
   border-radius: 2px;
 }
-#preview-host h3 {
-  font-family: var(--head-font);
-  font-size: calc(15.5px * var(--fs));
-  font-weight: 650;
-  color: var(--ink);
-  margin: 1em 0 0.4em;
-}
+#preview-host h1::before { height: 20px; }
+#preview-host h2::before { height: 15px; }
+#preview-host h3::before { height: 12px; }
 #preview-host h4 {
   font-family: var(--head-font);
   font-size: calc(14px * var(--fs));
@@ -844,6 +873,7 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 }
 
 /* === Counter pill === */
+/* JSX spec — dark: rgba(255,255,255,0.06), light: #fff + box-shadow */
 #counter-pill {
   position: fixed;
   bottom: 14px;
@@ -851,31 +881,40 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: var(--rawBg);
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 5px 14px;
   font-family: var(--ui-font);
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--sub);
   z-index: 20;
   user-select: none;
+  white-space: nowrap;
 }
-#counter-pill .dots {
-  display: inline-flex; gap: 3px;
+:root[data-theme="day"] #counter-pill,
+:root[data-theme="sepia"] #counter-pill,
+:root[data-theme="paper"] #counter-pill {
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(20, 22, 40, 0.08);
 }
+#counter-pill .dots { display: inline-flex; gap: 2px; }
+#counter-pill .count { color: var(--ink); font-weight: 600; }
+#counter-pill .typing {
+  color: var(--accent);
+  font-weight: 600;
+  display: none;
+}
+body[data-typing="1"] #counter-pill .typing { display: inline; }
 #counter-pill .dots .d {
   width: 4px; height: 4px; border-radius: 50%;
 }
 #counter-pill .dots .d:nth-child(1) { background: #6366f1; }
 #counter-pill .dots .d:nth-child(2) { background: #0ea5e9; }
-#counter-pill .dots .d:nth-child(3) { background: #f59e0b; }
-#counter-pill .dots .d:nth-child(4) { background: #ec4899; }
-#counter-pill .dots .d:nth-child(5) { background: #8b5cf6; }
-#counter-pill .count { color: var(--ink); font-weight: 600; }
-#counter-pill .typing { color: var(--accent); display: none; }
-body[data-typing="1"] #counter-pill .typing { display: inline; }
+#counter-pill .dots .d:nth-child(3) { background: #10b981; }
+#counter-pill .dots .d:nth-child(4) { background: #f59e0b; }
+#counter-pill .dots .d:nth-child(5) { background: #ef4444; }
 
 /* === Theme popover === */
 #theme-popover {
@@ -960,6 +999,7 @@ body[data-typing="1"] #counter-pill .typing { display: inline; }
       <div id="editor-host"></div>
     </div>
     <div id="prism-seam"></div>
+    <div id="refraction-glow"></div>
     <div id="preview-column">
       <div class="r-col-label">02 — Preview</div>
       <div id="preview-host"></div>
