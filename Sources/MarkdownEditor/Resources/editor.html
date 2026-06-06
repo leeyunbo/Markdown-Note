@@ -289,21 +289,28 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 .r-theme-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 4px 10px;
+  padding: 4px 10px 4px 8px;
   height: 26px;
   color: var(--sub);
   font-size: 12px;
   cursor: pointer;
   font-family: var(--ui-font);
 }
+.r-theme-button:hover { background: var(--active); color: var(--ink); }
 .r-theme-button .swatch {
-  width: 14px; height: 14px;
-  border-radius: 3px;
+  width: 16px; height: 16px;
+  border-radius: 4px;
   background: var(--accent);
+  flex-shrink: 0;
+}
+.r-theme-button .caret {
+  font-size: 8px;
+  color: var(--faint);
+  margin-left: 2px;
 }
 
 /* === Body grid === */
@@ -1046,9 +1053,9 @@ body[data-typing="1"] #counter-pill .typing { display: inline; }
 #theme-popover .row.active .check { display: inline; }
 #theme-popover .row .mini-swatch {
   width: 24px; height: 16px;
-  border-radius: 3px;
-  background: var(--accent);
+  border-radius: 4px;
   flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.08);
 }
 #theme-popover .row[data-key="paper"] .label { font-family: "Caveat", cursive; font-size: 16px; }
 </style>
@@ -1075,6 +1082,7 @@ body[data-typing="1"] #counter-pill .typing { display: inline; }
     <button class="r-theme-button" id="r-theme-button">
       <span class="swatch"></span>
       <span class="label">Night</span>
+      <span class="caret">▼</span>
     </button>
   </div>
   <div id="refract-body">
