@@ -6,7 +6,13 @@ struct MarkdownEditorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
-        Settings { EmptyView() }
+        Settings {
+            if let state = AppDelegate.shared?.state {
+                RefractPrefs().environmentObject(state)
+            } else {
+                Text("No state").padding()
+            }
+        }
     }
 }
 
@@ -240,7 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fileMenu.insertItem(openFolder, at: 0)
         }
 
-        // View 메뉴: Toggle Sidebar / Toggle Outline
+        // View 메뉴: Toggle Sidebar + Refract view-mode 3가지 (⌘⌥1/2/3)
         let viewIdx = mainMenu.items.firstIndex(where: {
             let t = $0.submenu?.title ?? $0.title
             return t == "View" || t == "보기" || t.contains("View") || t.contains("보기")
@@ -253,10 +259,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             toggle.keyEquivalentModifierMask = [.command, .shift]
             viewMenu.addItem(NSMenuItem.separator())
             viewMenu.addItem(toggle)
-
+            // Refract view-mode (⌘⌥1/2/3)
+            viewMenu.addItem(NSMenuItem.separator())
+            let modeLabels: [(String, String, String)] = [
+                ("소스 (Source)", "1", "source"),
+                ("분할 (Split)", "2", "split"),
+                ("미리보기 (Preview)", "3", "preview"),
+            ]
+            for (label, key, mode) in modeLabels {
+                let mi = NSMenuItem(title: label,
+                                    action: #selector(menuSetViewMode(_:)),
+                                    keyEquivalent: key)
+                mi.target = self
+                mi.keyEquivalentModifierMask = [.command, .option]
+                mi.representedObject = mode
+                viewMenu.addItem(mi)
+            }
         }
 
-        // Theme 메뉴 (View 다음에 삽입)
+        // Theme 메뉴 (View 다음에 삽입). ⌘⇧1-5 직접 선택 + ⌘⇧L 순환.
         let themeMenu = NSMenu(title: "Theme")
         for (i, t) in Theme.allCases.enumerated() {
             let mi = NSMenuItem(title: t.displayName,
@@ -267,6 +288,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             mi.representedObject = t.rawValue
             themeMenu.addItem(mi)
         }
+        themeMenu.addItem(NSMenuItem.separator())
+        let cycle = NSMenuItem(title: "Cycle Theme (⌘⇧L)",
+                               action: #selector(menuCycleTheme),
+                               keyEquivalent: "l")
+        cycle.keyEquivalentModifierMask = [.command, .shift]
+        cycle.target = self
+        themeMenu.addItem(cycle)
         let themeMenuItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
         themeMenuItem.submenu = themeMenu
 
@@ -422,6 +450,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let t = Theme(rawValue: raw) {
             state.setTheme(t)
         }
+    }
+    @objc func menuCycleTheme() {
+        let all = Theme.allCases
+        let next = (all.firstIndex(of: state.theme).map { ($0 + 1) % all.count } ?? 0)
+        state.setTheme(all[next])
+    }
+    @objc func menuSetViewMode(_ sender: NSMenuItem) {
+        guard let mode = sender.representedObject as? String else { return }
+        state.setViewMode(mode)
     }
 
     @objc func menuSetFont(_ sender: NSMenuItem) {

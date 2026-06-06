@@ -9,6 +9,7 @@ final class AppState: ObservableObject {
     @Published var selectedFile: URL?
     @Published var documentText: String = ""
     @Published var theme: Theme = .night
+    @Published var viewMode: String = "split"  // "source" | "split" | "preview"
     @Published var editorFont: EditorFont = .kalam
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
@@ -51,6 +52,10 @@ final class AppState: ObservableObject {
         if let raw = UserDefaults.standard.string(forKey: "theme"),
            let t = Theme(rawValue: raw) {
             self.theme = t
+        }
+        if let mode = UserDefaults.standard.string(forKey: "viewMode"),
+           ["source", "split", "preview"].contains(mode) {
+            self.viewMode = mode
         }
         if let raw = UserDefaults.standard.string(forKey: "editorFont"),
            let f = EditorFont(rawValue: raw) {
@@ -357,6 +362,12 @@ final class AppState: ObservableObject {
         let all = Theme.allCases
         let next = (all.firstIndex(of: theme).map { ($0 + 1) % all.count } ?? 0)
         setTheme(all[next])
+    }
+
+    func setViewMode(_ mode: String) {
+        guard ["source", "split", "preview"].contains(mode) else { return }
+        viewMode = mode
+        UserDefaults.standard.set(mode, forKey: "viewMode")
     }
 
     // MARK: - File ops (rename / delete / reveal)

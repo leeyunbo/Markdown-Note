@@ -141,6 +141,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             .receive(on: RunLoop.main)
             .sink { [weak self] url in
                 self?.applyDocFolder(for: url)
+                self?.applyFilename(url)
             }
             .store(in: &cancellables)
 
@@ -148,6 +149,20 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             .receive(on: RunLoop.main)
             .sink { [weak self] date in
                 self?.applyDocDate(date)
+            }
+            .store(in: &cancellables)
+
+        state.$isDirty
+            .receive(on: RunLoop.main)
+            .sink { [weak self] dirty in
+                self?.applyDirty(dirty)
+            }
+            .store(in: &cancellables)
+
+        state.$viewMode
+            .receive(on: RunLoop.main)
+            .sink { [weak self] mode in
+                self?.applyViewMode(mode)
             }
             .store(in: &cancellables)
 
@@ -246,9 +261,12 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
         applyTheme(state.theme)
+        applyViewMode(state.viewMode)
         applyEditorFont(state.editorFont)
         applyDocFolder(for: state.selectedFile)
         applyDocDate(state.selectedFileMtime)
+        applyFilename(state.selectedFile)
+        applyDirty(state.isDirty)
         applyText(pendingText ?? state.documentText)
         pendingText = nil
     }
@@ -338,14 +356,40 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     private func applyTheme(_ theme: Theme) {
         guard ready else { return }
         // Refract: data-theme = enum rawValue (night/day/sepia/forest/paper).
-        // CSS :root[data-theme="..."] 블록이 모든 토큰을 갈아끼움. 추가로
-        // setTheme()으로 JS 측에서도 토큰 dict 받아 fallback / runtime 참조 가능.
+        // CSS :root[data-theme="..."] 블록이 모든 토큰을 갈아끼움.
         let vars = theme.cssVars
         let json = (try? JSONSerialization.data(withJSONObject: vars))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         let setDataTheme = "document.documentElement.setAttribute('data-theme', '\(theme.rawValue)');"
         web.evaluateJavaScript(
             "\(setDataTheme) if (window.appBridge && window.appBridge.setTheme) window.appBridge.setTheme(\(json));",
+            completionHandler: nil
+        )
+    }
+
+    private func applyViewMode(_ mode: String) {
+        guard ready else { return }
+        web.evaluateJavaScript(
+            "document.getElementById('refract-shell')?.setAttribute('data-view-mode', '\(mode)');",
+            completionHandler: nil
+        )
+    }
+
+    private func applyFilename(_ url: URL?) {
+        guard ready else { return }
+        let name = url?.lastPathComponent ?? "Untitled"
+        let escaped = name.replacingOccurrences(of: "\\", with: "\\\\")
+                          .replacingOccurrences(of: "\"", with: "\\\"")
+        web.evaluateJavaScript(
+            "if (window.appBridge && window.appBridge.setFilename) window.appBridge.setFilename(\"\(escaped)\");",
+            completionHandler: nil
+        )
+    }
+
+    private func applyDirty(_ dirty: Bool) {
+        guard ready else { return }
+        web.evaluateJavaScript(
+            "if (window.appBridge && window.appBridge.setDirty) window.appBridge.setDirty(\(dirty ? "true" : "false"));",
             completionHandler: nil
         )
     }

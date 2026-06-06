@@ -391,6 +391,43 @@ body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
 :root[data-theme="paper"] #prism-seam {
   box-shadow: 0 0 12px rgba(99,102,241,0.35);
 }
+/* Seam flash — 타이핑 시 0.5s ease-out으로 깜빡임. ink-ripple과 같은 트리거. */
+#prism-seam.flash::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 4px;
+  background: inherit;
+  filter: blur(4px);
+  opacity: 0.95;
+  animation: seam-flash 0.5s ease-out forwards;
+}
+@keyframes seam-flash {
+  from { opacity: 0.95; }
+  to { opacity: 0; }
+}
+
+/* === Ink ripple === */
+.ink-ripple {
+  position: fixed;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 200;
+  animation: ink-ripple 0.5s ease-out forwards;
+}
+@keyframes ink-ripple {
+  from { transform: scale(0.3); opacity: 0.6; }
+  to   { transform: scale(1.8); opacity: 0; }
+}
+
+/* === Reduced motion === */
+@media (prefers-reduced-motion: reduce) {
+  .ink-ripple, #prism-seam.flash::before { display: none; }
+  .cm-cursor { animation: none !important; }
+}
 
 /* === SOURCE — CodeMirror === */
 .cm-editor {

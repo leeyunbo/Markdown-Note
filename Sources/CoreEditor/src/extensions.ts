@@ -31,6 +31,7 @@ import { mermaidActiveField, mermaidDecoField } from './nodes/mermaid';
 import { imeListContinueFilter } from './commands/ime-list-continue';
 import { wrapSelection } from './commands/wrap-selection';
 import { insertLinkCmd } from './commands/insert-link';
+import { inkRipple } from './effects/ink-ripple';
 
 export const themeCompartment = new Compartment();
 
@@ -70,6 +71,7 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
     docFolderField,
     mermaidActiveField,
     mermaidDecoField,
+    inkRipple,
     themeCompartment.of(baseTheme),
     imeListContinueFilter,
     keymap.of([
