@@ -210,16 +210,15 @@ html, body {
 
 /* === Header === */
 /* .fullSizeContentView + titlebarAppearsTransparent → traffic light가 contentView
-   위에 overlay (y=8-22, x=8-78). 헤더 46px이지만 items를 traffic light와 같은
-   줄(y=15)에 두려면 align-items: center + padding-bottom: 18 트릭:
-     content area = 46 - 18(bottom padding) = 28px → items center y=14 ≈ light y=15.
-   padding-left 78 → traffic light cluster(x=8-78) 회피.
-   border-bottom은 y=46(통상 패딩 포함 위치)에 그려져 18px 시각 여유 확보. */
+   위에 overlay (y=8-22, x=8-78). 헤더 46px이지만 items를 traffic light(y=15)와
+   같은 줄에 두려면 flex-start + padding-top: 4 — items top y=4 이라
+   center y≈16. traffic light center y=15와 일치.
+   padding-left 78 → cluster(x=8-78) 회피. */
 #refract-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 0 16px 18px 78px;
+  padding: 4px 16px 0 78px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   position: relative;
