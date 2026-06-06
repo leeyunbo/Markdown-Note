@@ -88,9 +88,6 @@ final class MainWindowController: NSWindowController {
         sidebarItem.canCollapse = true
         sidebarItem.holdingPriority = NSLayoutConstraint.Priority(rawValue: 250)
         sidebarItem.titlebarSeparatorStyle = .line
-        // Refract spec: "no file sidebar" — 기본 collapsed로 두고 ⌘⇧D로 토글.
-        // 폴더 미선택 상태에서는 펴줘서 "Open Folder" 버튼 보이게.
-        sidebarItem.isCollapsed = (state.rootFolder != nil)
 
         // Main = AppKit (NSTextView 직접 호스팅, SwiftUI 합성 밖)
         let editor = EditorViewController(state: state)
@@ -101,6 +98,11 @@ final class MainWindowController: NSWindowController {
         splitVC.addSplitViewItem(sidebarItem)
         splitVC.addSplitViewItem(editorItem)
         splitVC.splitView.dividerStyle = .thin
+        // Refract spec: "no file sidebar" — 폴더 선택 상태면 collapsed로 시작.
+        // addSplitViewItem 이전에 set하면 무시되므로 여기서.
+        if state.rootFolder != nil {
+            sidebarItem.isCollapsed = true
+        }
         // NSSplitViewController 내부 setup을 깨지 않고 divider 색만 바꾸려면
         // 인스턴스 클래스를 런타임에 swap (KVO와 동일한 메커니즘)
         object_setClass(splitVC.splitView, TonedSplitView.self)
