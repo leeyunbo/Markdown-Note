@@ -97,6 +97,18 @@ export const codeBlockMatcher = nodeMatcher('FencedCode', (node, state) => {
   const doc = state.doc;
   const startLine = doc.lineAt(node.from).number;
   const endLine = doc.lineAt(node.to).number;
+  // 미완성 fence 방어 — lezer는 닫는 ``` 없는 경우에도 FencedCode 노드를
+  // EOF까지 확장해서 emit한다. 그대로 박스 그리면 사용자가 타이핑 중인 위 본문
+  // 텍스트까지 코드블록으로 갇힘. 시작/끝 줄이 모두 깨끗한 fence인지 strict 검증.
+  if (endLine === startLine) return [];
+  const startText = doc.line(startLine).text;
+  const startFence = startText.match(/^(```|~~~)/);
+  if (!startFence) return [];
+  const endText = doc.line(endLine).text;
+  const endFence = endText.match(/^(```|~~~)\s*$/);
+  if (!endFence) return [];
+  // 시작/끝 fence 문자(``` vs ~~~) 일치 검증.
+  if (startFence[1] !== endFence[1]) return [];
 
   // CodeInfo 자식 노드(```뒤의 언어명)를 찾아 lang 결정 + 원본 텍스트 범위 캡처.
   let lang = '';
@@ -117,51 +129,58 @@ export const codeBlockMatcher = nodeMatcher('FencedCode', (node, state) => {
   const codeTo = doc.line(endLine).from;
   const getCodeText = () => state.doc.sliceString(codeFrom, Math.max(codeFrom, codeTo - 1));
 
-  // 줄 클래스 분류:
-  //   - fence (start/end ```) → 0px collapse, HandBox arc는 인접 content 줄이 그림.
-  //   - content (그 사이) → JetBrains Mono + HandBox 좌·우 stroke (+첫·마지막은 arc).
-  //   - 단일 content 줄(예: ```js\nfoo\n```)은 content-first AND content-last 동시.
+  // content 줄 범위 — fence 사이의 본문. 빈 fence(```\n``` 또는 ```js\n```)이면
+  // content 0개라 hasContent=false. 이 경우 fence 줄 자체를 box 줄로 격상해서
+  // 박스가 화면에서 사라지지 않게 한다.
+  const hasContent = startLine + 1 < endLine;
+  const boxFirst = hasContent ? startLine + 1 : startLine;
+  const boxLast = hasContent ? endLine - 1 : endLine;
+
   for (let n = startLine; n <= endLine; n++) {
     const line = doc.line(n);
     const classes = ['cm-codeblock-line'];
-    if (n === startLine || n === endLine) {
+    const isFence = hasContent && (n === startLine || n === endLine);
+    if (isFence) {
       classes.push('cm-codeblock-fence');
     } else {
       classes.push('cm-codeblock-content');
-      if (n === startLine + 1) classes.push('cm-codeblock-content-first');
-      if (n === endLine - 1) classes.push('cm-codeblock-content-last');
+      if (n === boxFirst) classes.push('cm-codeblock-content-first');
+      if (n === boxLast) classes.push('cm-codeblock-content-last');
     }
     decos.push(Decoration.line({ class: classes.join(' ') }).range(line.from));
   }
 
-  // 본문 줄(content)에만 1-based line number widget 부착.
-  let codeLineIdx = 0;
-  for (let n = startLine + 1; n < endLine; n++) {
-    codeLineIdx += 1;
-    decos.push(
-      Decoration.widget({ widget: new LineNumberWidget(codeLineIdx), side: -1 }).range(
-        doc.line(n).from,
-      ),
-    );
+  // line number widget — content가 있을 때만 1..N. 빈 fence면 라인넘버 없음.
+  if (hasContent) {
+    let codeLineIdx = 0;
+    for (let n = startLine + 1; n < endLine; n++) {
+      codeLineIdx += 1;
+      decos.push(
+        Decoration.widget({ widget: new LineNumberWidget(codeLineIdx), side: -1 }).range(
+          doc.line(n).from,
+        ),
+      );
+    }
   }
 
-  // Lang tab은 첫 content 줄 시작에 anchor (fence 0px라 박스 top edge에 정렬).
-  // CodeInfo 원본 텍스트("java" 등)는 lang tab과 중복이라 hide.
-  if (lang && startLine + 1 <= endLine - 1) {
+  // Lang tab은 box 첫줄 시작에 anchor (content 있으면 첫 content 줄,
+  // 없으면 fence 시작줄 — 어느 쪽이든 박스 top edge).
+  if (lang) {
     decos.push(
       Decoration.widget({ widget: new LangTabWidget(lang), side: -1 }).range(
-        doc.line(startLine + 1).from,
+        doc.line(boxFirst).from,
       ),
     );
+    // CodeInfo 원본 텍스트("java" 등) hide — lang tab과 중복.
     if (codeInfoRange) {
       decos.push(Decoration.replace({}).range(codeInfoRange.from, codeInfoRange.to));
     }
   }
-  // Copy chip은 같은 anchor에 side=1(같은 줄 시작 직후).
-  if (startLine + 1 <= endLine - 1) {
+  // Copy chip은 같은 anchor에 side=1. 빈 box에는 복사할 게 없으니 hasContent일 때만.
+  if (hasContent) {
     decos.push(
       Decoration.widget({ widget: new CopyChipWidget(getCodeText), side: 1 }).range(
-        doc.line(startLine + 1).from,
+        doc.line(boxFirst).from,
       ),
     );
   }

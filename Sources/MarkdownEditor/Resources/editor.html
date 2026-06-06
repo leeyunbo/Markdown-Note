@@ -3,672 +3,963 @@
 <head>
 <meta charset="utf-8">
 <style>
-/* Offline 폰트 — Google Fonts/jsdelivr CDN 없이 동작. */
+/* === Bundled fonts === */
 @font-face {
   font-family: "Pretendard Variable";
   font-weight: 45 920;
-  font-style: normal;
-  font-display: swap;
   src: url("vendor/PretendardVariable.woff2") format("woff2-variations");
+  font-display: swap;
 }
 @font-face {
   font-family: "JetBrains Mono";
   src: url("vendor/JetBrainsMono-Regular.woff2") format("woff2");
-  font-weight: 400; font-style: normal; font-display: swap;
+  font-weight: 400; font-display: swap;
 }
 @font-face {
   font-family: "JetBrains Mono";
   src: url("vendor/JetBrainsMono-Medium.woff2") format("woff2");
-  font-weight: 500; font-style: normal; font-display: swap;
+  font-weight: 500; font-display: swap;
 }
 @font-face {
   font-family: "JetBrains Mono";
   src: url("vendor/JetBrainsMono-SemiBold.woff2") format("woff2");
-  font-weight: 600; font-style: normal; font-display: swap;
+  font-weight: 600; font-display: swap;
 }
 @font-face {
   font-family: "Caveat";
   src: url("vendor/Caveat[wght].ttf") format("truetype-variations");
-  font-weight: 400 700; font-style: normal; font-display: swap;
+  font-weight: 400 700; font-display: swap;
 }
 @font-face {
   font-family: "Kalam";
   src: url("vendor/Kalam-Regular.ttf") format("truetype");
-  font-weight: 400; font-style: normal; font-display: swap;
+  font-weight: 400; font-display: swap;
 }
 @font-face {
   font-family: "Kalam";
   src: url("vendor/Kalam-Bold.ttf") format("truetype");
-  font-weight: 700; font-style: normal; font-display: swap;
+  font-weight: 700; font-display: swap;
 }
 
-/* "Handwriting" 통합 패밀리 — unicode-range로 영어/특수문자는 Excalifont,
-   한국어(한글)는 NanumPenScript가 자동 선택된다. */
-/* 영어(Excalifont)와 한국어(NanumPenScript)의 baseline·크기 매칭 —
-   ascent-override를 동일 값으로 강제해 baseline 위치 통일, 그 위에서
-   NanumPenScript size-adjust로 글자 크기 보정. */
-@font-face {
-  font-family: "Handwriting";
-  src: url("vendor/Excalifont-Regular.woff2") format("woff2");
-  font-weight: 400 700; font-style: normal; font-display: swap;
-  ascent-override: 85%;
-  descent-override: 25%;
-  line-gap-override: 0%;
-  /* 라틴 + 라틴 확장 + 일반 부호 + 통화 + 기호 + 화살표 + 수학 + 도형 */
-  unicode-range: U+0020-007F, U+00A0-024F, U+2000-206F, U+20A0-20CF,
-                 U+2100-21FF, U+2200-22FF, U+25A0-25FF, U+2600-26FF;
-}
-@font-face {
-  font-family: "Handwriting";
-  src: url("vendor/NanumPenScript-Regular.ttf") format("truetype");
-  font-weight: 400; font-style: normal; font-display: swap;
-  ascent-override: 85%;
-  descent-override: 25%;
-  line-gap-override: 0%;
-  /* size-adjust를 130%까지 끌어올림 — 한글이 영어보다 작게 보이던 문제 해결.
-     ascent/descent가 동일하므로 baseline은 일치한다. */
-  size-adjust: 130%;
-  /* 한글 자모 + 호환 자모 + 자모 확장 + 음절 */
-  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
-}
-
+/* === Refract theme tokens === */
+/* Default = night. Swift이 documentElement에 data-theme=...을 set하면 해당 블록 활성. */
 :root {
-  /* PAL_LIGHT (README §Design tokens) — "Day". */
-  --bg: #fdfbf5;
-  --fg: #1a2a4a;
-  --marker: #a0aebd;
-  --secondary: #5a6a85;
-  --code-bg: #fffaef;
-  --code-fg: #c8442a;
-  --link: #c8442a;
-  --list: #c8442a;
-  --accent: #c8442a;
-  --rule: #9bb8d480;
-  --current-line: rgba(200,68,42,0.10);
-  --editor-font: "Handwriting", -apple-system, "Apple SD Gothic Neo", sans-serif;
-  --display-font: "Caveat", "Apple SD Gothic Neo", cursive;
-  /* SYN — README §Code blocks. 따뜻한 톤(크림 위에 sit). */
-  --syn-keyword: #c8442a;
-  --syn-type: #3f6a3a;
+  /* fonts */
+  --ui-font: -apple-system, "SF Pro Text", "Helvetica Neue", "Apple SD Gothic Neo", sans-serif;
+  --mono-font: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --display-font: "Space Grotesk", -apple-system, sans-serif;
+  --body-font: var(--ui-font);
+  --head-font: var(--ui-font);
+  --fs: 1.0;
+
+  /* night tokens (default) */
+  --bg: #0d0e16;
+  --rawBg: #0c0d14;
+  --renBg: #10121e;
+  --ink: #e7e9f6;
+  --sub: #9aa0bd;
+  --faint: #565d7e;
+  --line: rgba(255,255,255,0.06);
+  --accent: #8b94ff;
+  --accentDim: rgba(139,148,255,0.55);
+  --active: rgba(139,148,255,0.07);
+  --chipBg: rgba(158,206,106,0.12);
+  --chipFg: #9ece6a;
+  --link: #82aaff;
+  --codeCard: rgba(21,23,36,0.5);
+
+  /* syntax tokens */
+  --syn-keyword: #bb9af7;
+  --syn-type: #2ac3de;
+  --syn-function: #82aaff;
+  --syn-string: #9ece6a;
+  --syn-number: #ff9e64;
+  --syn-comment: #565f89;
+  --syn-default: #c7cdf0;
+  --syn-punctuation: #7f86a8;
+
+  /* paper ruling (only paper theme) */
+  --rule: transparent;
+}
+
+:root[data-theme="day"] {
+  --bg: #ffffff;
+  --rawBg: #fbfbfe;
+  --renBg: #ffffff;
+  --ink: #1b1d2a;
+  --sub: #565b73;
+  --faint: #a4a9bd;
+  --line: rgba(20,22,40,0.09);
+  --accent: #5b5cf0;
+  --accentDim: rgba(91,92,240,0.5);
+  --active: rgba(91,92,240,0.05);
+  --chipBg: #eef6ee;
+  --chipFg: #2f9e44;
+  --link: #5b5cf0;
+  --codeCard: #f7f7fc;
+  --syn-keyword: #d6336c;
+  --syn-type: #0c8599;
+  --syn-function: #6741d9;
+  --syn-string: #2f9e44;
+  --syn-number: #e8590c;
+  --syn-comment: #a4a9bd;
+  --syn-default: #3a3f55;
+  --syn-punctuation: #7a8096;
+}
+
+:root[data-theme="sepia"] {
+  --bg: #f4ecd8;
+  --rawBg: #efe6cf;
+  --renBg: #f7efdc;
+  --ink: #3b2f1e;
+  --sub: #6b5a40;
+  --faint: #a8997c;
+  --line: rgba(80,60,30,0.14);
+  --accent: #b5651d;
+  --accentDim: rgba(181,101,29,0.5);
+  --active: rgba(181,101,29,0.06);
+  --chipBg: #e8dabb;
+  --chipFg: #8a5a2b;
+  --link: #9a5b2a;
+  --codeCard: #efe4ca;
+  --syn-keyword: #a83232;
+  --syn-type: #3f7a5f;
+  --syn-function: #8a5a2b;
+  --syn-string: #5b8a3a;
+  --syn-number: #c2701c;
+  --syn-comment: #b0a184;
+  --syn-default: #4a3c28;
+  --syn-punctuation: #8a7a5c;
+}
+
+:root[data-theme="forest"] {
+  --bg: #0e1714;
+  --rawBg: #0c1512;
+  --renBg: #101e19;
+  --ink: #d8e9df;
+  --sub: #8fae9f;
+  --faint: #54705f;
+  --line: rgba(255,255,255,0.06);
+  --accent: #58c896;
+  --accentDim: rgba(88,200,150,0.5);
+  --active: rgba(88,200,150,0.07);
+  --chipBg: rgba(229,192,123,0.12);
+  --chipFg: #e5c07b;
+  --link: #6fd0a0;
+  --codeCard: #0f1c17;
+  --syn-keyword: #e394dd;
+  --syn-type: #5ccfe6;
+  --syn-function: #7ee0b8;
+  --syn-string: #c3e88d;
+  --syn-number: #ffcb6b;
+  --syn-comment: #4a6a59;
+  --syn-default: #cfe6da;
+  --syn-punctuation: #6f8a7c;
+}
+
+/* 손글씨 — PREVIEW만 Kalam/Caveat + ruling 추가, SOURCE는 mono 유지. */
+:root[data-theme="paper"] {
+  --bg: #fbf7ec;
+  --rawBg: #f2ead7;
+  --renBg: #fdfaf0;
+  --ink: #2b3a55;
+  --sub: #566583;
+  --faint: #a6abbc;
+  --line: rgba(43,58,85,0.13);
+  --accent: #d2543e;
+  --accentDim: rgba(210,84,62,0.5);
+  --active: rgba(210,84,62,0.06);
+  --chipBg: #efe6d2;
+  --chipFg: #b5701a;
+  --link: #2f6fb0;
+  --codeCard: #f2ead7;
+  --syn-keyword: #c0392b;
+  --syn-type: #2f7a4f;
+  --syn-function: #2f6fb0;
   --syn-string: #b5701a;
   --syn-number: #2a6a8a;
-  --syn-function: #1a2a4a;
   --syn-comment: #9a8c6a;
-  --syn-punctuation: #6a5f4a;
+  --syn-default: #3a3f55;
+  --syn-punctuation: #7a8096;
+  /* paper-specific */
+  --body-font: "Kalam", "Comic Sans MS", sans-serif;
+  --head-font: "Caveat", "Kalam", cursive;
+  --fs: 1.22;
+  --rule: rgba(43,58,85,0.10);
 }
-/* PAL_NIGHT — Theme.swift가 :root에 data-theme="dark" 박을 때 override. */
-:root[data-theme="dark"] {
-  --bg: #1b2233;
-  --fg: #f0e8d3;
-  --marker: #6b5e44;
-  --secondary: #a89878;
-  --code-bg: rgba(255,255,255,0.04);
-  --code-fg: #e8826b;
-  --link: #e8826b;
-  --list: #e8826b;
-  --accent: #e8826b;
-  --rule: rgba(220,200,140,0.10);
-  --current-line: rgba(232,130,107,0.10);
-  /* SYN night — relationships 유지, floor 띄움. */
-  --syn-keyword: #e8826b;
-  --syn-type: #8fb87a;
-  --syn-string: #e0a35a;
-  --syn-number: #7fb8d0;
-  --syn-function: #f0e8d3;
-  --syn-comment: #7a6e52;
-  --syn-punctuation: #a89878;
-}
+
+/* === Refract shell === */
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
   height: 100%; width: 100%;
-  background: var(--bg); color: var(--fg);
-  font-family: var(--editor-font);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui-font);
   font-size: 13px;
-  letter-spacing: -0.005em;
-  line-height: 1.65;
-  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
-body { overflow: hidden; height: 100vh; }
+
+#refract-shell {
+  display: grid;
+  grid-template-rows: 46px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* === Header === */
+#refract-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  /* macOS traffic light 영역 확보 (왼쪽 ~80px) */
+  padding-left: 92px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+#refract-header > * { -webkit-app-region: no-drag; }
+.r-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.r-glyph .bar {
+  width: 3.5px; height: 15px; border-radius: 2px;
+}
+.r-glyph .bar:nth-child(1) { background: #6366f1; }
+.r-glyph .bar:nth-child(2) { background: #0ea5e9; }
+.r-glyph .bar:nth-child(3) { background: #10b981; }
+.r-glyph .bar:nth-child(4) { background: #f59e0b; }
+.r-wordmark {
+  font-family: var(--display-font);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--ink);
+}
+.r-divider {
+  width: 1px; height: 16px;
+  background: var(--line);
+}
+.r-filename {
+  font-size: 13px;
+  color: var(--sub);
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.r-dirty-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: none;
+}
+body[data-dirty="1"] .r-dirty-dot { display: inline-block; }
+.r-spacer { flex: 1; }
+.r-view-toggle {
+  display: inline-flex;
+  background: var(--rawBg);
+  border-radius: 8px;
+  padding: 2px;
+  border: 1px solid var(--line);
+}
+.r-view-toggle button {
+  background: transparent;
+  border: none;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-family: var(--ui-font);
+  font-size: 12px;
+  color: var(--sub);
+  cursor: pointer;
+}
+.r-view-toggle button.active {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+}
+.r-theme-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 10px;
+  height: 26px;
+  color: var(--sub);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--ui-font);
+}
+.r-theme-button .swatch {
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* === Body grid === */
+#refract-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+#refract-shell[data-view-mode="source"] #refract-body {
+  grid-template-columns: 1fr 0;
+}
+#refract-shell[data-view-mode="source"] #preview-column,
+#refract-shell[data-view-mode="source"] #prism-seam { display: none; }
+#refract-shell[data-view-mode="preview"] #refract-body {
+  grid-template-columns: 0 1fr;
+}
+#refract-shell[data-view-mode="preview"] #source-column,
+#refract-shell[data-view-mode="preview"] #prism-seam { display: none; }
+
+#source-column, #preview-column {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#source-column { background: var(--rawBg); }
+#preview-column { background: var(--renBg); }
+
+.r-col-label {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  font-family: var(--mono-font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--faint);
+  opacity: 0.5;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 5;
+}
 
 #editor-host {
-  height: 100%;
-  width: 100%;
-  background: var(--bg);
+  flex: 1;
+  overflow: hidden;
+}
+#preview-host {
+  flex: 1;
+  overflow: auto;
+  padding: 38px 36px 40px;
+  font-family: var(--body-font);
+  font-size: calc(14px * var(--fs));
+  line-height: 1.71;
+  color: var(--sub);
+  /* paper ruling — paper 테마에서만 ruled 줄 표시 */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(1.71em * var(--fs) - 1px),
+    var(--rule) calc(1.71em * var(--fs) - 1px),
+    var(--rule) calc(1.71em * var(--fs))
+  );
 }
 
-/* CodeMirror 기본 view 톤 — 우리 폰트/색을 부모에서 상속받도록 reset */
+/* === Prism seam === */
+#prism-seam {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg,
+    #6366f1 0%, #0ea5e9 16%, #10b981 33%, #f59e0b 50%,
+    #ef4444 66%, #ec4899 83%, #8b5cf6 100%);
+  box-shadow: 0 0 16px rgba(130,120,255,0.5);
+  pointer-events: none;
+  z-index: 10;
+}
+:root[data-theme="day"] #prism-seam,
+:root[data-theme="sepia"] #prism-seam,
+:root[data-theme="paper"] #prism-seam {
+  box-shadow: 0 0 12px rgba(99,102,241,0.35);
+}
+
+/* === SOURCE — CodeMirror === */
 .cm-editor {
   height: 100%;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--editor-font);
-  font-size: 13px;
-  letter-spacing: -0.005em;
-}
-.cm-editor .cm-scroller {
-  font-family: inherit;
-  line-height: 1.7;
-  padding: 0;  /* gutter는 화면 끝부터 시작, content는 자체 padding */
-}
-.cm-editor .cm-content {
-  /* 좌측 98: 84px 빨간 마진 + 14px gutter — 본문 시작 위치.
-     상단 12, 우측 24, 하단 50vh로 마지막 줄이 화면 중앙까지 스크롤. */
-  padding: 12px 24px 50vh 98px;
-  max-width: 1080px;    /* 좌측 패딩 98 + 본문 ~960 + 우측 24 */
+  background: var(--rawBg);
+  color: var(--syn-default);
+  font-family: var(--mono-font);
+  font-size: 12.5px;
+  line-height: 22px;
+  letter-spacing: -0.2px;
 }
 .cm-editor.cm-focused {
   outline: none;
 }
-.cm-editor .cm-content {
-  caret-color: var(--fg);
+.cm-content {
+  padding: 38px 16px 40px 0;
+  caret-color: var(--accent);
 }
-/* 헤딩도 본문과 동일한 Handwriting(Excalifont+NanumPenScript) 패밀리 사용 —
-   영어 헤딩은 Excalifont, 한국어 헤딩은 NanumPenScript로 unicode-range 자동 분기.
-   크기(44/28/22px)만 시각 위계로. */
-.cm-content .cm-md-header { font-family: var(--editor-font); color: var(--fg); }
-.cm-content .cm-md-heading1 { font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -0.5px; }
-.cm-content .cm-md-heading2 { font-size: 28px; font-weight: 700; line-height: 1.2; }
-.cm-content .cm-md-heading3 { font-size: 22px; font-weight: 700; }
-/* 마크다운 마커(`#`, `##`, `**`, `*`, `` ` ``, `>` 등) — 보이지만 흐리게
-   (Notion/Obsidian 라이브프리뷰 패턴). 색을 marker token으로, 투명도로 더 옅게.
-   :not(.md-list-mark) — 리스트 마커(-, 1. 등)는 dim 적용 제외(노트 필기 강조). */
-/* opacity 대신 rgba — opacity는 후손 span(md-list-ordered 등)까지 반투명화 시켜
-   리스트 마커의 accent red가 회색으로 묻히는 부작용이 있었음. */
-.cm-content .cm-md-marker:not(.md-list-mark) { color: rgba(160, 174, 189, 0.6); font-weight: 400; }
-
-/* 우측 상단 date stamp — Caveat 24 inkLight rotate -2°, paper 배경 스티커. */
-#nb-date-stamp {
-  position: fixed;
-  top: 10px;
-  right: 20px;
-  z-index: 9000;
+.cm-scroller {
+  font-family: var(--mono-font);
+}
+.cm-gutters {
+  background: var(--rawBg);
+  border-right: none;
+  color: var(--faint);
+  opacity: 0.5;
+}
+.cm-gutter.cm-lineNumbers .cm-gutterElement {
+  padding: 0 8px 0 14px;
+  font-size: 11px;
+  min-width: 34px;
   text-align: right;
-  font-family: var(--display-font);
-  font-size: 22px;
-  color: var(--secondary);
-  line-height: 1.25;
-  transform: rotate(-2deg);
-  pointer-events: none;
-  user-select: none;
-  background: var(--bg);
-  padding: 6px 14px 6px 18px;
-  border-radius: 4px;
 }
-#nb-date-stamp .nb-date-stamp-row {
-  display: inline-block;
-  border-bottom: 1.5px solid var(--secondary);
-  padding-bottom: 2px;
+.cm-activeLineGutter {
+  background: transparent;
+  color: var(--accent);
+  opacity: 1;
 }
-#nb-date-stamp .nb-date-stamp-page { font-size: 16px; margin-top: 1px; }
-/* 윈도우가 좁아지면 stamp가 본문을 침범 → 일정 너비 이하에서는 stamp 숨김. */
-@media (max-width: 720px) {
-  #nb-date-stamp { display: none; }
+.cm-activeLine {
+  background: var(--active);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
-
-/* 빈 문서 가이드 (JSX L401-414) — Caveat 19 inkLight rotate -2.5°, 우측 110/100. */
-#nb-empty-hint {
-  position: fixed;
-  top: 110px;
-  right: 100px;
-  width: 220px;
-  z-index: 9000;
-  transform: rotate(-2.5deg);
-  font-family: var(--display-font);
-  font-size: 19px;
-  color: var(--secondary);
-  line-height: 1.5;
-  pointer-events: none;
-  user-select: none;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-#nb-empty-hint > div:first-child { margin-bottom: 8px; }
-#nb-empty-hint svg {
-  display: block;
-  margin-top: 6px;
-  transform: rotate(180deg);
-  color: var(--secondary);
-}
-body[data-doc-empty="1"] #nb-empty-hint { opacity: 1; }
-
-/* HandCheckbox — README §Hand-drawn primitives. inline-block, baseline에 맞춰 정렬,
-   18px square, vertical-align로 텍스트 baseline과 시각 정렬. */
-.cm-hand-check {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  vertical-align: -3px;
-  margin-right: 6px;
-  cursor: pointer;
-  line-height: 0;
-}
-.cm-hand-check svg { display: block; }
-
-.cm-content .cm-md-squiggle-h1,
-.cm-content .cm-md-squiggle-h2 {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="8" viewBox="0 0 160 8" preserveAspectRatio="none"><path d="M2,5 Q24,1 48,5 T96,5 T144,5" stroke="%23c8442a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>');
-  background-repeat: no-repeat;
-  background-position: left bottom;
-  background-size: 100% 7px;
-}
-
-/* gutter width 강제 — CodeMirror가 spacer measurement로 inline style을 박는 경우
-   CSS가 무시되므로 !important로 덮어쓴다. */
-.cm-editor .cm-line-kind-gutter {
-  min-width: 44px !important;
-  width: 44px !important;
-  flex-shrink: 0;
-}
-.cm-editor .cm-line-kind-gutter .cm-gutterElement {
-  padding: 0 12px 0 16px;
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 10px;
-  color: var(--marker);
-  min-width: 44px;
-  box-sizing: border-box;
-  /* 라인 글자(14px)와 baseline 어긋남 → flex로 라인 height 안에서 center */
-  display: flex !important;
-  align-items: center;
-  justify-content: flex-end;
-}
-.cm-editor .cm-line-kind {
-  display: inline-block;
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 10px;
-}
-.cm-editor .cm-gutters {
-  background: var(--bg);
-  border: none;
-}
-.cm-editor .cm-line {
-  padding: 0;
-}
-.cm-editor .cm-cursor {
-  border-left-color: var(--accent);
-  border-left-width: 1.5px;
+.cm-cursor {
+  border-left: 2px solid var(--accent);
+  border-left-width: 2px;
 }
 .cm-editor .cm-selectionBackground,
-.cm-editor.cm-focused .cm-selectionBackground,
-.cm-editor ::selection {
-  background: rgba(200,68,42,0.22) !important;
-}
-/* CodeMirror 6는 selection layer DOM에 inline `z-index: -1`을 직접 박는다
-   (drawSelection의 above: false). 그래서 .cm-codeblock-line 배경(#f3f3f5) 뒤에
-   selection이 그려져 보이지 않음. !important로 inline style을 덮어 content 위로 올림.
-   cursor layer는 z-index 150이라 영향 없음.
-
-   pointer-events: none을 명시하지 않으면 content 위로 올린 selection 레이어가
-   마우스 이벤트를 가로채서 "선택된 파란 영역을 클릭해도 deselect 안 됨" 증상이
-   발생한다. CodeMirror의 기본 layer는 이 속성을 가지지만, 우리가 z-index만
-   덮으면서 함께 명시해야 inline style 우선순위에서 살아남음. */
-.cm-editor .cm-selectionLayer {
-  z-index: 1 !important;
-  pointer-events: none !important;
-}
-.cm-editor .cm-activeLine {
-  background: var(--current-line);
-  border-left: 3px solid var(--accent);
-  margin-left: -3px;
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: var(--accentDim) !important;
 }
 
-/* 리스트 마커 노트북 스타일 — 원본 -/+/* 1. 2. 3. 그대로 보이되 빨간 accent + 굵게.
-   CodeMirror가 ListMark를 syntaxHighlighting(processingInstruction tag)으로
-   cm-md-marker span 안에 한 번 더 감싸기 때문에:
-     outer: <span class="cm-md-marker md-list-mark md-list-bullet ...">
-     inner: <span class="cm-md-marker">-</span>
-   outer는 md-list-mark가 있어 위쪽 dim 규칙의 :not(.md-list-mark)에서 빠지지만,
-   inner는 cm-md-marker만 있어 dim 규칙 (0,3,0)에 매칭돼 회색이 됨.
-   → 내려가는 룰을 (0,3,0) 이상으로 올려 inner까지 accent로 덮어쓴다.
-   font-size 변경은 라인 vertical 메트릭을 어긋나게 해 좌표 매핑이 깨질 수 있어
-   금지(색/굵기만으로 강조). */
-.cm-content .md-list-mark.cm-md-marker,
-.cm-content .md-list-mark .cm-md-marker,
-.cm-content .md-list-bullet.cm-md-marker,
-.cm-content .md-list-bullet .cm-md-marker,
-.cm-content .md-list-ordered.cm-md-marker,
-.cm-content .md-list-ordered .cm-md-marker,
-.cm-content .md-list-mark,
-.cm-content .md-list-bullet,
-.cm-content .md-list-ordered {
-  color: var(--accent) !important;
-  font-weight: 700 !important;
-  opacity: 1 !important;
-}
-
-/* Fenced code block — JSX HandBox(notebook.jsx L59-72) +
-   composition-screens.jsx CodeBlock 정확값.
-     HandBox path:  M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z
-                    stroke=#1a2a4a strokeWidth=0.5 (CSS pixels, non-scaling),
-                    fill=transparent. 라인별 SVG 분할 — 본문 한 줄짜리에도 first+last
-                    동시 매칭으로 위·아래 arc 다 그림.
-     padding inside box: 16/16/14 (top/horizontal/bottom).
-     line-height: 24px (JetBrains Mono 14px). */
-
-/* fence 줄(```/```) — 0px collapse. content 줄들이 box arc/stroke 다 그림. */
-.cm-content .cm-codeblock-line.cm-codeblock-fence {
-  height: 0;
-  min-height: 0;
-  padding: 0;
-  margin: 0;
-  font-size: 0;
-  line-height: 0;
-  overflow: hidden;
-  background: transparent;
-}
-
-/* 본문 줄 공통 — JetBrains Mono, codeBg, 좌·우 vertical stroke. */
-.cm-content .cm-codeblock-line.cm-codeblock-content {
-  background-color: var(--code-bg);
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 14px;
-  line-height: 24px;
-  min-height: 24px;
-  padding-left: 16px;
-  padding-right: 16px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>');
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  position: relative;
-}
-
-/* 첫 content 줄 — HandBox 위쪽 arc + 좌·우 stroke. padding-top 16. */
-.cm-content .cm-codeblock-line.cm-codeblock-content-first {
-  padding-top: 16px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-}
-/* 마지막 content 줄 — HandBox 아래쪽 arc + 좌·우 stroke. padding-bottom 14. */
-.cm-content .cm-codeblock-line.cm-codeblock-content-last {
-  padding-bottom: 14px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-}
-/* 단일 content 줄(```js\nfoo\n```) — HandBox 전체(위·좌·우·아래). */
-.cm-content .cm-codeblock-line.cm-codeblock-content-first.cm-codeblock-content-last {
-  padding-top: 16px;
-  padding-bottom: 14px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z" stroke="%231a2a4a" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-}
-
-/* 다크 모드 — 같은 path/stroke-width이지만 stroke 색 ink(#f0e8d3)로 교체. */
-:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 Q1.3,50 1,100 M99,0 Q99.3,50 99,100" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>');
-}
-:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content-first {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,100 Q1,3 3,1 L97,2 Q99,2 99,4 L99,100" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-}
-:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content-last {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,0 L1.2,96 Q1,98.5 4,98.5 L96,99 Q98.5,99 98.5,96 L99,0" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-}
-:root[data-theme="dark"] .cm-content .cm-codeblock-line.cm-codeblock-content-first.cm-codeblock-content-last {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z" stroke="%23f0e8d3" stroke-width="0.5" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-}
-
-/* 코드블록 라인의 activeLine 효과(margin-left:-3 + border-left:3)는 HandBox 좌측
-   stroke를 어그러뜨려 끔. */
-.cm-editor .cm-activeLine.cm-codeblock-content {
-  background-color: var(--code-bg) !important;
-  border-left: 0 !important;
-  margin-left: 0 !important;
-}
-
-/* Line number widget — 28px gutter, 12px 우측 padding, JetBrains Mono 12px, inkFaint. */
-.cm-codeblock-linenum {
-  display: inline-block;
-  width: 28px;
-  padding-right: 12px;
-  text-align: right;
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 12px;
-  color: var(--marker);
-  user-select: none;
-  pointer-events: none;
-  vertical-align: baseline;
-}
-
-/* Lang tab — JSX: Caveat 18/700 white-on-accent, padding 2px 12px 3px,
-   border-radius 4, rotate(-1.5deg), top:-13 left:18, soft drop shadow. */
-.cm-code-lang-tab {
-  position: absolute;
-  top: -13px;
-  left: 18px;
-  z-index: 2;
-  display: inline-block;
-  padding: 2px 12px 3px;
-  background: var(--accent);
-  color: #fff;
-  font-family: var(--display-font);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-  border-radius: 4px;
-  transform: rotate(-1.5deg);
-  user-select: none;
-  pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
-}
-/* Copy chip — JSX: Caveat 16/600, paper bg, 1.4px separator border, inkLight color,
-   padding 2px 9px, border-radius 4, gap 5, clipboard SVG icon. */
-.cm-code-copy-chip {
-  position: absolute;
-  top: -11px;
-  right: 16px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 9px;
-  background: var(--bg);
-  color: var(--secondary);
-  font-family: var(--display-font);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1;
-  border: 1.4px solid rgba(0, 0, 0, 0.08);
-  border-radius: 4px;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.12s ease, border-color 0.12s ease;
-}
-.cm-code-copy-chip svg { display: block; }
-.cm-code-copy-chip:hover { color: var(--fg); }
-.cm-code-copy-chip.cm-code-copy-chip-done {
-  color: #3f6a3a;
-  border-color: #3f6a3a;
-}
-:root[data-theme="dark"] .cm-code-copy-chip {
-  border-color: rgba(255, 255, 255, 0.08);
-}
-:root[data-theme="dark"] .cm-code-copy-chip.cm-code-copy-chip-done {
-  color: #8fb87a;
-  border-color: #8fb87a;
-}
-
-/* IndentedCode 라인 (라인 시작 \t/4 spaces): lang-markdown이 mono 폰트로 칠하는 걸
-   본문 폰트로 강제 복귀. Tab으로 들여쓰기한 일반 텍스트가 mono로 leak되는 버그 차단. */
-.cm-content .cm-line.cm-indented-reset,
-.cm-content .cm-line.cm-indented-reset * {
-  font-family: var(--editor-font) !important;
-  font-size: 13.5px !important;
-  background: transparent !important;
-  color: var(--fg) !important;
-}
-
-/* Inline code (` `) — README §Inline code: accent text on codeBg + 손그림 outline 0.45 opacity.
-   font-size / padding을 mark decoration에 직접 주면 CM caret hitbox 계산이 꼬여서
-   마우스 클릭으로 인라인 코드 안에 커서를 못 놓는다. 글자 metrics는 본문과 일치시키고
-   시각 강조는 background + SVG outline + box-shadow만 사용. */
+/* === SOURCE markdown highlighting === */
+/* 마커는 dim, heading text는 ink, 코드는 syn 토큰 */
+.cm-content .tok-meta,
+.cm-content .cm-md-marker { color: var(--accentDim); }
+.cm-content .tok-heading,
+.cm-content .tok-heading1,
+.cm-content .tok-heading2,
+.cm-content .tok-heading3,
+.cm-content .tok-heading4,
+.cm-content .tok-heading5,
+.cm-content .tok-heading6 { color: var(--ink); font-weight: 600; }
+.cm-content .tok-strong { color: var(--ink); font-weight: 700; }
+.cm-content .tok-emphasis { color: var(--sub); font-style: italic; }
+.cm-content .tok-link { color: var(--syn-function); }
+.cm-content .tok-url { color: var(--faint); }
+.cm-content .tok-monospace,
+.cm-content .tok-inlineCode,
 .cm-content .cm-inline-code {
-  /* outer mark — outline + 본문 폰트 사이즈 유지. font-size 건드리지 말 것
-     (테두리가 같이 줄어듦). 글자 축소는 inner .cm-inline-code-text가 담당. */
-  background-color: var(--code-bg);
-  color: var(--code-fg);
-  border-radius: 4px;
-  /* 손그림 outline — 0-100 viewBox 가장자리에 붙되 각 변 중간에 미세한 quad wobble
-     (진폭 0.5~1.2 unit)로 "펜 손떨림" 표현. 큰 진폭 zigzag는 종이찢은 듯 보여 금물. */
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M2,3 Q0,1 4,1.4 Q25,0.8 50,1.6 Q75,0.9 96,1.5 Q100,1 99,4 Q98.5,25 99.6,50 Q98.7,75 99,96 Q100,99 96,98.6 Q75,99.2 50,98.4 Q25,99.1 4,98.5 Q0,99 1,96 Q1.3,75 0.6,50 Q1.4,25 1,4 Z" stroke="%23c8442a" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" opacity="0.55"/></svg>');
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  box-shadow: 3px 0 0 var(--code-bg), -3px 0 0 var(--code-bg);
+  color: var(--syn-string);
+  font-family: var(--mono-font);
 }
-:root[data-theme="dark"] .cm-content .cm-inline-code {
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"><path d="M1,4 Q0,0 5,1 Q25,2.5 50,0.5 Q75,2 95,1 Q100,0 99,5 Q97,25 100,50 Q98,75 99,95 Q100,99 95,99 Q75,97.5 50,99.5 Q25,98 5,99 Q0,100 1,95 Q3,75 0,50 Q2,25 1,4 Z" stroke="%23e8826b" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" opacity="0.55"/></svg>');
-}
-/* inner mark — JetBrains Mono + font-size 축소. outer는 본문 사이즈 유지하므로
-   테두리(outer background-image)는 안 줄어들고 글자만 작아짐. */
-.cm-content .cm-inline-code-text {
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 0.85em;
-}
+.cm-content .tok-processingInstruction { color: var(--faint); }
+.cm-content .tok-quote { color: var(--sub); font-style: italic; }
+.cm-content .tok-list,
+.cm-content .md-list-mark { color: var(--accent); }
+/* 코드 토큰 — fenced code 안 */
+.cm-content .tok-keyword { color: var(--syn-keyword); font-weight: 500; }
+.cm-content .tok-typeName { color: var(--syn-type); }
+.cm-content .tok-string { color: var(--syn-string); }
+.cm-content .tok-number { color: var(--syn-number); }
+.cm-content .tok-comment { color: var(--syn-comment); font-style: italic; }
+.cm-content .tok-operator,
+.cm-content .tok-punctuation,
+.cm-content .tok-bracket { color: var(--syn-punctuation); }
+.cm-content .tok-variableName { color: var(--syn-default); }
+.cm-content .tok-className { color: var(--syn-type); }
+.cm-content .tok-function { color: var(--syn-function); font-weight: 600; }
 
-/* Search panel 톤 / 표 라인 styling은 editor.js의 EditorView.theme로 이전 */
-.cm-searchMatch {
-  background: rgba(255, 213, 0, 0.45);
-  border-radius: 2px;
+/* Search panel — minimal */
+.cm-panels.cm-panels-top {
+  background: var(--rawBg);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
 }
+.cm-panel.cm-search {
+  padding: 8px 14px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.cm-search .cm-textfield {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 9px;
+  outline: none;
+  min-width: 180px;
+  height: 26px;
+  font-size: 12px;
+}
+.cm-search .cm-textfield:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accentDim);
+}
+.cm-search .cm-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 10px;
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+  height: 26px;
+}
+.cm-search .cm-button:hover { background: var(--active); }
+.cm-searchMatch { background: var(--accentDim); border-radius: 2px; }
 .cm-searchMatch-selected {
-  background: rgba(255, 145, 0, 0.85) !important;
+  background: var(--accent);
   color: var(--bg);
 }
 
-/* Mermaid 토글 widget — 코드 블록 위에 작은 버튼 + 활성 시 SVG block widget */
-.md-mermaid-toggle {
+/* === PREVIEW markdown rendering === */
+#preview-host h1 {
+  font-family: var(--head-font);
+  font-size: calc(25px * var(--fs));
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+  color: var(--ink);
+  margin: 0 0 0.5em;
+  position: relative;
+}
+#preview-host h1::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 0.2em;
+  width: 4px;
+  height: 0.8em;
+  background: var(--accent);
+  border-radius: 2px;
+}
+#preview-host h2 {
+  font-family: var(--head-font);
+  font-size: calc(18.5px * var(--fs));
+  font-weight: 650;
+  color: var(--ink);
+  margin: 1.2em 0 0.5em;
+  position: relative;
+}
+#preview-host h2::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 0.2em;
+  width: 4px;
+  height: 0.8em;
+  background: var(--accent);
+  border-radius: 2px;
+}
+#preview-host h3 {
+  font-family: var(--head-font);
+  font-size: calc(15.5px * var(--fs));
+  font-weight: 650;
+  color: var(--ink);
+  margin: 1em 0 0.4em;
+}
+#preview-host h4 {
+  font-family: var(--head-font);
+  font-size: calc(14px * var(--fs));
+  font-weight: 650;
+  color: var(--ink);
+  margin: 0.8em 0 0.3em;
+}
+#preview-host h5 {
+  font-family: var(--head-font);
+  font-size: calc(12.5px * var(--fs));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sub);
+  margin: 0.8em 0 0.3em;
+}
+#preview-host h6 {
+  font-family: var(--head-font);
+  font-size: calc(12px * var(--fs));
+  font-weight: 600;
+  color: var(--faint);
+  margin: 0.6em 0 0.2em;
+}
+#preview-host p {
+  margin: 0 0 0.8em;
+  font-size: calc(14px * var(--fs));
+  line-height: 1.71;
+}
+#preview-host strong { color: var(--ink); font-weight: 700; }
+#preview-host em { font-style: italic; color: var(--sub); }
+#preview-host del { color: var(--faint); text-decoration: line-through; }
+#preview-host a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 55%, transparent);
+  text-underline-offset: 2px;
+}
+#preview-host ul, #preview-host ol {
+  padding-left: 22px;
+  margin: 0 0 0.8em;
+}
+#preview-host ul { list-style: none; }
+#preview-host ul li {
+  position: relative;
+  padding: 0;
+  line-height: 25px;
+  font-size: calc(14px * var(--fs));
+}
+#preview-host ul li::before {
+  content: "•";
+  position: absolute;
+  left: -14px;
+  color: var(--accent);
+  font-weight: 700;
+}
+#preview-host ul ul li::before {
+  content: "◦";
+  color: var(--faint);
+}
+#preview-host ol li {
+  font-size: calc(14px * var(--fs));
+  line-height: 25px;
+}
+#preview-host ol li::marker {
+  color: var(--accent);
+  font-family: var(--mono-font);
+}
+/* Task list */
+#preview-host li.task-list-item {
+  list-style: none;
+  position: relative;
+  padding-left: 22px;
+}
+#preview-host li.task-list-item::before { content: none; }
+#preview-host li.task-list-item input[type="checkbox"] {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  appearance: none;
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+  cursor: default;
+  background: transparent;
+}
+#preview-host li.task-list-item input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+#preview-host li.task-list-item input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  top: -2px; left: 1px;
+  font-size: 13px;
+  color: var(--bg);
+  font-weight: 700;
+}
+#preview-host li.task-list-item.checked {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+
+#preview-host blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+  margin: 0.8em 0;
+  color: var(--sub);
+  font-style: italic;
+}
+#preview-host code {
+  font-family: var(--mono-font);
+  font-size: 12.5px;
+  color: var(--chipFg);
+  background: var(--chipBg);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+#preview-host pre {
+  background: var(--codeCard);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 0;
+  overflow: hidden;
+  margin: 1em 0;
+  position: relative;
+}
+#preview-host pre > .code-header {
+  height: 28px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+}
+#preview-host pre > .code-header .lang-chip {
+  background: #f05138;
+  color: #fff;
+  font-family: var(--mono-font);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+#preview-host pre > .code-header .copy-label {
+  font-family: var(--ui-font);
+  font-size: 11px;
+  color: var(--faint);
+  cursor: pointer;
+}
+#preview-host pre > .code-header .copy-label:hover { color: var(--ink); }
+#preview-host pre code {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  background: transparent;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: 0;
+}
+#preview-host pre code .line-number {
+  color: var(--faint);
+  text-align: right;
+  padding-right: 10px;
+  user-select: none;
+}
+#preview-host pre code .line-content { white-space: pre; }
+
+/* highlight.js token mapping → CSS vars */
+#preview-host pre code .hljs-keyword,
+#preview-host pre code .hljs-built_in { color: var(--syn-keyword); font-weight: 500; }
+#preview-host pre code .hljs-type,
+#preview-host pre code .hljs-title.class_ { color: var(--syn-type); }
+#preview-host pre code .hljs-string,
+#preview-host pre code .hljs-attr { color: var(--syn-string); }
+#preview-host pre code .hljs-number,
+#preview-host pre code .hljs-literal { color: var(--syn-number); }
+#preview-host pre code .hljs-comment,
+#preview-host pre code .hljs-meta { color: var(--syn-comment); font-style: italic; }
+#preview-host pre code .hljs-title,
+#preview-host pre code .hljs-function .hljs-title,
+#preview-host pre code .hljs-name { color: var(--syn-function); font-weight: 600; }
+#preview-host pre code .hljs-punctuation,
+#preview-host pre code .hljs-operator { color: var(--syn-punctuation); }
+
+#preview-host table {
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1em 0;
+  width: 100%;
+}
+#preview-host thead {
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+#preview-host th, #preview-host td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+#preview-host th {
+  color: var(--ink);
+  font-weight: 600;
+}
+#preview-host td { color: var(--sub); }
+#preview-host tr:last-child td { border-bottom: none; }
+
+#preview-host hr {
+  border: none;
+  height: 1px;
+  background: var(--line);
+  margin: 1.5em 0;
+  position: relative;
+}
+#preview-host hr::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+#preview-host img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.8em 0;
+}
+
+/* === Counter pill === */
+#counter-pill {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-family: -apple-system, sans-serif;
-  font-size: 10.5px;
-  color: var(--secondary);
-  background: var(--bg);
-  border: 1px solid rgba(0, 0, 0, 0.10);
-  border-radius: 4px;
-  padding: 2px 8px;
-  cursor: pointer;
+  gap: 8px;
+  background: var(--rawBg);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 5px 14px;
+  font-family: var(--ui-font);
+  font-size: 12px;
+  color: var(--sub);
+  z-index: 20;
   user-select: none;
-  -webkit-user-select: none;
-  margin: 2px 0 4px;
-  transition: background 0.12s ease, color 0.12s ease;
 }
-.md-mermaid-toggle:hover { background: var(--code-bg); color: var(--fg); }
-.md-mermaid-render {
-  background: var(--bg);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 6px;
-  padding: 16px;
-  margin: 4px 0 8px;
-  overflow-x: auto;
-  user-select: none;
-  -webkit-user-select: none;
+#counter-pill .dots {
+  display: inline-flex; gap: 3px;
 }
-.md-mermaid-render svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
-.md-mermaid-error {
-  background: rgba(220, 50, 50, 0.06);
-  border: 1px dashed #c14b4b;
-  color: #c14b4b;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 11px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin: 4px 0;
+#counter-pill .dots .d {
+  width: 4px; height: 4px; border-radius: 50%;
 }
-/* 다이어그램 모드일 때 코드 블록 라인 숨김 */
-.cm-content .cm-line.cm-mermaid-hidden { display: none; }
+#counter-pill .dots .d:nth-child(1) { background: #6366f1; }
+#counter-pill .dots .d:nth-child(2) { background: #0ea5e9; }
+#counter-pill .dots .d:nth-child(3) { background: #f59e0b; }
+#counter-pill .dots .d:nth-child(4) { background: #ec4899; }
+#counter-pill .dots .d:nth-child(5) { background: #8b5cf6; }
+#counter-pill .count { color: var(--ink); font-weight: 600; }
+#counter-pill .typing { color: var(--accent); display: none; }
+body[data-typing="1"] #counter-pill .typing { display: inline; }
 
-/* Image widget — block decoration이 라인 다음에 widget div를 박음 */
-.md-image-wrap {
-  text-align: center;
-  padding: 6px 0;
-  user-select: none;
-  -webkit-user-select: none;
+/* === Theme popover === */
+#theme-popover {
+  position: fixed;
+  top: 50px;
+  right: 16px;
+  width: 210px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.32);
+  padding: 8px;
+  z-index: 100;
+  font-family: var(--ui-font);
+  display: none;
 }
-.md-image {
-  max-width: 70%;
-  max-height: 480px;
-  height: auto;
+#theme-popover.open { display: block; }
+#theme-popover .caption {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--faint);
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+#theme-popover .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
   border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  background: var(--code-bg);
-  cursor: default;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 13px;
 }
-.md-image-wrap.md-image-error {
-  font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  font-size: 11px;
-  text-align: left;
-  padding: 8px 12px;
-  background: rgba(220, 50, 50, 0.08);
-  color: #c14b4b;
-  border-radius: 6px;
-  border: 1px dashed #c14b4b;
+#theme-popover .row:hover { background: var(--active); }
+#theme-popover .row.active { background: var(--active); }
+#theme-popover .row .check {
+  margin-left: auto;
+  color: var(--accent);
+  display: none;
+  font-weight: 700;
 }
-.md-image-wrap.md-image-error img { display: none; }
-.md-image-wrap.md-image-error::before {
-  content: "⚠ image not found: " attr(data-failed-src);
-  word-break: break-all;
+#theme-popover .row.active .check { display: inline; }
+#theme-popover .row .mini-swatch {
+  width: 24px; height: 16px;
+  border-radius: 3px;
+  background: var(--accent);
+  flex-shrink: 0;
 }
+#theme-popover .row[data-key="paper"] .label { font-family: "Caveat", cursive; font-size: 16px; }
 </style>
 </head>
 <body>
-<!-- 우측 상단 손글씨 date stamp (JSX composition-full.jsx L310-320).
-     position fixed로 뷰포트 우상단 14/36, Caveat 18 inkLight rotate -2°,
-     날짜 줄 borderBottom 1.5px, page line(p.X) 14px. -->
-<div id="nb-date-stamp" aria-hidden="true">
-  <div class="nb-date-stamp-row"></div>
-  <div class="nb-date-stamp-page">p. 1</div>
+<div id="refract-shell" data-view-mode="split">
+  <div id="refract-header">
+    <span class="r-glyph">
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </span>
+    <span class="r-wordmark">Refract</span>
+    <span class="r-divider"></span>
+    <span class="r-filename">Untitled</span>
+    <span class="r-dirty-dot"></span>
+    <span class="r-spacer"></span>
+    <div class="r-view-toggle" id="r-view-toggle">
+      <button data-mode="source">소스</button>
+      <button data-mode="split" class="active">분할</button>
+      <button data-mode="preview">미리보기</button>
+    </div>
+    <button class="r-theme-button" id="r-theme-button">
+      <span class="swatch"></span>
+      <span class="label">Night</span>
+    </button>
+  </div>
+  <div id="refract-body">
+    <div id="source-column">
+      <div class="r-col-label">01 — Source</div>
+      <div id="editor-host"></div>
+    </div>
+    <div id="prism-seam"></div>
+    <div id="preview-column">
+      <div class="r-col-label">02 — Preview</div>
+      <div id="preview-host"></div>
+    </div>
+  </div>
 </div>
-<!-- 빈 문서 가이드 노트 (JSX composition-full.jsx L401-414).
-     body[data-doc-empty="1"]일 때만 보이는 손글씨 메모 + 손그림 화살표. -->
-<div id="nb-empty-hint" aria-hidden="true">
-  <div>※ 마크다운 그대로 쓰면 돼요</div>
-  <div># 헤딩 · - 리스트</div>
-  <div>- [ ] 할 일 · &gt; 인용</div>
-  <div>`인라인 코드` · ```블록</div>
-  <svg width="60" height="50" viewBox="0 0 60 50">
-    <path d="M5,5 Q25,15 40,30 L40,30 M30,28 L40,30 L36,20"
-          stroke="currentColor" stroke-width="1.4" fill="none"
-          stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
+<div id="counter-pill">
+  <span class="dots"><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span></span>
+  <span class="count">0</span>
+  <span>단어</span>
+  <span style="color: var(--faint)">·</span>
+  <span class="typing">작성 중…</span>
 </div>
-<div id="editor-host"></div>
+<div id="theme-popover">
+  <div class="caption">테마 — ⌘⇧L 로 순환</div>
+  <div class="row" data-key="night"><span class="mini-swatch" style="background:#8b94ff"></span><span class="label">Night</span><span class="check">✓</span></div>
+  <div class="row" data-key="day"><span class="mini-swatch" style="background:#5b5cf0"></span><span class="label">Day</span><span class="check">✓</span></div>
+  <div class="row" data-key="sepia"><span class="mini-swatch" style="background:#b5651d"></span><span class="label">Sepia</span><span class="check">✓</span></div>
+  <div class="row" data-key="forest"><span class="mini-swatch" style="background:#58c896"></span><span class="label">Forest</span><span class="check">✓</span></div>
+  <div class="row" data-key="paper"><span class="mini-swatch" style="background:#d2543e"></span><span class="label">손글씨</span><span class="check">✓</span></div>
+</div>
 
 <script src="cm.bundle.js"></script>
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/highlight.min.js"></script>
 <script src="vendor/mermaid.min.js"></script>
 <script>
   try {
     if (window.mermaid && typeof window.mermaid.initialize === "function") {
       window.mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "default" });
-      window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid loaded version=" + (window.mermaid.version || "?"));
-    } else {
-      window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid global NOT FOUND");
     }
   } catch (e) {
     window.webkit?.messageHandlers?.consoleLog?.postMessage("[init] mermaid init error: " + e.message);
   }
 </script>
 <script>
-  const __view = CM.bootEditor(document.getElementById("editor-host"));
-  // 우상단 date stamp — 오늘 날짜를 JSX 포맷("Wed · 14 May")으로 채움.
-  (() => {
-    const row = document.querySelector("#nb-date-stamp .nb-date-stamp-row");
-    if (!row) return;
-    const d = new Date();
-    const wk = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d);
-    const mo = new Intl.DateTimeFormat("en-US", { month: "short" }).format(d);
-    row.textContent = `${wk} · ${d.getDate()} ${mo}`;
-  })();
-  // 빈 문서 가이드 토글 — doc 길이를 polling으로 확인(가벼움, 1줄짜리 setInterval).
-  // editorView 내부 state 변화 hook 없이 외부에서 보기 위한 fallback.
-  (() => {
-    let last = null;
-    const tick = () => {
-      const empty = __view.state.doc.length === 0;
-      const flag = empty ? "1" : "";
-      if (flag !== last) {
-        document.body.dataset.docEmpty = flag;
-        last = flag;
-      }
-    };
-    tick();
-    setInterval(tick, 250);
-  })();
+  CM.bootEditor(document.getElementById("editor-host"));
 </script>
 </body>
 </html>

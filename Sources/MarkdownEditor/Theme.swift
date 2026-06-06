@@ -1,152 +1,303 @@
 import SwiftUI
 import AppKit
 
+/// Refract 5 테마 — Night(기본 다크) / Day(밝음) / Sepia(따뜻한 종이) /
+/// Forest(녹색 다크) / Paper(손글씨, light).
+/// spec: design_handoff_refract README §Design tokens.
 enum Theme: String, CaseIterable, Identifiable {
-    case light, dark, sepia, paper
+    case night, day, sepia, forest, paper
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .light: return "Light"
-        case .dark:  return "Dark"
-        case .sepia: return "Sepia"
-        case .paper: return "Paper"
+        case .night:  return "Night"
+        case .day:    return "Day"
+        case .sepia:  return "Sepia"
+        case .forest: return "Forest"
+        case .paper:  return "손글씨"
         }
     }
 
+    var isDark: Bool {
+        switch self {
+        case .night, .forest: return true
+        case .day, .sepia, .paper: return false
+        }
+    }
+
+    /// SwiftUI ColorScheme — 사이드바 컨트롤이 자연스럽게 그려지도록.
+    var colorScheme: ColorScheme { isDark ? .dark : .light }
+
+    /// ⌘⇧1–5 (cycle order).
     var shortcut: KeyEquivalent {
         switch self {
-        case .light: return "1"
-        case .dark:  return "2"
-        case .sepia: return "3"
-        case .paper: return "4"
+        case .night:  return "1"
+        case .day:    return "2"
+        case .sepia:  return "3"
+        case .forest: return "4"
+        case .paper:  return "5"
         }
     }
 
-    // MARK: - NSColor (에디터/룰러용)
+    // MARK: - Tokens (single source of truth)
 
-    // PAL_LIGHT: #fdfbf5 paper, #1a2a4a ink, #c8442a accent (README §Design tokens).
-    // PAL_NIGHT: #1b2233 paper, #f0e8d3 ink, #e8826b accent.
-    var editorBackgroundNS: NSColor {
+    var tokens: ThemeTokens {
         switch self {
-        case .light: return NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed:  27.0/255, green:  34.0/255, blue:  51.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.97, green: 0.94, blue: 0.89, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.98, green: 0.98, blue: 0.97, alpha: 1)
+        case .night:  return Theme.nightTokens
+        case .day:    return Theme.dayTokens
+        case .sepia:  return Theme.sepiaTokens
+        case .forest: return Theme.forestTokens
+        case .paper:  return Theme.paperTokens
         }
     }
 
-    var foregroundNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed:  26.0/255, green:  42.0/255, blue:  74.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 240.0/255, green: 232.0/255, blue: 211.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.23, green: 0.18, blue: 0.14, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.14, green: 0.16, blue: 0.18, alpha: 1)
-        }
+    /// JS 브릿지로 보낼 CSS var dict — NSColor를 hex/rgba 문자열로 직렬화.
+    var cssVars: [String: String] {
+        let t = tokens
+        var v: [String: String] = [
+            "bg":         t.bg.cssString,
+            "rawBg":      t.rawBg.cssString,
+            "renBg":      t.renBg.cssString,
+            "ink":        t.ink.cssString,
+            "sub":        t.sub.cssString,
+            "faint":      t.faint.cssString,
+            "line":       t.line.cssString,
+            "accent":     t.accent.cssString,
+            "accentDim":  t.accentDim.cssString,
+            "active":     t.active.cssString,
+            "chipBg":     t.chipBg.cssString,
+            "chipFg":     t.chipFg.cssString,
+            "link":       t.link.cssString,
+            "codeCard":   t.codeCard.cssString,
+            "syn-keyword":     t.synKeyword.cssString,
+            "syn-type":        t.synType.cssString,
+            "syn-function":    t.synFunction.cssString,
+            "syn-string":      t.synString.cssString,
+            "syn-number":      t.synNumber.cssString,
+            "syn-comment":     t.synComment.cssString,
+            "syn-default":     t.synDefault.cssString,
+            "syn-punctuation": t.synPunctuation.cssString,
+            "fs":         "\(t.fs)",
+        ]
+        if let f = t.bodyFont { v["body-font"] = f } else { v["body-font"] = "system-ui" }
+        if let f = t.headFont { v["head-font"] = f } else { v["head-font"] = "system-ui" }
+        if let r = t.rule { v["rule"] = r.cssString } else { v["rule"] = "transparent" }
+        return v
     }
 
-    /// 마크다운 마커(`#`, `**`, `[]()` 등) — 강하게 흐리게. inkFaint 톤.
-    var markerNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed: 160.0/255, green: 174.0/255, blue: 189.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 107.0/255, green:  94.0/255, blue:  68.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.62, green: 0.55, blue: 0.45, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.70, green: 0.71, blue: 0.74, alpha: 1)
-        }
+    // MARK: - Chrome colors (사이드바/윈도우 — 자주 쓰이는 것만 직접 노출)
+
+    var windowBg: NSColor   { tokens.bg }
+    var sidebarBg: NSColor  { tokens.rawBg }
+    var ink: NSColor        { tokens.ink }
+    var sub: NSColor        { tokens.sub }
+    var accent: NSColor     { tokens.accent }
+    var line: NSColor       { tokens.line }
+    var active: NSColor     { tokens.active }
+
+    var windowBgColor: Color  { Color(nsColor: windowBg) }
+    var sidebarBgColor: Color { Color(nsColor: sidebarBg) }
+    var inkColor: Color       { Color(nsColor: ink) }
+    var subColor: Color       { Color(nsColor: sub) }
+    var accentColor: Color    { Color(nsColor: accent) }
+    var lineColor: Color      { Color(nsColor: line) }
+    var activeColor: Color    { Color(nsColor: active) }
+
+    // MARK: - Static token tables
+
+    // 모든 hex 값은 spec README L130–184 그대로.
+
+    private static let nightTokens = ThemeTokens(
+        bg:           rgb(0x0d, 0x0e, 0x16),
+        rawBg:        rgb(0x0c, 0x0d, 0x14),
+        renBg:        rgb(0x10, 0x12, 0x1e),
+        ink:          rgb(0xe7, 0xe9, 0xf6),
+        sub:          rgb(0x9a, 0xa0, 0xbd),
+        faint:        rgb(0x56, 0x5d, 0x7e),
+        line:         rgba(255, 255, 255, 0.06),
+        accent:       rgb(0x8b, 0x94, 0xff),
+        accentDim:    rgba(139, 148, 255, 0.55),
+        active:       rgba(139, 148, 255, 0.07),
+        chipBg:       rgba(158, 206, 106, 0.12),
+        chipFg:       rgb(0x9e, 0xce, 0x6a),
+        link:         rgb(0x82, 0xaa, 0xff),
+        codeCard:     rgba(0x15, 0x17, 0x24, 0.50),
+        synKeyword:     rgb(0xbb, 0x9a, 0xf7),
+        synType:        rgb(0x2a, 0xc3, 0xde),
+        synFunction:    rgb(0x82, 0xaa, 0xff),
+        synString:      rgb(0x9e, 0xce, 0x6a),
+        synNumber:      rgb(0xff, 0x9e, 0x64),
+        synComment:     rgb(0x56, 0x5f, 0x89),
+        synDefault:     rgb(0xc7, 0xcd, 0xf0),
+        synPunctuation: rgb(0x7f, 0x86, 0xa8),
+        bodyFont: nil, headFont: nil, fs: 1.0, rule: nil
+    )
+
+    private static let dayTokens = ThemeTokens(
+        bg:           rgb(0xff, 0xff, 0xff),
+        rawBg:        rgb(0xfb, 0xfb, 0xfe),
+        renBg:        rgb(0xff, 0xff, 0xff),
+        ink:          rgb(0x1b, 0x1d, 0x2a),
+        sub:          rgb(0x56, 0x5b, 0x73),
+        faint:        rgb(0xa4, 0xa9, 0xbd),
+        line:         rgba(20, 22, 40, 0.09),
+        accent:       rgb(0x5b, 0x5c, 0xf0),
+        accentDim:    rgba(91, 92, 240, 0.50),
+        active:       rgba(91, 92, 240, 0.05),
+        chipBg:       rgb(0xee, 0xf6, 0xee),
+        chipFg:       rgb(0x2f, 0x9e, 0x44),
+        link:         rgb(0x5b, 0x5c, 0xf0),
+        codeCard:     rgb(0xf7, 0xf7, 0xfc),
+        synKeyword:     rgb(0xd6, 0x33, 0x6c),
+        synType:        rgb(0x0c, 0x85, 0x99),
+        synFunction:    rgb(0x67, 0x41, 0xd9),
+        synString:      rgb(0x2f, 0x9e, 0x44),
+        synNumber:      rgb(0xe8, 0x59, 0x0c),
+        synComment:     rgb(0xa4, 0xa9, 0xbd),
+        synDefault:     rgb(0x3a, 0x3f, 0x55),
+        synPunctuation: rgb(0x7a, 0x80, 0x96),
+        bodyFont: nil, headFont: nil, fs: 1.0, rule: nil
+    )
+
+    private static let sepiaTokens = ThemeTokens(
+        bg:           rgb(0xf4, 0xec, 0xd8),
+        rawBg:        rgb(0xef, 0xe6, 0xcf),
+        renBg:        rgb(0xf7, 0xef, 0xdc),
+        ink:          rgb(0x3b, 0x2f, 0x1e),
+        sub:          rgb(0x6b, 0x5a, 0x40),
+        faint:        rgb(0xa8, 0x99, 0x7c),
+        line:         rgba(80, 60, 30, 0.14),
+        accent:       rgb(0xb5, 0x65, 0x1d),
+        accentDim:    rgba(181, 101, 29, 0.50),
+        active:       rgba(181, 101, 29, 0.06),
+        chipBg:       rgb(0xe8, 0xda, 0xbb),
+        chipFg:       rgb(0x8a, 0x5a, 0x2b),
+        link:         rgb(0x9a, 0x5b, 0x2a),
+        codeCard:     rgb(0xef, 0xe4, 0xca),
+        synKeyword:     rgb(0xa8, 0x32, 0x32),
+        synType:        rgb(0x3f, 0x7a, 0x5f),
+        synFunction:    rgb(0x8a, 0x5a, 0x2b),
+        synString:      rgb(0x5b, 0x8a, 0x3a),
+        synNumber:      rgb(0xc2, 0x70, 0x1c),
+        synComment:     rgb(0xb0, 0xa1, 0x84),
+        synDefault:     rgb(0x4a, 0x3c, 0x28),
+        synPunctuation: rgb(0x8a, 0x7a, 0x5c),
+        bodyFont: nil, headFont: nil, fs: 1.0, rule: nil
+    )
+
+    private static let forestTokens = ThemeTokens(
+        bg:           rgb(0x0e, 0x17, 0x14),
+        rawBg:        rgb(0x0c, 0x15, 0x12),
+        renBg:        rgb(0x10, 0x1e, 0x19),
+        ink:          rgb(0xd8, 0xe9, 0xdf),
+        sub:          rgb(0x8f, 0xae, 0x9f),
+        faint:        rgb(0x54, 0x70, 0x5f),
+        line:         rgba(255, 255, 255, 0.06),
+        accent:       rgb(0x58, 0xc8, 0x96),
+        accentDim:    rgba(88, 200, 150, 0.50),
+        active:       rgba(88, 200, 150, 0.07),
+        chipBg:       rgba(229, 192, 123, 0.12),
+        chipFg:       rgb(0xe5, 0xc0, 0x7b),
+        link:         rgb(0x6f, 0xd0, 0xa0),
+        codeCard:     rgb(0x0f, 0x1c, 0x17),
+        synKeyword:     rgb(0xe3, 0x94, 0xdd),
+        synType:        rgb(0x5c, 0xcf, 0xe6),
+        synFunction:    rgb(0x7e, 0xe0, 0xb8),
+        synString:      rgb(0xc3, 0xe8, 0x8d),
+        synNumber:      rgb(0xff, 0xcb, 0x6b),
+        synComment:     rgb(0x4a, 0x6a, 0x59),
+        synDefault:     rgb(0xcf, 0xe6, 0xda),
+        synPunctuation: rgb(0x6f, 0x8a, 0x7c),
+        bodyFont: nil, headFont: nil, fs: 1.0, rule: nil
+    )
+
+    /// 손글씨 — PREVIEW만 Kalam(body)/Caveat(heading)으로 바뀌고 paper ruling 추가.
+    /// SOURCE는 어떤 테마든 mono 유지.
+    private static let paperTokens = ThemeTokens(
+        bg:           rgb(0xfb, 0xf7, 0xec),
+        rawBg:        rgb(0xf2, 0xea, 0xd7),
+        renBg:        rgb(0xfd, 0xfa, 0xf0),
+        ink:          rgb(0x2b, 0x3a, 0x55),
+        sub:          rgb(0x56, 0x65, 0x83),
+        faint:        rgb(0xa6, 0xab, 0xbc),
+        line:         rgba(43, 58, 85, 0.13),
+        accent:       rgb(0xd2, 0x54, 0x3e),
+        accentDim:    rgba(210, 84, 62, 0.50),
+        active:       rgba(210, 84, 62, 0.06),
+        chipBg:       rgb(0xef, 0xe6, 0xd2),
+        chipFg:       rgb(0xb5, 0x70, 0x1a),
+        link:         rgb(0x2f, 0x6f, 0xb0),
+        codeCard:     rgb(0xf2, 0xea, 0xd7),
+        synKeyword:     rgb(0xc0, 0x39, 0x2b),
+        synType:        rgb(0x2f, 0x7a, 0x4f),
+        synFunction:    rgb(0x2f, 0x6f, 0xb0),
+        synString:      rgb(0xb5, 0x70, 0x1a),
+        synNumber:      rgb(0x2a, 0x6a, 0x8a),
+        synComment:     rgb(0x9a, 0x8c, 0x6a),
+        synDefault:     rgb(0x3a, 0x3f, 0x55),
+        synPunctuation: rgb(0x7a, 0x80, 0x96),
+        bodyFont: "\"Kalam\", \"Comic Sans MS\", sans-serif",
+        headFont: "\"Caveat\", \"Kalam\", cursive",
+        fs:   1.22,
+        rule: rgba(43, 58, 85, 0.10)
+    )
+
+    // MARK: - Color helpers
+
+    private static func rgb(_ r: Int, _ g: Int, _ b: Int) -> NSColor {
+        NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
     }
-
-    /// 보조 텍스트 (인용문 본문 등). inkLight 톤.
-    var secondaryNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed:  90.0/255, green: 106.0/255, blue: 133.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 168.0/255, green: 152.0/255, blue: 120.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.45, green: 0.38, blue: 0.30, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.42, green: 0.44, blue: 0.46, alpha: 1)
-        }
+    private static func rgba(_ r: Int, _ g: Int, _ b: Int, _ a: CGFloat) -> NSColor {
+        NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: a)
     }
-
-    var codeBackgroundNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed: 255.0/255, green: 250.0/255, blue: 239.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.04)
-        case .sepia: return NSColor(srgbRed: 0.93, green: 0.89, blue: 0.81, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.94, green: 0.94, blue: 0.93, alpha: 1)
-        }
-    }
-
-    var codeForegroundNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed: 200.0/255, green:  68.0/255, blue:  42.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 232.0/255, green: 130.0/255, blue: 107.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.55, green: 0.20, blue: 0.10, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.62, green: 0.18, blue: 0.36, alpha: 1)
-        }
-    }
-
-    var linkNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed: 200.0/255, green:  68.0/255, blue:  42.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 232.0/255, green: 130.0/255, blue: 107.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.55, green: 0.29, blue: 0.10, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.04, green: 0.41, blue: 0.85, alpha: 1)
-        }
-    }
-
-    var listMarkerNS: NSColor {
-        switch self {
-        case .light: return NSColor(srgbRed: 200.0/255, green:  68.0/255, blue:  42.0/255, alpha: 1)
-        case .dark:  return NSColor(srgbRed: 232.0/255, green: 130.0/255, blue: 107.0/255, alpha: 1)
-        case .sepia: return NSColor(srgbRed: 0.45, green: 0.55, blue: 0.30, alpha: 1)
-        case .paper: return NSColor(srgbRed: 0.30, green: 0.60, blue: 0.55, alpha: 1)
-        }
-    }
-
-    var rulerBackgroundNS: NSColor {
-        editorBackgroundNS.blended(withFraction: 0.04, of: foregroundNS) ?? editorBackgroundNS
-    }
-
-    var rulerLabelNS: NSColor {
-        markerNS.withAlphaComponent(0.85)
-    }
-
-    var separatorNS: NSColor {
-        switch self {
-        case .light: return NSColor(white: 0, alpha: 0.08)
-        case .dark:  return NSColor(white: 1, alpha: 0.08)
-        case .sepia: return NSColor(srgbRed: 0.65, green: 0.55, blue: 0.40, alpha: 0.18)
-        case .paper: return NSColor(white: 0, alpha: 0.07)
-        }
-    }
-
-    // MARK: - SwiftUI Color (사이드바 등)
-
-    var editorBackground: Color { Color(nsColor: editorBackgroundNS) }
-    var sidebarBackground: Color { Color(nsColor: editorBackgroundNS.blended(withFraction: 0.025, of: foregroundNS) ?? editorBackgroundNS) }
-    /// 흰배경에서도 시각적으로 뚜렷한 사이드바 배경
-    var sidebarBackgroundStrong: Color {
-        switch self {
-        case .light: return Color(red: 0.95, green: 0.95, blue: 0.97)
-        // README §Dark — sidebarBg #161c2b (paper보다 약간 더 어둡게).
-        case .dark:  return Color(red: 22/255, green: 28/255, blue: 43/255)
-        case .sepia: return Color(red: 0.93, green: 0.89, blue: 0.81)
-        case .paper: return Color(red: 0.95, green: 0.95, blue: 0.94)
-        }
-    }
-    var sidebarForeground: Color { Color(nsColor: foregroundNS) }
-    var sidebarSecondary: Color { Color(nsColor: secondaryNS) }
-    var accent: Color { Color(nsColor: linkNS) }
-
-    /// SwiftUI ColorScheme 힌트 (사이드바 컨트롤이 자연스럽게 보이도록)
-    var colorScheme: ColorScheme { self == .dark ? .dark : .light }
 }
 
-// MARK: - Notebook Light palette tokens (chrome reskin)
+/// 한 테마의 모든 토큰을 들고 있는 값타입.
+/// Web/Native 양쪽에서 단일 source of truth.
+struct ThemeTokens {
+    let bg: NSColor
+    let rawBg: NSColor
+    let renBg: NSColor
+    let ink: NSColor
+    let sub: NSColor
+    let faint: NSColor
+    let line: NSColor
+    let accent: NSColor
+    let accentDim: NSColor
+    let active: NSColor
+    let chipBg: NSColor
+    let chipFg: NSColor
+    let link: NSColor
+    let codeCard: NSColor
+    let synKeyword: NSColor
+    let synType: NSColor
+    let synFunction: NSColor
+    let synString: NSColor
+    let synNumber: NSColor
+    let synComment: NSColor
+    let synDefault: NSColor
+    let synPunctuation: NSColor
+    /// PREVIEW body font(손글씨 테마만 비 nil). nil이면 system-ui.
+    let bodyFont: String?
+    /// PREVIEW heading font.
+    let headFont: String?
+    /// PREVIEW size multiplier(spec: 손글씨 1.22, 그 외 1.0).
+    let fs: Double
+    /// Paper ruling color(손글씨만 non-nil).
+    let rule: NSColor?
+}
 
-extension Color {
-    static let nbPaper = Color(red: 253/255, green: 251/255, blue: 245/255)
-    static let nbInk = Color(red: 26/255, green: 42/255, blue: 74/255)
-    static let nbInkLight = Color(red: 90/255, green: 106/255, blue: 133/255)
-    static let nbAccent = Color(red: 200/255, green: 68/255, blue: 42/255)
-    static let nbCurrent = Color(red: 200/255, green: 68/255, blue: 42/255, opacity: 0.10)
+/// NSColor → CSS 직렬화. Alpha < 1이면 rgba(), 아니면 #rrggbb.
+extension NSColor {
+    var cssString: String {
+        guard let c = usingColorSpace(.sRGB) else { return "#000" }
+        let r = Int((c.redComponent * 255).rounded())
+        let g = Int((c.greenComponent * 255).rounded())
+        let b = Int((c.blueComponent * 255).rounded())
+        if c.alphaComponent < 0.999 {
+            return String(format: "rgba(%d,%d,%d,%.3f)", r, g, b, c.alphaComponent)
+        }
+        return String(format: "#%02x%02x%02x", r, g, b)
+    }
 }

@@ -8,7 +8,7 @@ final class AppState: ObservableObject {
     @Published var fileTree: [FileNode] = []
     @Published var selectedFile: URL?
     @Published var documentText: String = ""
-    @Published var theme: Theme = .light
+    @Published var theme: Theme = .night
     @Published var editorFont: EditorFont = .kalam
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"

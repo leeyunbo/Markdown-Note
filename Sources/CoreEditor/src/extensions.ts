@@ -5,6 +5,7 @@ import {
   EditorView,
   highlightActiveLine,
   keymap,
+  lineNumbers,
 } from '@codemirror/view';
 import {
   bracketMatching,
@@ -24,23 +25,9 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 
 import { baseTheme } from './styling/base-theme';
-import { notebookPaper } from './styling/notebook-paper';
 import { mdHighlight } from './styling/highlight';
-// lineKindGutter는 사용자 요청으로 비활성 — Composition Notebook 디자인에서 좌측에
-// h1/h2/¶/│ 같은 마커가 보이면 안 됨. 코드는 유지(plugins/line-kind-gutter.ts).
-import { statusBarPanel } from './plugins/status-bar';
-import { imageField } from './nodes/image';
 import { docFolderField } from './plugins/doc-folder';
 import { mermaidActiveField, mermaidDecoField } from './nodes/mermaid';
-import { listMarkMatcher } from './nodes/list-mark';
-import { inlineCodeMatcher } from './nodes/inline-code';
-import { indentedResetMatchers } from './nodes/indented-reset';
-import { codeBlockMatcher } from './nodes/code-block';
-import { headingSquiggleMatchers } from './nodes/heading-squiggle';
-import { matcherViewPlugin } from './utils/matchers/view-plugin';
-import { tableLinePlugin } from './nodes/table';
-import { taskLinePlugin } from './plugins/task-line';
-import { hideMarkersPlugin } from './plugins/hide-markers';
 import { imeListContinueFilter } from './commands/ime-list-continue';
 import { wrapSelection } from './commands/wrap-selection';
 import { insertLinkCmd } from './commands/insert-link';
@@ -53,11 +40,17 @@ export interface EditorUpdateHooks {
   shouldNotify(): boolean;
 }
 
+/** Refract SOURCE editor extensions.
+ *  마커는 dim 색으로 보이되 그대로 두고, 손그림 SVG / hide-markers /
+ *  HandBox 같은 시각 트릭은 모두 제외 — 평범한 markdown source editor.
+ *  표시 트릭 없이 token 색만 syntax-highlighting으로 입힌다(highlight.ts 토큰을
+ *  Refract --syn-* CSS var와 매핑). PREVIEW는 marked.js로 별도 렌더. */
 export function makeExtensions(hooks: EditorUpdateHooks) {
   return [
     history(),
     drawSelection(),
     dropCursor(),
+    lineNumbers(),
     EditorState.allowMultipleSelections.of(true),
     bracketMatching(),
     indentOnInput(),
@@ -74,23 +67,10 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       autocapitalize: 'off',
     }),
     highlightActiveLine(),
-    statusBarPanel,
     docFolderField,
-    imageField,
     mermaidActiveField,
     mermaidDecoField,
-    matcherViewPlugin([
-      listMarkMatcher,
-      inlineCodeMatcher,
-      ...indentedResetMatchers,
-      codeBlockMatcher,
-      ...headingSquiggleMatchers,
-    ]),
-    tableLinePlugin,
-    taskLinePlugin,
-    hideMarkersPlugin,
     themeCompartment.of(baseTheme),
-    notebookPaper,
     imeListContinueFilter,
     keymap.of([
       { key: 'Mod-b', run: wrapSelection('**', '**') },
@@ -102,7 +82,9 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       ...searchKeymap,
     ]),
     EditorView.updateListener.of((update) => {
-      if (update.docChanged && hooks.shouldNotify()) {
+      // onTextChanged는 docChanged 시 항상 호출 → hook 안에서 shouldNotify 검사해
+      // postTextChanged(Swift)는 외부 입력일 땐 skip하되, preview/counter는 갱신.
+      if (update.docChanged) {
         hooks.onTextChanged(update.state.doc.toString());
       }
       if (update.selectionSet || update.docChanged) {

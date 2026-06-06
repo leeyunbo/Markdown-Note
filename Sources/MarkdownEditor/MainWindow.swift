@@ -31,13 +31,11 @@ private final class TonedSplitView: NSSplitView {
 }
 
 @MainActor
-final class MainWindowController: NSWindowController, NSToolbarDelegate {
+final class MainWindowController: NSWindowController {
     let state: AppState
     private var splitVC: NSSplitViewController!
     private var sidebarItem: NSSplitViewItem!
     private var cancellables: Set<AnyCancellable> = []
-
-    private weak var titlebarSeparator: NSView?
 
     // 발표 모드: borderless 윈도우를 메뉴바 위 level로 띄운다 (가짜 풀스크린).
     // NSWindow.toggleFullScreen은 우리 split + WKWebView 환경에서 안정적이지 않아 회피.
@@ -55,7 +53,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.title = "Markdown Note"
         window.minSize = NSSize(width: 720, height: 480)
         window.isOpaque = true
-        window.backgroundColor = NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1)
+        window.backgroundColor = state.theme.windowBg
         window.appearance = NSAppearance(named: .aqua)
         // autosave name은 default content rect를 적용한 직후, 화면에 표시되기 전에 set.
         // 그래야 saved frame이 default를 덮어쓰고 화면 표시는 saved frame 그대로 나온다.
@@ -78,14 +76,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     private func setup() {
         guard let window else { return }
 
-        // Sidebar = SwiftUI(NSHostingController)
-        // NSToolbar의 sidebarTrackingSeparator가 작동하려면 sidebarWithViewController 필요.
-        // 자동 vibrant blur는 setup 끝에 view tree에서 vfx removeFromSuperview로 제거.
-        let sidebarBg = Color(red: 245.0/255, green: 245.0/255, blue: 247.0/255)
+        // Sidebar = SwiftUI(NSHostingController). 배경은 FolderSidebar 내부에서
+        // theme.sidebarBgColor로 칠한다 → 테마 변경 시 자동 갱신.
         let sidebarHost = NSHostingController(
             rootView: FolderSidebar()
                 .environmentObject(state)
-                .background(sidebarBg)
         )
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
         sidebarItem.minimumThickness = 200
@@ -108,46 +103,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         // 인스턴스 클래스를 런타임에 swap (KVO와 동일한 메커니즘)
         object_setClass(splitVC.splitView, TonedSplitView.self)
 
-        let container = NSView()
-        let spine = SpineView()
-        spine.translatesAutoresizingMaskIntoConstraints = false
-        let splitView = splitVC.view
-        splitView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(spine)
-        container.addSubview(splitView)
-        NSLayoutConstraint.activate([
-            spine.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            spine.topAnchor.constraint(equalTo: container.topAnchor),
-            spine.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            spine.widthAnchor.constraint(equalToConstant: 52),
-            splitView.leadingAnchor.constraint(equalTo: spine.trailingAnchor),
-            splitView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            splitView.topAnchor.constraint(equalTo: container.topAnchor),
-            splitView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ])
-        // titlebar 영역 드래그는 installTitlebarBackground이 titlebar 레이어에 깔아주는
-        // DraggableTitlebarOverlay(mouseDownCanMoveWindow=true)가 처리한다 —
-        // titlebar 레이어가 contentView보다 위에 있어 contentView에 깐 오버레이는
-        // hit-test가 닿지 못한다.
-        // splitVC를 child VC로 유지해 lifecycle/responder chain 보존
-        let rootVC = NSViewController()
-        rootVC.view = container
-        rootVC.addChild(splitVC)
-        window.contentViewController = rootVC
+        // Refract = 스파인/툴바 모두 제거. splitView 자체가 content. 헤더는 WebView 내부.
+        window.contentViewController = splitVC
 
         // 이미지 미리보기는 EditorViewController 안에서 자체 처리한다 (에디터 영역만 차지).
-
-        // Toolbar — autosavesConfiguration로 사용자 customization 보존
-        // identifier bump — 디자인 spec(title + auto-saved만)에 맞춰 default 변경되면서
-        // 사용자가 이전 customization으로 가진 sidebar/new/search 아이콘이 부활하지 않게.
-        let toolbar = NSToolbar(identifier: "MainToolbarV2")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = true
-        toolbar.autosavesConfiguration = true
-        toolbar.showsBaselineSeparator = false
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
 
         // 파일명 → window title (toolbar의 title view는 SwiftUI가 직접 binding)
         state.$selectedFile
@@ -166,18 +125,19 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             }
             .store(in: &cancellables)
 
-        // titlebar/toolbar + sidebar 영역의 시스템 vibrant blur 제거
+        // 시스템 vibrant blur 제거 + 테마 색으로 titlebar/sidebar 칠하기.
         DispatchQueue.main.async { [weak self] in
             self?.killTitlebarVibrancy()
             self?.killSidebarVibrancy()
-            self?.installTitlebarSeparator()
         }
 
-        // sidebar resize/collapse 시 separator X 좌표 갱신
-        NotificationCenter.default.publisher(for: NSSplitView.didResizeSubviewsNotification, object: splitVC.splitView)
+        // 테마 변경 시 chrome 색 갱신.
+        state.$theme
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.updateTitlebarSeparatorFrame()
+                self?.window?.backgroundColor = self?.state.theme.windowBg ?? .windowBackgroundColor
+                self?.refreshTitlebarBg()
+                self?.refreshSidebarBg()
             }
             .store(in: &cancellables)
 
@@ -268,39 +228,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         }
     }
 
-    /// sidebar boundary 위치(toolbar 영역) 에 1px vertical line을 직접 박는다.
-    /// titlebarSeparatorStyle = .line은 우리가 vfx 제거하면서 같이 사라지므로 사용 X.
-    private func installTitlebarSeparator() {
-        guard let window else { return }
-        guard let themeFrame = window.contentView?.superview else { return }
-        var titlebar: NSView?
-        outer: for sv in themeFrame.subviews {
-            if String(describing: type(of: sv)).contains("NSTitlebarContainer") {
-                for ssv in sv.subviews where String(describing: type(of: ssv)).contains("NSTitlebarView") {
-                    titlebar = ssv
-                    break outer
-                }
-            }
-        }
-        guard let tb = titlebar else { return }
-        // 사이드바 경계 세로선은 사용자 요청으로 비활성 — toolbar 영역에 시각적으로 잡음.
-        // horizontal: toolbar 아래 경계 — 디자인 spec(JSX Toolbar) "1px dashed separator".
-        let hline = DashedLineView(frame: NSRect(x: 0, y: 0, width: tb.bounds.width, height: 1))
-        hline.autoresizingMask = .width
-        hline.identifier = NSUserInterfaceItemIdentifier("md-titlebar-hsep")
-        tb.addSubview(hline)
-    }
-
-    private func updateTitlebarSeparatorFrame() {
-        // 사이드바 경계 세로선 제거됨 — 이 함수는 sidebar resize subscriber에서만 호출.
-    }
-
-    /// sidebarWithViewController는 NSVisualEffectView가 sidebar host를 wrap하므로
-    /// remove하면 자식까지 함께 사라진다. material/state만 바꿔 vibrant 효과를 죽이고,
-    /// SwiftUI background(#f5f5f7) + layer backgroundColor로 위를 덮어 단색 사이드바.
+    /// 사이드바 vfx 무효화 + 테마 색으로 칠하기.
     private func killSidebarVibrancy() {
         guard let sidebarView = sidebarItem?.viewController.view else { return }
-        let solidColor = NSColor(srgbRed: 245.0/255, green: 245.0/255, blue: 247.0/255, alpha: 1)
         var node: NSView? = sidebarView.superview
         while let n = node {
             for sub in n.subviews {
@@ -309,16 +239,29 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
                     vfx.state = .inactive
                     vfx.blendingMode = .withinWindow
                     vfx.isEmphasized = false
-                    vfx.wantsLayer = true
-                    vfx.layer?.backgroundColor = solidColor.cgColor
                 }
             }
             if String(describing: type(of: n)).contains("NSSplitView") { break }
             node = n.superview
         }
-        // SwiftUI hosting view 자체에도 layer 색을 박아 vibrant이 비치는 일을 차단
         sidebarView.wantsLayer = true
-        sidebarView.layer?.backgroundColor = solidColor.cgColor
+        refreshSidebarBg()
+    }
+
+    private func refreshSidebarBg() {
+        let cg = state.theme.sidebarBg.cgColor
+        guard let sidebarView = sidebarItem?.viewController.view else { return }
+        var node: NSView? = sidebarView.superview
+        while let n = node {
+            for sub in n.subviews {
+                if let vfx = sub as? NSVisualEffectView {
+                    vfx.layer?.backgroundColor = cg
+                }
+            }
+            if String(describing: type(of: n)).contains("NSSplitView") { break }
+            node = n.superview
+        }
+        sidebarView.layer?.backgroundColor = cg
     }
 
     private static let titlebarBgIdentifier = NSUserInterfaceItemIdentifier("md-titlebar-bg")
@@ -327,15 +270,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         for sv in themeFrame.subviews {
             let cls = String(describing: type(of: sv))
             guard cls.contains("NSTitlebarContainer") else { continue }
-            // 이미 깔려있으면 skip (재진입 안전)
             if sv.subviews.contains(where: { $0.identifier == Self.titlebarBgIdentifier }) {
                 return
             }
             let bg = DraggableTitlebarOverlay(frame: sv.bounds)
             bg.identifier = Self.titlebarBgIdentifier
             bg.wantsLayer = true
-            // paper #fdfbf5 — 노트북 종이가 titlebar 뒤까지 연속
-            bg.layer?.backgroundColor = NSColor(srgbRed: 253.0/255, green: 251.0/255, blue: 245.0/255, alpha: 1).cgColor
+            bg.layer?.backgroundColor = state.theme.windowBg.cgColor
             bg.autoresizingMask = [.width, .height]
             if let first = sv.subviews.first {
                 sv.addSubview(bg, positioned: .below, relativeTo: first)
@@ -343,6 +284,17 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
                 sv.addSubview(bg)
             }
             return
+        }
+    }
+
+    private func refreshTitlebarBg() {
+        guard let themeFrame = window?.contentView?.superview else { return }
+        for sv in themeFrame.subviews {
+            let cls = String(describing: type(of: sv))
+            guard cls.contains("NSTitlebarContainer") else { continue }
+            for child in sv.subviews where child.identifier == Self.titlebarBgIdentifier {
+                child.layer?.backgroundColor = state.theme.windowBg.cgColor
+            }
         }
     }
 
@@ -355,155 +307,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     @objc func openFolder() { state.pickFolder() }
     @objc func newFile() { state.newFile() }
     @objc func saveFile() { state.saveCurrent() }
-
-    // native 탭은 비활성화됨(tabbingMode = .disallowed). ⌘T는 File 메뉴의 "New Window"
-    // 항목이 직접 처리하므로 newWindowForTab override는 제거했다.
-
-    // MARK: - NSToolbarDelegate
-
-    private enum ItemID {
-        static let sidebar = NSToolbarItem.Identifier("sidebar")
-        static let openFolder = NSToolbarItem.Identifier("openFolder")
-        static let title = NSToolbarItem.Identifier("title")
-        static let newFile = NSToolbarItem.Identifier("newFile")
-        static let search = NSToolbarItem.Identifier("search")
-        static let theme = NSToolbarItem.Identifier("theme")
-        static let leftSeparator = NSToolbarItem.Identifier("leftSeparator")
-    }
-
-    func toolbar(_ toolbar: NSToolbar,
-                 itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        switch itemIdentifier {
-        case ItemID.sidebar:
-            return designButtonItem(id: itemIdentifier,
-                                    label: "Sidebar",
-                                    image: DesignIcon.sidebar,
-                                    fallback: "sidebar.left",
-                                    tooltip: "사이드바 (⌘⇧D)",
-                                    action: #selector(toggleSidebar))
-        case ItemID.openFolder:
-            return designButtonItem(id: itemIdentifier,
-                                    label: "Open",
-                                    image: DesignIcon.folder,
-                                    fallback: "folder",
-                                    tooltip: "폴더 열기 (⌘O)",
-                                    action: #selector(openFolder))
-        case ItemID.newFile:
-            return designButtonItem(id: itemIdentifier,
-                                    label: "New",
-                                    image: DesignIcon.plus,
-                                    fallback: "square.and.pencil",
-                                    tooltip: "새 파일 (⌘N)",
-                                    action: #selector(newFile))
-        case ItemID.search:
-            return designButtonItem(id: itemIdentifier,
-                                    label: "Search",
-                                    image: DesignIcon.search,
-                                    fallback: "magnifyingglass",
-                                    tooltip: "검색 (⌘F)",
-                                    action: #selector(openSearchAction))
-        case ItemID.leftSeparator:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            // toolbar 영역 전체 높이를 채우도록 — sidebar 안의 overlay와 시각적으로 이어진다.
-            let line = NSView(frame: NSRect(x: 0, y: 0, width: 1, height: 52))
-            line.wantsLayer = true
-            line.layer?.backgroundColor = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.08).cgColor
-            line.autoresizingMask = .height
-            item.view = line
-            item.label = ""
-            return item
-        case ItemID.theme:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            let host = NSHostingView(rootView: ThemeSwatchPicker().environmentObject(state))
-            host.translatesAutoresizingMaskIntoConstraints = false
-            host.frame = NSRect(x: 0, y: 0, width: 96, height: 22)
-            item.view = host
-            item.label = "Theme"
-            item.minSize = NSSize(width: 96, height: 22)
-            item.maxSize = NSSize(width: 96, height: 22)
-            return item
-        case ItemID.title:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            let host = NSHostingView(rootView: TitleBar().environmentObject(state))
-            host.translatesAutoresizingMaskIntoConstraints = false
-            item.view = host
-            item.label = ""
-            // toolbar에서 다른 시스템 아이템이 압축하지 않도록 충분한 범위 부여.
-            // height 28은 NSToolbar의 일반 item bezel + Caveat 26 baseline 여유.
-            item.minSize = NSSize(width: 240, height: 28)
-            item.maxSize = NSSize(width: 8000, height: 28)
-            return item
-        default:
-            return nil
-        }
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // 디자인 spec(JSX Toolbar): title + dirty dot + flex + ✎ auto-saved 만.
-        // sidebar/new/search 아이콘은 키보드 단축키(⌘⇧D / ⌘N / ⌘F) + 메뉴바로
-        // 접근. customization에서 사용자가 다시 꺼낼 순 있음(Allowed에 남음).
-        [.sidebarTrackingSeparator, ItemID.title]
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.sidebarTrackingSeparator,
-         ItemID.sidebar, ItemID.openFolder, ItemID.newFile,
-         ItemID.theme, ItemID.search, ItemID.title, .flexibleSpace, .space]
-    }
-
-    @objc fileprivate func openSearchAction() {
-        NotificationCenter.default.post(name: .openSearchRequested, object: nil)
-    }
-
-    /// SVG NSImage가 살아있으면 그걸로, 아니면 SF Symbol fallback.
-    /// NSToolbarItem.image보다 NSButton을 직접 view로 박아야 22pt로 정확히 렌더된다.
-    private func designButtonItem(id: NSToolbarItem.Identifier,
-                                  label: String,
-                                  image: NSImage?,
-                                  fallback: String,
-                                  tooltip: String,
-                                  action: Selector) -> NSToolbarItem {
-        let item = NSToolbarItem(itemIdentifier: id)
-        item.label = label
-        item.toolTip = tooltip
-        let btn = NSButton(image: image ?? NSImage(systemSymbolName: fallback,
-                                                   accessibilityDescription: label) ?? NSImage(),
-                           target: self, action: action)
-        btn.bezelStyle = .accessoryBarAction
-        btn.isBordered = false
-        btn.imageScaling = .scaleProportionallyUpOrDown
-        btn.frame = NSRect(x: 0, y: 0, width: 28, height: 22)
-        btn.toolTip = tooltip
-        item.view = btn
-        item.minSize = NSSize(width: 28, height: 22)
-        item.maxSize = NSSize(width: 28, height: 22)
-        return item
-    }
 }
 
 extension Notification.Name {
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
     static let outlineNavigateRequested = Notification.Name("outlineNavigateRequested")
     static let openSearchRequested = Notification.Name("openSearchRequested")
-}
-
-/// 디자인 spec(JSX Toolbar)의 `1px dashed separator`를 NSView로 구현.
-/// CALayer로 dash 표현이 어렵고 0.5px 단위 fractional alignment이 깔끔치 않아
-/// override draw + NSBezierPath.setLineDash로 직접 그린다.
-private final class DashedLineView: NSView {
-    override var isFlipped: Bool { true }
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.25).setStroke()
-        let path = NSBezierPath()
-        path.lineWidth = 1
-        path.lineCapStyle = .butt
-        let pattern: [CGFloat] = [4, 3]
-        path.setLineDash(pattern, count: pattern.count, phase: 0)
-        let y = bounds.midY
-        path.move(to: NSPoint(x: bounds.minX, y: y))
-        path.line(to: NSPoint(x: bounds.maxX, y: y))
-        path.stroke()
-    }
 }

@@ -17,10 +17,19 @@ export interface AppBridge {
   setFontFamily(family: string): void;
   setDocFolder(url: string): void;
   setDocDate(iso: string): void;
+  setFilename(name: string): void;
+  setDirty(dirty: boolean): void;
   openSearch(): boolean;
   scrollToLine(lineIdx: number): boolean;
   insertImage(alt: string, path: string): boolean;
   getOutline(): OutlineItem[];
+}
+
+export interface HeaderHandle {
+  setFilename(name: string): void;
+  setDirty(d: boolean): void;
+  setTheme(key: string): void;
+  setViewMode(mode: string): void;
 }
 
 interface InstallOptions {
@@ -31,6 +40,8 @@ interface InstallOptions {
   /** Track last-applied-from-Swift text so setText can no-op on echo. */
   getLastAppliedText: () => string;
   setLastAppliedText: (text: string) => void;
+  /** Refract header chrome handle (optional — header.ts에서 만들어 전달). */
+  header?: HeaderHandle;
 }
 
 /** Install window.appBridge for Swift to call. Returns the same bridge object. */
@@ -61,6 +72,12 @@ export function installAppBridge(view: EditorView, opts: InstallOptions): AppBri
       Object.entries(vars).forEach(([k, v]) =>
         document.documentElement.style.setProperty('--' + k, v),
       );
+    },
+    setFilename(name: string) {
+      opts.header?.setFilename(name);
+    },
+    setDirty(dirty: boolean) {
+      opts.header?.setDirty(dirty);
     },
     setFontFamily(family: string) {
       document.documentElement.style.setProperty('--editor-font', family);

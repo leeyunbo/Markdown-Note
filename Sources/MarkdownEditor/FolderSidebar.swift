@@ -1,20 +1,13 @@
 import SwiftUI
 import AppKit
 
-/// 사이드바/툴바 전역 손글씨 폰트 — NanumPenScript (한글) 기본,
-/// macOS는 Latin/특수문자에 대해 system 손글씨 fallback.
-/// (Excalifont는 woff2라 CTFontManager 등록 실패 → WKWebView 전용.)
-func sidebarFont(_ font: EditorFont, size: CGFloat) -> Font {
-    .custom("NanumPenScript-Regular", size: size)
-}
-
+/// 사이드바 — Refract에 맞춰 평범한 파일 트리만. stamp/spine/swatch picker 모두 제거.
 struct FolderSidebar: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if state.rootFolder != nil {
-                StampBox()
                 TreeView()
                 FolderFooter()
             } else {
@@ -22,117 +15,27 @@ struct FolderSidebar: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.nbPaper)
+        .background(state.theme.sidebarBgColor)
     }
 }
 
-// MARK: - Composition Book 표지 라벨 (Name / Date / Subject)
-// JSX composition-full.jsx L149-159 + SidebarField L178-190 정확값:
-//   - container: padding 10px 12px, 손그림 SVG outline(stroke ink, width 1.2)
-//   - label: Kalam 12.5px inkLight
-//   - value: Kalam 12.5px ink + borderBottom 0.5px ink40
-//   - Subject emphasis: Caveat 20/700 accent
+// MARK: - Footer
 
-private struct StampBox: View {
-    @EnvironmentObject var state: AppState
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            field(label: "Name", value: Host.userName)
-            field(label: "Date", value: Self.todayString())
-            subjectField(value: state.rootFolder?.lastPathComponent ?? "markdown-note")
-        }
-        .padding(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
-        .background(
-            // 손그림 SVG outline — JSX HandBox path 그대로.
-            HandDrawnOutline(stroke: Color.nbInk, strokeWidth: 1.2)
-        )
-        .padding(.horizontal, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-    }
-    @ViewBuilder
-    private func field(label: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("\(label):")
-                .font(sidebarFont(state.editorFont, size: 12.5))
-                .foregroundColor(.nbInkLight)
-            Text(value)
-                .font(sidebarFont(state.editorFont, size: 12.5))
-                .foregroundColor(.nbInk)
-                .overlay(alignment: .bottom) {
-                    // borderBottom 0.5px ink40
-                    Rectangle().fill(Color.nbInk.opacity(0.25)).frame(height: 0.5)
-                }
-        }
-    }
-    @ViewBuilder
-    private func subjectField(value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("Subject:")
-                .font(sidebarFont(state.editorFont, size: 12.5))
-                .foregroundColor(.nbInkLight)
-            Text(value)
-                .font(sidebarFont(state.editorFont, size: 15))
-                .fontWeight(.bold)
-                .foregroundColor(.nbAccent)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(Color.nbAccent.opacity(0.45)).frame(height: 1)
-                }
-        }
-    }
-    private static func todayString() -> String {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
-    }
-    private enum Host {
-        static var userName: String {
-            ProcessInfo.processInfo.fullUserName
-                .components(separatedBy: " ").first ?? NSUserName()
-        }
-    }
-}
-
-/// JSX HandBox SVG path를 SwiftUI Shape로 옮긴 손그림 사각형 outline.
-/// path: M1,3 Q1,1 3,1 L97,2 Q99,2 99,4 L98.5,96 Q98.5,99 96,99 L4,98.5 Q1,98.5 1.2,96 Z
-/// (0..100 정규화 좌표, non-scaling-stroke 시각으로 stroke 굵기 일정).
-private struct HandDrawnOutline: View {
-    let stroke: Color
-    let strokeWidth: CGFloat
-    var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            Path { p in
-                func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-                    CGPoint(x: x / 100 * w, y: y / 100 * h)
-                }
-                p.move(to: pt(1, 3))
-                p.addQuadCurve(to: pt(3, 1), control: pt(1, 1))
-                p.addLine(to: pt(97, 2))
-                p.addQuadCurve(to: pt(99, 4), control: pt(99, 2))
-                p.addLine(to: pt(98.5, 96))
-                p.addQuadCurve(to: pt(96, 99), control: pt(98.5, 99))
-                p.addLine(to: pt(4, 98.5))
-                p.addQuadCurve(to: pt(1.2, 96), control: pt(1, 98.5))
-                p.closeSubpath()
-            }
-            .stroke(stroke, lineWidth: strokeWidth)
-        }
-    }
-}
-
-// 사이드바 하단 — N pages · p. 8 / 100 (Composition Book footer)
 private struct FolderFooter: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
         HStack {
-            Text("\(mdCount()) pages")
+            Text("\(mdCount()) files")
             Spacer()
-            Text("p. 8 / 100")
         }
-        .font(sidebarFont(state.editorFont, size: 14))
-        .foregroundColor(.nbInkLight)
+        .font(.system(size: 11))
+        .foregroundColor(state.theme.subColor)
         .padding(.horizontal, 12)
-        .padding(.bottom, 8)
+        .padding(.vertical, 8)
+        .overlay(alignment: .top) {
+            Rectangle().fill(state.theme.lineColor).frame(height: 1)
+        }
     }
 
     private func mdCount() -> Int {
@@ -148,73 +51,7 @@ private struct FolderFooter: View {
     }
 }
 
-// MARK: - Theme swatch picker (toolbar 우상단)
-
-struct ThemeSwatchPicker: View {
-    @EnvironmentObject var state: AppState
-
-    var body: some View {
-        HStack(spacing: 1) {
-            ForEach(Theme.allCases) { t in
-                Button { state.setTheme(t) } label: {
-                    Text(label(t))
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color(nsColor: t.foregroundNS))
-                        .frame(width: 22, height: 22)
-                        .background(Color(nsColor: t.editorBackgroundNS))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(state.theme == t
-                                    ? Color(red: 0, green: 0.4, blue: 0.8)
-                                    : Color.primary.opacity(0.10),
-                                    lineWidth: state.theme == t ? 1.5 : 0.5)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-                .buttonStyle(.plain)
-                .help("\(t.displayName) (⌘⇧\(Theme.allCases.firstIndex(of: t)! + 1))")
-            }
-        }
-        .padding(1)
-        .background(Color.primary.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 5))
-    }
-
-    private func label(_ t: Theme) -> String {
-        switch t {
-        case .light: return "L"
-        case .dark:  return "D"
-        case .sepia: return "S"
-        case .paper: return "P"
-        }
-    }
-}
-
-private struct Header: View {
-    let rootURL: URL
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(pathLabel)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color(red: 0.63, green: 0.63, blue: 0.65))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .tracking(0.5)
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
-    }
-
-    private var pathLabel: String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        var path = rootURL.path
-        if path.hasPrefix(home) { path = "~" + path.dropFirst(home.count) }
-        return path.uppercased()
-    }
-}
+// MARK: - Tree
 
 private struct TreeView: View {
     @EnvironmentObject var state: AppState
@@ -227,8 +64,7 @@ private struct TreeView: View {
                 }
             }
             .padding(.horizontal, 6)
-            .padding(.top, 0)
-            .padding(.bottom, 4)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -250,7 +86,6 @@ private struct NodeBranch: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             row
-                // README §Sidebar — indent `depth*14 + 8`.
                 .padding(.leading, CGFloat(depth) * 14 + 8)
                 .padding(.trailing, 8)
                 .padding(.vertical, 2)
@@ -259,11 +94,11 @@ private struct NodeBranch: View {
                 .background(rowBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(alignment: .leading) {
-                    // 현재 파일: 좌측 3px accent 보더 (Composition Book 강조)
-                    if isCurrentFile { Rectangle().fill(Color.nbAccent).frame(width: 3) }
+                    if isCurrentFile {
+                        Rectangle().fill(state.theme.accentColor).frame(width: 2)
+                    }
                 }
                 .overlay(
-                    // 폴더 자체에 drop 시 row 테두리 강조 (자식 영역과 구분)
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(dropTargeted ? Color.accentColor : Color.clear, lineWidth: 1)
                 )
@@ -276,13 +111,10 @@ private struct NodeBranch: View {
                     }
                     let mods = NSEvent.modifierFlags
                     if mods.contains(.shift) {
-                        // range select (anchor=selectedFile부터 현재까지)
                         state.rangeSelect(to: node.url)
                     } else if mods.contains(.command) {
-                        // toggle add/remove
                         state.toggleSelection(node.url)
                     } else {
-                        // 일반 click — 단일 선택 + 파일 열기
                         if node.kind == .markdown {
                             state.selectFile(node.url)
                         } else if node.kind == .image {
@@ -294,8 +126,6 @@ private struct NodeBranch: View {
                     }
                 }
                 .onDrag {
-                    // 모든 파일/폴더가 drag source가 될 수 있다.
-                    // 에디터 drop은 image만 처리, 폴더 drop은 모든 file을 이동.
                     if !node.isDirectory {
                         return NSItemProvider(object: node.url as NSURL)
                     }
@@ -352,7 +182,6 @@ private struct NodeBranch: View {
                 }
             }
         }
-        // drop hover 시 폴더 + 자식 묶음 영역 전체에 옅은 highlight
         .background(
             (node.isDirectory && dropTargeted)
                 ? Color.accentColor.opacity(0.08)
@@ -368,7 +197,7 @@ private struct NodeBranch: View {
                 if node.isDirectory {
                     Text(expanded ? "▾" : "▸")
                         .font(.system(size: 10))
-                        .foregroundColor(.nbInkLight)
+                        .foregroundColor(state.theme.subColor)
                 } else {
                     Color.clear
                 }
@@ -395,9 +224,9 @@ private struct NodeBranch: View {
                     }
             } else {
                 Text(displayName)
-                    .font(sidebarFont(state.editorFont, size: 14))
-                    .fontWeight(isCurrentFile ? .bold : nameWeight)
-                    .foregroundColor(.nbInk)
+                    .font(.system(size: 13))
+                    .fontWeight(isCurrentFile ? .semibold : nameWeight)
+                    .foregroundColor(state.theme.inkColor)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -414,9 +243,9 @@ private struct NodeBranch: View {
         if dropTargeted {
             return AnyView(Color.accentColor.opacity(0.30))
         } else if isCurrentFile {
-            return AnyView(Color.nbCurrent)
+            return AnyView(state.theme.activeColor)
         } else if state.selectedFiles.contains(node.url) {
-            return AnyView(Color.accentColor.opacity(0.18))
+            return AnyView(state.theme.activeColor.opacity(2.5))
         } else if hovering && !isRenaming {
             return AnyView(Color.primary.opacity(0.06))
         } else {
@@ -443,7 +272,6 @@ private struct NodeBranch: View {
 
     private var nodeIsDirectory: Bool { node.isDirectory }
 
-    /// drop된 file URL들을 비동기로 모은 뒤 selectedFiles 동반 이동까지 결정.
     private func handleFolderDrop(providers: [NSItemProvider], target: URL) {
         var dropped: [URL] = []
         let group = DispatchGroup()
@@ -455,8 +283,6 @@ private struct NodeBranch: View {
             }
         }
         group.notify(queue: .main) {
-            // drop된 항목 중 첫 url이 사용자의 multi-selection 안에 있으면
-            // selectedFiles 전체를 같이 이동 (SwiftUI .onDrag가 한 번에 1개만 보내는 한계 우회).
             var toMove = Set(dropped)
             if let first = dropped.first,
                state.selectedFiles.contains(first),
@@ -467,8 +293,6 @@ private struct NodeBranch: View {
         }
     }
 
-    /// 현재 노드가 다중 선택의 일부면 그 전체 set, 아니면 [node.url] 단일.
-    /// contextMenu / alert 분기에 사용.
     private var multiSelected: Set<URL> {
         if state.selectedFiles.contains(node.url), state.selectedFiles.count > 1 {
             return state.selectedFiles
@@ -476,19 +300,11 @@ private struct NodeBranch: View {
         return [node.url]
     }
 
-    private var displayName: String {
-        node.name
-    }
+    private var displayName: String { node.name }
 
     private var nameWeight: Font.Weight {
         if state.selectedFiles.contains(node.url) { return .semibold }
         return node.isDirectory ? .semibold : .regular
-    }
-
-    private var nameColor: Color {
-        node.isDirectory
-            ? Color(red: 0.05, green: 0.05, blue: 0.07)
-            : Color(red: 0.11, green: 0.11, blue: 0.12)
     }
 
     @ViewBuilder
@@ -501,17 +317,11 @@ private struct NodeBranch: View {
     }
 
     private var iconColor: Color {
-        if node.isDirectory {
-            return Color(red: 0.42, green: 0.42, blue: 0.45)
-        }
-        switch node.kind {
-        case .image: return Color(red: 0.42, green: 0.42, blue: 0.45).opacity(0.7)
-        default: return Color(red: 0.55, green: 0.55, blue: 0.58)
-        }
+        state.theme.subColor.opacity(node.isDirectory ? 1.0 : 0.8)
     }
 }
 
-// MARK: - In-app image preview (에디터 영역에 inline 표시)
+// MARK: - Image preview overlay (변경 없음, 색 토큰만 갱신)
 
 struct ImagePreviewOverlay: View {
     @EnvironmentObject var state: AppState
@@ -519,12 +329,10 @@ struct ImagePreviewOverlay: View {
     var body: some View {
         if let url = state.previewImageURL {
             ZStack {
-                // 에디터와 비슷한 톤의 단색 배경. 클릭으로 닫지 않음 (정적 미리보기).
-                Color(nsColor: state.theme.editorBackgroundNS)
+                state.theme.windowBgColor
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 헤더: 파일명 + 닫기 버튼
                     HStack(spacing: 10) {
                         Image(systemName: "photo")
                             .font(.system(size: 11))
@@ -558,7 +366,6 @@ struct ImagePreviewOverlay: View {
                     .padding(.vertical, 10)
                     Divider().opacity(0.4)
 
-                    // 이미지: 영역에 비례해 fit, 가운데 정렬
                     GeometryReader { geo in
                         Group {
                             if let img = NSImage(contentsOf: url) {
@@ -581,6 +388,8 @@ struct ImagePreviewOverlay: View {
         }
     }
 }
+
+// MARK: - Empty state
 
 private struct EmptyFolderState: View {
     @EnvironmentObject var state: AppState

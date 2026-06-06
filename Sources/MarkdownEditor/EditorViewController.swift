@@ -337,25 +337,15 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
 
     private func applyTheme(_ theme: Theme) {
         guard ready else { return }
-        let vars: [String: String] = [
-            "bg": theme.cssColor(theme.editorBackgroundNS),
-            "fg": theme.cssColor(theme.foregroundNS),
-            "marker": theme.cssColor(theme.markerNS),
-            "secondary": theme.cssColor(theme.secondaryNS),
-            "code-bg": theme.cssColor(theme.codeBackgroundNS),
-            "code-fg": theme.cssColor(theme.codeForegroundNS),
-            "link": theme.cssColor(theme.linkNS),
-            "list": theme.cssColor(theme.listMarkerNS),
-        ]
+        // Refract: data-theme = enum rawValue (night/day/sepia/forest/paper).
+        // CSS :root[data-theme="..."] 블록이 모든 토큰을 갈아끼움. 추가로
+        // setTheme()으로 JS 측에서도 토큰 dict 받아 fallback / runtime 참조 가능.
+        let vars = theme.cssVars
         let json = (try? JSONSerialization.data(withJSONObject: vars))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        // data-theme="dark" 박아 editor.html의 :root[data-theme="dark"]
-        // SYN palette override + 다크 모드 inline-code outline 색상이 활성.
-        // light/sepia/paper는 data-theme를 비워 PAL_LIGHT 기본값을 그대로 사용.
-        let dataTheme = (theme == .dark) ? "dark" : ""
-        let setDataTheme = "document.documentElement.setAttribute('data-theme', '\(dataTheme)');"
+        let setDataTheme = "document.documentElement.setAttribute('data-theme', '\(theme.rawValue)');"
         web.evaluateJavaScript(
-            "\(setDataTheme) window.appBridge.setTheme(\(json));",
+            "\(setDataTheme) if (window.appBridge && window.appBridge.setTheme) window.appBridge.setTheme(\(json));",
             completionHandler: nil
         )
     }
@@ -473,16 +463,4 @@ final class ImageDropContainerView: NSView {
     }
 }
 
-extension Theme {
-    func cssColor(_ ns: NSColor) -> String {
-        let rgb = ns.usingColorSpace(.sRGB) ?? ns
-        let r = Int(round(rgb.redComponent * 255))
-        let g = Int(round(rgb.greenComponent * 255))
-        let b = Int(round(rgb.blueComponent * 255))
-        let a = rgb.alphaComponent
-        if a >= 0.999 {
-            return String(format: "#%02x%02x%02x", r, g, b)
-        }
-        return "rgba(\(r),\(g),\(b),\(a))"
-    }
-}
+// Theme.cssColor 헬퍼는 Theme.swift의 NSColor.cssString 확장으로 대체됨.
