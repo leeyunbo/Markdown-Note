@@ -42,11 +42,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// WKWebView @font-face는 별개로 동작하므로 로그만.
     private static func registerBundledFonts() {
         let names = [
+            "Gaegu-Regular.ttf",
+            "Gaegu-Bold.ttf",
             "NanumPenScript-Regular.ttf",
-            "Kalam-Regular.ttf",
-            "Kalam-Bold.ttf",
-            "Caveat[wght].ttf",
-            "Excalifont-Regular.woff2",
+            "GowunBatang-Regular.ttf",
+            "NanumMyeongjo-Regular.ttf",
+            "NanumMyeongjo-ExtraBold.ttf",
         ]
         for name in names {
             let url = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "vendor")
@@ -259,12 +260,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             toggle.keyEquivalentModifierMask = [.command, .shift]
             viewMenu.addItem(NSMenuItem.separator())
             viewMenu.addItem(toggle)
-            // Refract view-mode (⌘⌥1/2/3)
+            // 달필 view-mode (⌘⌥1/2/3)
             viewMenu.addItem(NSMenuItem.separator())
             let modeLabels: [(String, String, String)] = [
-                ("소스 (Source)", "1", "source"),
-                ("분할 (Split)", "2", "split"),
-                ("미리보기 (Preview)", "3", "preview"),
+                ("노트 (Note)", "1", "note"),
+                ("나란히 (Split)", "2", "split"),
+                ("책 (Book)", "3", "book"),
             ]
             for (label, key, mode) in modeLabels {
                 let mi = NSMenuItem(title: label,
@@ -277,34 +278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Theme 메뉴 (View 다음에 삽입). ⌘⇧1-5 직접 선택 + ⌘⇧L 순환.
-        let themeMenu = NSMenu(title: "Theme")
-        for (i, t) in Theme.allCases.enumerated() {
-            let mi = NSMenuItem(title: t.displayName,
-                                action: #selector(menuSetTheme(_:)),
-                                keyEquivalent: String(i + 1))
-            mi.keyEquivalentModifierMask = [.command, .shift]
-            mi.target = self
-            mi.representedObject = t.rawValue
-            themeMenu.addItem(mi)
-        }
-        themeMenu.addItem(NSMenuItem.separator())
-        let cycle = NSMenuItem(title: "Cycle Theme (⌘⇧L)",
-                               action: #selector(menuCycleTheme),
-                               keyEquivalent: "l")
-        cycle.keyEquivalentModifierMask = [.command, .shift]
-        cycle.target = self
-        themeMenu.addItem(cycle)
-        let themeMenuItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
-        themeMenuItem.submenu = themeMenu
-
-        if let viewIdx {
-            mainMenu.insertItem(themeMenuItem, at: viewIdx + 1)
-        } else {
-            mainMenu.addItem(themeMenuItem)
-        }
-
-        // Format > Font 서브메뉴
+        // Format > Font 서브메뉴 (달필 손글씨 3종)
         let fontMenu = NSMenu(title: "Font")
         fontMenu.autoenablesItems = false
         for f in EditorFont.allCases {
@@ -325,9 +299,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let formatMenuItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
         formatMenuItem.submenu = formatMenu
-        // Theme 메뉴 직후에 삽입
-        if let themeIdx = mainMenu.items.firstIndex(of: themeMenuItem) {
-            mainMenu.insertItem(formatMenuItem, at: themeIdx + 1)
+        // View 메뉴 직후에 삽입
+        if let viewIdx {
+            mainMenu.insertItem(formatMenuItem, at: viewIdx + 1)
         } else {
             mainMenu.addItem(formatMenuItem)
         }
@@ -452,17 +426,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc func menuOpenPalette() {
         state.paletteOpen = true
-    }
-    @objc func menuSetTheme(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String,
-           let t = Theme(rawValue: raw) {
-            state.setTheme(t)
-        }
-    }
-    @objc func menuCycleTheme() {
-        let all = Theme.allCases
-        let next = (all.firstIndex(of: state.theme).map { ($0 + 1) % all.count } ?? 0)
-        state.setTheme(all[next])
     }
     @objc func menuSetViewMode(_ sender: NSMenuItem) {
         guard let mode = sender.representedObject as? String else { return }

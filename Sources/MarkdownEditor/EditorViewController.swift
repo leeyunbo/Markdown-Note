@@ -28,6 +28,37 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         userContent.add(self, name: "imageDropped")
         userContent.add(self, name: "consoleLog")
         userContent.add(self, name: "cursorLine")
+        userContent.add(self, name: "beginWindowDrag")
+        userContent.add(self, name: "setTweak")          // 헤더 Tweaks popover → AppState 영속화
+        userContent.add(self, name: "viewModeChanged")   // 헤더 모드 세그먼트 → AppState
+        userContent.add(self, name: "titlebarDoubleClick") // 헤더 더블클릭 → 시스템 설정대로 zoom/최소화
+        // 웹 헤더(WKWebView)는 -webkit-app-region: drag 미지원 → 헤더의 비인터랙티브
+        // 영역에서 mousedown이 나면 Swift에 알려 창 드래그를 시작한다. (버튼/토글/팝오버 제외)
+        let dragScript = WKUserScript(source: """
+            (function() {
+              // 더블클릭은 DOM dblclick으로 못 잡는다(아래 드래그 트래킹이 mouseUp을 소비해
+              // WebKit이 dblclick을 합성 못함). mousedown은 소비되지 않으므로 연속 mousedown
+              // 간격/위치로 직접 더블클릭을 판정한다.
+              let lastT = 0, lastX = 0, lastY = 0;
+              document.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                const h = e.target.closest && e.target.closest('#refract-header');
+                if (!h) return;
+                if (e.target.closest('button, .r-view-toggle, #tweaks-popover, a, input, select, textarea')) return;
+                const now = Date.now();
+                const near = Math.abs(e.screenX - lastX) < 6 && Math.abs(e.screenY - lastY) < 6;
+                const isDouble = (now - lastT) < 450 && near;
+                lastT = now; lastX = e.screenX; lastY = e.screenY;
+                if (isDouble) {
+                  lastT = 0; // 트리플클릭 재발동 방지
+                  window.webkit?.messageHandlers?.titlebarDoubleClick?.postMessage({});
+                  return;    // 더블클릭이면 드래그 시작 안 함
+                }
+                window.webkit?.messageHandlers?.beginWindowDrag?.postMessage({});
+              }, true);
+            })();
+            """, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        userContent.addUserScript(dragScript)
         // console.log를 Swift NSLog로 forward (inspector 없이 디버깅용)
         let logScript = WKUserScript(source: """
             (function() {
@@ -181,17 +212,24 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
             }
             .store(in: &cancellables)
 
-        state.$theme
-            .receive(on: RunLoop.main)
-            .sink { [weak self] theme in
-                self?.applyTheme(theme)
-            }
-            .store(in: &cancellables)
-
         state.$editorFont
             .receive(on: RunLoop.main)
             .sink { [weak self] font in
                 self?.applyEditorFont(font)
+            }
+            .store(in: &cancellables)
+
+        state.$paperTexture
+            .receive(on: RunLoop.main)
+            .sink { [weak self] p in
+                self?.applyPaperTexture(p)
+            }
+            .store(in: &cancellables)
+
+        state.$tokenVisibility
+            .receive(on: RunLoop.main)
+            .sink { [weak self] t in
+                self?.applyTokenVisibility(t)
             }
             .store(in: &cancellables)
 
@@ -260,9 +298,10 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
-        applyTheme(state.theme)
         applyViewMode(state.viewMode)
         applyEditorFont(state.editorFont)
+        applyPaperTexture(state.paperTexture)
+        applyTokenVisibility(state.tokenVisibility)
         applyDocFolder(for: state.selectedFile)
         applyDocDate(state.selectedFileMtime)
         applyFilename(state.selectedFile)
@@ -306,6 +345,67 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         if message.name == "cursorLine", let line = message.body as? Int {
             updateActiveOutlineIndex(forCursorLine: line)
             return
+        }
+        if message.name == "beginWindowDrag" {
+            beginWindowDrag()
+            return
+        }
+        if message.name == "setTweak",
+           let dict = message.body as? [String: Any],
+           let key = dict["key"] as? String,
+           let value = dict["value"] as? String {
+            switch key {
+            case "hand":  if let f = EditorFont(rawValue: value) { state.setEditorFont(f) }
+            case "paper": state.setPaperTexture(value)
+            case "tok":   state.setTokenVisibility(value)
+            default: break
+            }
+            return
+        }
+        if message.name == "viewModeChanged", let mode = message.body as? String {
+            state.setViewMode(mode)
+            return
+        }
+        if message.name == "titlebarDoubleClick" {
+            performTitlebarDoubleClickAction()
+            return
+        }
+    }
+
+    /// 헤더(커스텀 타이틀바) 더블클릭 — 시스템 설정 "제목 표시줄 더블클릭 시" 그대로.
+    /// AppleActionOnDoubleClick: Minimize → 최소화, None → 무동작, 그 외(Maximize/Fill/미설정) → zoom.
+    private func performTitlebarDoubleClickAction() {
+        guard let window = view.window else { return }
+        switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+        case "Minimize": window.performMiniaturize(nil)
+        case "None":     break
+        default:         window.performZoom(nil)
+        }
+    }
+
+    /// 웹 헤더에서 시작된 창 드래그 — mouseDragged~mouseUp를 직접 추적해 창을 옮긴다.
+    /// (WKWebView가 -webkit-app-region을 지원하지 않으므로 JS mousedown 신호를 받아 보완.)
+    private func beginWindowDrag() {
+        guard let window = view.window else { return }
+        // 왼쪽 버튼이 아직 눌린 상태가 아니면(빠른 클릭으로 이미 떼어짐) 트래킹하지 않는다.
+        // 그렇지 않으면 오지 않을 mouseUp을 기다리며 UI가 멈출 수 있다.
+        guard NSEvent.pressedMouseButtons & 0x1 != 0 else { return }
+        let startMouse = NSEvent.mouseLocation          // 스크린 좌표
+        let startOrigin = window.frame.origin
+        window.trackEvents(matching: [.leftMouseDragged, .leftMouseUp],
+                           timeout: .infinity,
+                           mode: .eventTracking) { event, stop in
+            guard let event else { return }
+            switch event.type {
+            case .leftMouseUp:
+                stop.pointee = true
+            case .leftMouseDragged:
+                let now = NSEvent.mouseLocation
+                window.setFrameOrigin(NSPoint(x: startOrigin.x + (now.x - startMouse.x),
+                                              y: startOrigin.y + (now.y - startMouse.y)))
+            default:
+                break
+            }
         }
     }
 
@@ -353,16 +453,18 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
         web.evaluateJavaScript("window.appBridge.setText(\(payload));", completionHandler: nil)
     }
 
-    private func applyTheme(_ theme: Theme) {
+    private func applyPaperTexture(_ p: String) {
         guard ready else { return }
-        // Refract: data-theme = enum rawValue (night/day/sepia/forest/paper).
-        // CSS :root[data-theme="..."] 블록이 모든 토큰을 갈아끼움.
-        let vars = theme.cssVars
-        let json = (try? JSONSerialization.data(withJSONObject: vars))
-            .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        let setDataTheme = "document.documentElement.setAttribute('data-theme', '\(theme.rawValue)');"
         web.evaluateJavaScript(
-            "\(setDataTheme) if (window.appBridge && window.appBridge.setTheme) window.appBridge.setTheme(\(json));",
+            "if (window.appBridge?.setPaperTexture) window.appBridge.setPaperTexture('\(p)');",
+            completionHandler: nil
+        )
+    }
+
+    private func applyTokenVisibility(_ t: String) {
+        guard ready else { return }
+        web.evaluateJavaScript(
+            "if (window.appBridge?.setTokenVisibility) window.appBridge.setTokenVisibility('\(t)');",
             completionHandler: nil
         )
     }
@@ -370,7 +472,7 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
     private func applyViewMode(_ mode: String) {
         guard ready else { return }
         web.evaluateJavaScript(
-            "document.getElementById('refract-shell')?.setAttribute('data-view-mode', '\(mode)');",
+            "if (window.appBridge?.setViewMode) window.appBridge.setViewMode('\(mode)');",
             completionHandler: nil
         )
     }
@@ -396,9 +498,9 @@ final class EditorViewController: NSViewController, WKScriptMessageHandler, WKNa
 
     private func applyEditorFont(_ font: EditorFont) {
         guard ready else { return }
-        let escaped = font.cssFontFamily.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        web.evaluateJavaScript("window.appBridge.setFontFamily(\"\(escaped)\");", completionHandler: nil)
+        web.evaluateJavaScript(
+            "if (window.appBridge?.setHandFont) window.appBridge.setHandFont('\(font.rawValue)');",
+            completionHandler: nil)
     }
 
     /// 우상단 date stamp를 현재 파일 mtime으로 갱신. nil이면 stamp 숨김.

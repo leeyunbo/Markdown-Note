@@ -3,9 +3,7 @@ import {
   drawSelection,
   dropCursor,
   EditorView,
-  highlightActiveLine,
   keymap,
-  lineNumbers,
 } from '@codemirror/view';
 import {
   bracketMatching,
@@ -31,7 +29,7 @@ import { mermaidActiveField, mermaidDecoField } from './nodes/mermaid';
 import { imeListContinueFilter } from './commands/ime-list-continue';
 import { wrapSelection } from './commands/wrap-selection';
 import { insertLinkCmd } from './commands/insert-link';
-import { inkRipple } from './effects/ink-ripple';
+import { dalpilCards } from './nodes/dalpil-card';
 
 export const themeCompartment = new Compartment();
 
@@ -51,7 +49,6 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
     history(),
     drawSelection(),
     dropCursor(),
-    lineNumbers(),
     EditorState.allowMultipleSelections.of(true),
     bracketMatching(),
     indentOnInput(),
@@ -67,11 +64,10 @@ export function makeExtensions(hooks: EditorUpdateHooks) {
       autocorrect: 'off',
       autocapitalize: 'off',
     }),
-    highlightActiveLine(),
     docFolderField,
     mermaidActiveField,
     mermaidDecoField,
-    inkRipple,
+    dalpilCards,
     themeCompartment.of(baseTheme),
     imeListContinueFilter,
     keymap.of([

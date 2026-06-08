@@ -1,114 +1,117 @@
-/** Refract header chrome — view-mode 세그먼트 + 테마 popover + 파일명 + counter pill.
+/** 달필 (Dalpil) header chrome — Tweaks popover + view-mode 세그먼트 + 파일명/dirty,
+ *  그리고 하단 status bar(단어수·저장상태·잉크 게이지) + 빈 문서 환영 화면.
  *
- *  Swift bridge:
- *    - 테마 변경 시 documentElement.dataset.theme 박고 localStorage 저장
- *    - view-mode 변경 시 #refract-shell.dataset.viewMode 박고 localStorage 저장
- *    - 파일명 변경 시 .r-filename textContent 갱신 (별도 setter)
- *    - dirty 변경 시 body.dataset.dirty 변경
- */
+ *  단일 소스는 Swift(AppState). 사용자가 popover/toggle을 누르면 즉시 로컬 적용 +
+ *  Swift로 메시지(setTweak / viewModeChanged)를 보내 영속화한다. Swift가 메뉴 등
+ *  다른 경로로 값을 바꾸면 bridge(setHandFont/setPaperTexture/setTokenVisibility/
+ *  setViewMode)를 호출해 DOM과 popover 활성 상태를 갱신한다. */
 
-type ViewMode = 'source' | 'split' | 'preview';
-type ThemeKey = 'night' | 'day' | 'sepia' | 'forest' | 'paper';
+type ViewMode = 'note' | 'split' | 'book';
+type HandKey = 'gaegu' | 'nanumpen' | 'gowun';
 
-const THEME_LABELS: Record<ThemeKey, string> = {
-  night: 'Night',
-  day: 'Day',
-  sepia: 'Sepia',
-  forest: 'Forest',
-  paper: '손글씨',
+const HAND_CSS: Record<HandKey, string> = {
+  gaegu: '"Gaegu", cursive',
+  nanumpen: '"Nanum Pen Script", cursive',
+  gowun: '"Gowun Batang", serif',
 };
-const THEME_KEYS: ThemeKey[] = ['night', 'day', 'sepia', 'forest', 'paper'];
 
-function isThemeKey(s: string): s is ThemeKey {
-  return THEME_KEYS.includes(s as ThemeKey);
+// 폰트마다 같은 px라도 글리프 크기가 달라 시각 크기를 맞춘다(줄높이 38은 유지).
+// 펜(Nanum Pen)은 가늘고 작아 26이 적당, 개구·정자는 글리프가 커서 줄인다.
+const HAND_SIZE: Record<HandKey, string> = {
+  gaegu: '21px',
+  nanumpen: '26px',
+  gowun: '20px',
+};
+
+function postToHost(name: string, body: unknown): void {
+  try {
+    const w = window as unknown as {
+      webkit?: { messageHandlers?: Record<string, { postMessage(b: unknown): void }> };
+    };
+    w.webkit?.messageHandlers?.[name]?.postMessage(body);
+  } catch (_) { /* host 없음(브라우저 프리뷰) */ }
 }
 
-interface HeaderHooks {
-  onViewModeChange?(mode: ViewMode): void;
-  onThemeChange?(key: ThemeKey): void;
-}
-
-export function installHeader(hooks: HeaderHooks = {}): {
+export interface HeaderHandle {
   setFilename(name: string): void;
   setDirty(d: boolean): void;
-  setTheme(key: ThemeKey): void;
-  setViewMode(mode: ViewMode): void;
-} {
+  setViewMode(mode: string): void;
+  setHandFont(key: string): void;
+  setPaperTexture(key: string): void;
+  setTokenVisibility(key: string): void;
+}
+
+export function installHeader(): HeaderHandle {
   const shell = document.getElementById('refract-shell');
   const toggle = document.getElementById('r-view-toggle');
-  const themeButton = document.getElementById('r-theme-button');
-  const themeButtonLabel = themeButton?.querySelector('.label');
-  const themeButtonSwatch = themeButton?.querySelector('.swatch') as HTMLElement | null;
-  const popover = document.getElementById('theme-popover');
+  const tweaksButton = document.getElementById('r-tweaks-button');
+  const popover = document.getElementById('tweaks-popover');
   const filenameEl = document.querySelector('.r-filename');
+  const sourceColumn = document.getElementById('source-column');
+  const saveEl = document.querySelector('#status-bar .sb-save');
 
-  // View-mode 토글
-  toggle?.querySelectorAll('button').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const mode = btn.dataset.mode as ViewMode | undefined;
-      if (!mode) return;
-      applyViewMode(mode);
-      try { localStorage.setItem('refract.viewMode', mode); } catch (_) { /* ignore */ }
-      hooks.onViewModeChange?.(mode);
-    });
-  });
-
-  function applyViewMode(mode: ViewMode) {
+  // ── view mode (노트 / 나란히 / 책) ──────────────────────────
+  function applyViewMode(mode: string) {
     if (shell) shell.dataset.viewMode = mode;
     toggle?.querySelectorAll('button').forEach((b) => {
       b.classList.toggle('active', b.dataset.mode === mode);
     });
   }
+  toggle?.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode as ViewMode | undefined;
+      if (!mode) return;
+      applyViewMode(mode);
+      postToHost('viewModeChanged', mode);
+    });
+  });
 
-  // 테마 popover
-  themeButton?.addEventListener('click', (e) => {
+  // ── Tweaks popover ──────────────────────────────────────────
+  tweaksButton?.addEventListener('click', (e) => {
     e.stopPropagation();
     popover?.classList.toggle('open');
   });
   document.addEventListener('click', (e) => {
     if (!popover?.classList.contains('open')) return;
-    const target = e.target as Node;
-    if (popover.contains(target) || themeButton?.contains(target)) return;
+    const t = e.target as Node;
+    if (popover.contains(t) || tweaksButton?.contains(t)) return;
     popover.classList.remove('open');
   });
-  popover?.querySelectorAll('.row').forEach((row) => {
-    row.addEventListener('click', () => {
-      const key = (row as HTMLElement).dataset.key;
-      if (!key || !isThemeKey(key)) return;
-      applyTheme(key);
-      try { localStorage.setItem('refract.theme', key); } catch (_) { /* ignore */ }
-      hooks.onThemeChange?.(key);
-      popover.classList.remove('open');
+
+  function markSeg(key: string, value: string) {
+    popover?.querySelectorAll(`.seg[data-key="${key}"] button`).forEach((b) => {
+      b.classList.toggle('on', (b as HTMLElement).dataset.v === value);
+    });
+  }
+  function applyHand(key: string) {
+    const css = HAND_CSS[key as HandKey] ?? HAND_CSS.gaegu;
+    const size = HAND_SIZE[key as HandKey] ?? '26px';
+    document.documentElement.style.setProperty('--hand', css);
+    document.documentElement.style.setProperty('--hand-size', size);
+    markSeg('hand', key);
+  }
+  function applyPaper(key: string) {
+    if (sourceColumn) sourceColumn.dataset.paper = key;
+    markSeg('paper', key);
+  }
+  function applyTok(key: string) {
+    document.body.dataset.tok = key;
+    markSeg('tok', key);
+  }
+
+  popover?.querySelectorAll('.seg').forEach((seg) => {
+    seg.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button');
+      if (!btn) return;
+      const key = (seg as HTMLElement).dataset.key;
+      const val = btn.dataset.v;
+      if (!key || !val) return;
+      if (key === 'hand') applyHand(val);
+      else if (key === 'paper') applyPaper(val);
+      else if (key === 'tok') applyTok(val);
+      postToHost('setTweak', { key, value: val });
     });
   });
-
-  function applyTheme(key: ThemeKey) {
-    document.documentElement.dataset.theme = key;
-    if (themeButtonLabel) themeButtonLabel.textContent = THEME_LABELS[key];
-    if (themeButtonSwatch) {
-      // CSS var 사용 — 현재 테마의 --accent로 갱신됨 (CSS cascade 자동)
-      themeButtonSwatch.style.background = 'var(--accent)';
-    }
-    popover?.querySelectorAll('.row').forEach((r) => {
-      r.classList.toggle('active', (r as HTMLElement).dataset.key === key);
-    });
-  }
-
-  // 초기 상태 복원
-  try {
-    const savedMode = localStorage.getItem('refract.viewMode');
-    if (savedMode === 'source' || savedMode === 'split' || savedMode === 'preview') {
-      applyViewMode(savedMode);
-    } else {
-      applyViewMode('split');
-    }
-    const savedTheme = localStorage.getItem('refract.theme');
-    if (savedTheme && isThemeKey(savedTheme)) applyTheme(savedTheme);
-    else applyTheme('night');
-  } catch (_) {
-    applyViewMode('split');
-    applyTheme('night');
-  }
 
   return {
     setFilename(name: string) {
@@ -116,29 +119,30 @@ export function installHeader(hooks: HeaderHooks = {}): {
     },
     setDirty(d: boolean) {
       document.body.dataset.dirty = d ? '1' : '';
+      if (saveEl) saveEl.textContent = d ? '저장 안 됨' : '방금 저장됨';
     },
-    setTheme: applyTheme,
     setViewMode: applyViewMode,
+    setHandFont: applyHand,
+    setPaperTexture: applyPaper,
+    setTokenVisibility: applyTok,
   };
 }
 
-/** Word counter pill 업데이트. doc 텍스트를 받아 단어 수 세고, 입력 중 표시. */
+/** 하단 status bar — 단어수 · 잉크 게이지(5점) + 빈 문서 환영 토글. */
 export function installCounter(): { update(text: string): void } {
-  const countEl = document.querySelector('#counter-pill .count');
-  let typingTimer: number | null = null;
-  function setTyping(on: boolean) {
-    document.body.dataset.typing = on ? '1' : '';
-  }
+  const wordsEl = document.querySelector('#status-bar .sb-words');
+  const inkDots = document.querySelectorAll('#status-bar .ink-dots i');
+  const body = document.getElementById('refract-body');
+
   return {
     update(text: string) {
-      const words = text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
-      if (countEl) countEl.textContent = String(words);
-      setTyping(true);
-      if (typingTimer != null) window.clearTimeout(typingTimer);
-      typingTimer = window.setTimeout(() => {
-        setTyping(false);
-        typingTimer = null;
-      }, 900);
+      const trimmed = text.trim();
+      const words = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+      if (wordsEl) wordsEl.textContent = `${words} 단어`;
+      const level = Math.min(5, Math.round(words / 9));
+      inkDots.forEach((d, i) => d.classList.toggle('on', i < level));
+      // 빈 문서 환영 화면
+      body?.classList.toggle('empty', trimmed.length === 0);
     },
   };
 }

@@ -13,8 +13,10 @@ export interface OutlineItem {
 export interface AppBridge {
   setText(text: string): void;
   resetEditor(text: string): void;
-  setTheme(vars: Record<string, string>): void;
-  setFontFamily(family: string): void;
+  setHandFont(key: string): void;
+  setPaperTexture(key: string): void;
+  setTokenVisibility(key: string): void;
+  setViewMode(mode: string): void;
   setDocFolder(url: string): void;
   setDocDate(iso: string): void;
   setFilename(name: string): void;
@@ -28,8 +30,10 @@ export interface AppBridge {
 export interface HeaderHandle {
   setFilename(name: string): void;
   setDirty(d: boolean): void;
-  setTheme(key: string): void;
   setViewMode(mode: string): void;
+  setHandFont(key: string): void;
+  setPaperTexture(key: string): void;
+  setTokenVisibility(key: string): void;
 }
 
 interface InstallOptions {
@@ -68,19 +72,23 @@ export function installAppBridge(view: EditorView, opts: InstallOptions): AppBri
         setTimeout(() => opts.setApplyingExternal(false), 0);
       }
     },
-    setTheme(vars: Record<string, string>) {
-      Object.entries(vars).forEach(([k, v]) =>
-        document.documentElement.style.setProperty('--' + k, v),
-      );
+    setHandFont(key: string) {
+      opts.header?.setHandFont(key);
+    },
+    setPaperTexture(key: string) {
+      opts.header?.setPaperTexture(key);
+    },
+    setTokenVisibility(key: string) {
+      opts.header?.setTokenVisibility(key);
+    },
+    setViewMode(mode: string) {
+      opts.header?.setViewMode(mode);
     },
     setFilename(name: string) {
       opts.header?.setFilename(name);
     },
     setDirty(dirty: boolean) {
       opts.header?.setDirty(dirty);
-    },
-    setFontFamily(family: string) {
-      document.documentElement.style.setProperty('--editor-font', family);
     },
     setDocFolder(url: string) {
       view.dispatch({ effects: docFolderEffect.of(url || '') });

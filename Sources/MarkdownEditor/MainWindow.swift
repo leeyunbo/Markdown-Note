@@ -295,7 +295,9 @@ final class MainWindowController: NSWindowController {
             let bg = DraggableTitlebarOverlay(frame: sv.bounds)
             bg.identifier = Self.titlebarBgIdentifier
             bg.wantsLayer = true
-            bg.layer?.backgroundColor = state.theme.windowBg.cgColor
+            // 투명 — fullSizeContentView로 확장된 웹 헤더(동일 --bg + 글리프/워드마크)가
+            // titlebar 영역에 그대로 보이도록. 불투명하면 헤더 상단 28pt를 덮어 가린다.
+            bg.layer?.backgroundColor = NSColor.clear.cgColor
             bg.autoresizingMask = [.width, .height]
             if let first = sv.subviews.first {
                 sv.addSubview(bg, positioned: .below, relativeTo: first)

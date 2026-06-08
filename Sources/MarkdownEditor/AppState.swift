@@ -8,9 +8,11 @@ final class AppState: ObservableObject {
     @Published var fileTree: [FileNode] = []
     @Published var selectedFile: URL?
     @Published var documentText: String = ""
-    @Published var theme: Theme = .night
-    @Published var viewMode: String = "split"  // "source" | "split" | "preview"
-    @Published var editorFont: EditorFont = .kalam
+    @Published var theme: Theme = .dalpil
+    @Published var viewMode: String = "split"  // "note" | "split" | "book"
+    @Published var editorFont: EditorFont = .gaegu          // 손글씨 폰트(Tweaks)
+    @Published var paperTexture: String = "ruled"           // ruled | grid | dot | plain
+    @Published var tokenVisibility: String = "show"         // show | faint | hide
     @Published var paletteOpen: Bool = false
     @Published var isDirty: Bool = false
     @Published var debugLog: String = "ready"
@@ -50,17 +52,22 @@ final class AppState: ObservableObject {
                 refreshTree()
             }
         }
-        if let raw = UserDefaults.standard.string(forKey: "theme"),
-           let t = Theme(rawValue: raw) {
-            self.theme = t
-        }
-        if let mode = UserDefaults.standard.string(forKey: "viewMode"),
-           ["source", "split", "preview"].contains(mode) {
-            self.viewMode = mode
+        if let mode = UserDefaults.standard.string(forKey: "viewMode") {
+            // 구 Refract 값 마이그레이션: source→note, preview→book.
+            let migrated = ["source": "note", "preview": "book"][mode] ?? mode
+            if ["note", "split", "book"].contains(migrated) { self.viewMode = migrated }
         }
         if let raw = UserDefaults.standard.string(forKey: "editorFont"),
            let f = EditorFont(rawValue: raw) {
             self.editorFont = f
+        }
+        if let p = UserDefaults.standard.string(forKey: "paperTexture"),
+           ["ruled", "grid", "dot", "plain"].contains(p) {
+            self.paperTexture = p
+        }
+        if let t = UserDefaults.standard.string(forKey: "tokenVisibility"),
+           ["show", "faint", "hide"].contains(t) {
+            self.tokenVisibility = t
         }
     }
 
@@ -347,26 +354,27 @@ final class AppState: ObservableObject {
         }
     }
 
-    // MARK: - Theme & Sidebar
-
-    func setTheme(_ t: Theme) {
-        theme = t
-        UserDefaults.standard.set(t.rawValue, forKey: "theme")
-    }
+    // MARK: - Tweaks & view mode
 
     func setEditorFont(_ f: EditorFont) {
         editorFont = f
         UserDefaults.standard.set(f.rawValue, forKey: "editorFont")
     }
 
-    func cycleTheme() {
-        let all = Theme.allCases
-        let next = (all.firstIndex(of: theme).map { ($0 + 1) % all.count } ?? 0)
-        setTheme(all[next])
+    func setPaperTexture(_ p: String) {
+        guard ["ruled", "grid", "dot", "plain"].contains(p) else { return }
+        paperTexture = p
+        UserDefaults.standard.set(p, forKey: "paperTexture")
+    }
+
+    func setTokenVisibility(_ t: String) {
+        guard ["show", "faint", "hide"].contains(t) else { return }
+        tokenVisibility = t
+        UserDefaults.standard.set(t, forKey: "tokenVisibility")
     }
 
     func setViewMode(_ mode: String) {
-        guard ["source", "split", "preview"].contains(mode) else { return }
+        guard ["note", "split", "book"].contains(mode) else { return }
         viewMode = mode
         UserDefaults.standard.set(mode, forKey: "viewMode")
     }

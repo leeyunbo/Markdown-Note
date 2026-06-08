@@ -54,17 +54,14 @@ export { squiggleClassForHeading, headingSquiggleMatchers } from './nodes/headin
 export function bootEditor(host: HTMLElement): EditorView {
   installDiagnostics();
 
+  // 스크롤 동기화는 스크롤 컨테이너(#preview-host), 렌더는 그 안의 .sheet(#preview-sheet).
   const previewHost = document.getElementById('preview-host');
-  const renderPreviewDebounced = previewHost
-    ? makeDebouncedRender(previewHost as HTMLElement)
+  const previewSheet = document.getElementById('preview-sheet');
+  const renderPreviewDebounced = previewSheet
+    ? makeDebouncedRender(previewSheet as HTMLElement)
     : (_: string) => { /* no preview host */ };
   const counter = installCounter();
-  const header = installHeader({
-    onThemeChange(_key) {
-      // theme 변경 알림은 Swift측에서 별도 처리 (chrome 색 갱신).
-      // 여기서는 별도 동작 없음.
-    },
-  });
+  const header = installHeader();
 
   let isApplyingExternal = false;
   let lastAppliedText = '';
@@ -119,6 +116,9 @@ export function bootEditor(host: HTMLElement): EditorView {
   });
 
   installPasteImageHandler(view);
+
+  // 빈 문서에서도 어디에 쓰는지 보이도록 에디터에 포커스(커서 깜빡임).
+  requestAnimationFrame(() => view.focus());
 
   // Scroll sync — SOURCE cm-scroller ↔ PREVIEW host.
   if (previewHost) {

@@ -30,22 +30,8 @@ function ensureMarkedConfigured(): void {
   if (configured) return;
   const marked = window.marked;
   if (!marked || !marked.setOptions) return;
-  marked.setOptions({
-    gfm: true,
-    breaks: false,
-    highlight(code: string, lang: string) {
-      const hljs = window.hljs;
-      if (!hljs) return code;
-      try {
-        if (lang && hljs.getLanguage(lang)) {
-          return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
-        }
-        return hljs.highlightAuto(code).value;
-      } catch (_) {
-        return code;
-      }
-    },
-  } as Record<string, unknown>);
+  // 신버전 marked는 `highlight` 옵션을 무시한다 → 토큰화는 decorateCodeBlocks에서 직접.
+  marked.setOptions({ gfm: true, breaks: false } as Record<string, unknown>);
   configured = true;
 }
 
@@ -84,30 +70,31 @@ function decorateCodeBlocks(html: string): string {
       return;
     }
 
-    // 일반 코드블록: header + line-numbered code.
+    // 일반 코드블록(달필 책 카드): 세리프 언어 라벨만. 줄번호/copy 없음.
     const header = document.createElement('div');
     header.className = 'code-header';
     const chip = document.createElement('span');
     chip.className = 'lang-chip';
     chip.textContent = lang || 'text';
-    const copy = document.createElement('span');
-    copy.className = 'copy-label';
-    copy.textContent = 'copy';
-    copy.dataset.action = 'copy-code';
     header.appendChild(chip);
-    header.appendChild(copy);
     pre.insertBefore(header, code);
 
-    const raw = code.innerHTML;
-    const lines = raw.split('\n');
-    if (lines.length && lines[lines.length - 1] === '') lines.pop();
-    const out = lines
-      .map(
-        (ln, i) =>
-          `<span class="line-number">${i + 1}</span><span class="line-content">${ln || ' '}</span>`,
-      )
-      .join('\n');
-    code.innerHTML = out;
+    // highlight.js를 직접 적용 — 번들된 marked는 `highlight` 옵션을 무시(신버전)하므로
+    // 여기서 토큰화해야 hljs-* span(→ CSS 토큰색)이 생긴다.
+    const hljs = window.hljs;
+    const raw = code.textContent ?? '';
+    if (hljs && raw.trim().length > 0) {
+      try {
+        const res =
+          lang && hljs.getLanguage(lang)
+            ? hljs.highlight(raw, { language: lang, ignoreIllegals: true })
+            : hljs.highlightAuto(raw);
+        code.innerHTML = res.value;
+        code.classList.add('hljs');
+      } catch (_) {
+        /* 실패 시 marked가 escape해둔 원문 유지 */
+      }
+    }
   });
   return tmp.innerHTML;
 }
@@ -150,25 +137,6 @@ export function renderPreview(host: HTMLElement, markdown: string): void {
     if ((checkbox as HTMLInputElement).checked) li.classList.add('checked');
   });
   attachImageFallback(host);
-  // Copy chip 클릭 핸들러
-  host.querySelectorAll('[data-action="copy-code"]').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      const target = e.currentTarget as HTMLElement;
-      const pre = target.closest('pre');
-      const code = pre?.querySelector('code');
-      if (!code) return;
-      const lines = code.querySelectorAll('.line-content');
-      const text = Array.from(lines).map((l) => l.textContent ?? '').join('\n');
-      navigator.clipboard?.writeText(text);
-      const original = target.textContent;
-      target.textContent = 'copied!';
-      target.style.color = 'var(--syn-type)';
-      setTimeout(() => {
-        target.textContent = original ?? 'copy';
-        target.style.color = '';
-      }, 1400);
-    });
-  });
 }
 
 /** 60ms 디바운스 wrapper — 타이핑 중 너무 자주 렌더링되지 않게. */
