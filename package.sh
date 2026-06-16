@@ -17,10 +17,14 @@ MODE="${1:-default}"
 OUT_DIR="${2:-$HOME/Desktop}"
 mkdir -p "$OUT_DIR"
 
+# build.sh의 APP_NAME / VERSION과 일치시킴 (불일치 시 ditto/hdiutil이 빈 소스로 실패).
+APP_NAME="Markdown Note"
+VERSION="$(sed -n 's/^VERSION="\(.*\)"/\1/p' build.sh | head -1)"
+
 zip_app() {
     ./build.sh release
-    local APP="build/MarkdownEditor.app"
-    local ZIP="$OUT_DIR/MarkdownEditor.zip"
+    local APP="build/$APP_NAME.app"
+    local ZIP="$OUT_DIR/Markdown-Note-v$VERSION.zip"
     echo "▸ app zip → $ZIP"
     rm -f "$ZIP"
     ditto -c -k --keepParent "$APP" "$ZIP"
@@ -28,11 +32,11 @@ zip_app() {
 
 dmg_app() {
     ./build.sh release
-    local APP="build/MarkdownEditor.app"
-    local DMG="$OUT_DIR/MarkdownEditor.dmg"
+    local APP="build/$APP_NAME.app"
+    local DMG="$OUT_DIR/Markdown-Note-v$VERSION.dmg"
     echo "▸ dmg → $DMG"
     rm -f "$DMG"
-    hdiutil create -volname "Markdown Editor" \
+    hdiutil create -volname "Markdown Note" \
                    -srcfolder "$APP" \
                    -ov -format UDZO \
                    "$DMG" >/dev/null
@@ -66,7 +70,7 @@ esac
 
 echo ""
 echo "✓ 완료"
-ls -lh "$OUT_DIR"/MarkdownEditor* 2>/dev/null
+ls -lh "$OUT_DIR"/Markdown-Note-v* 2>/dev/null
 
 cat <<'EOF'
 
