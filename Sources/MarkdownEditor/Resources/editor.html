@@ -168,9 +168,8 @@ body[data-dirty="1"] .r-dirty-dot { display:inline-block; }
 #preview-column { background:var(--page); }
 #preview-host {
   flex:1; min-height:0; overflow:auto;
-  display:flex; justify-content:flex-start;
+  display:flex; justify-content:center;   /* split·book 모두 책 본문 가운데 정렬 */
 }
-#refract-shell[data-view-mode="book"] #preview-host { justify-content:center; }
 .sheet {
   width:100%; max-width:560px; padding:54px 56px 80px;
   color:var(--page-ink); font-family:var(--serif), serif;
