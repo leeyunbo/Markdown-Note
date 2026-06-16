@@ -255,11 +255,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let idx = viewIdx, let viewMenu = mainMenu.items[idx].submenu {
             let toggle = NSMenuItem(title: "Toggle Sidebar",
                                     action: #selector(menuToggleSidebar),
-                                    keyEquivalent: "d")
+                                    keyEquivalent: "\\")
             toggle.target = self
-            toggle.keyEquivalentModifierMask = [.command, .shift]
+            toggle.keyEquivalentModifierMask = [.command]
             viewMenu.addItem(NSMenuItem.separator())
             viewMenu.addItem(toggle)
+            // 기존 ⌘⇧D도 유지 — 같은 동작의 대체 단축키.
+            let toggleAlt = NSMenuItem(title: "Toggle Sidebar (⌘⇧D)",
+                                       action: #selector(menuToggleSidebar),
+                                       keyEquivalent: "d")
+            toggleAlt.target = self
+            toggleAlt.keyEquivalentModifierMask = [.command, .shift]
+            viewMenu.addItem(toggleAlt)
             // 달필 view-mode (⌘⌥1/2/3)
             viewMenu.addItem(NSMenuItem.separator())
             let modeLabels: [(String, String, String)] = [

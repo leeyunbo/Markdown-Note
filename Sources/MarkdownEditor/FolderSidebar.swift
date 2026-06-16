@@ -26,7 +26,7 @@ private struct FolderFooter: View {
 
     var body: some View {
         HStack {
-            Text("\(mdCount()) files")
+            Text("빈 곳을 우클릭해 새로 만들기")
             Spacer()
         }
         .font(.system(size: 11))
@@ -36,18 +36,6 @@ private struct FolderFooter: View {
         .overlay(alignment: .top) {
             Rectangle().fill(state.theme.lineColor).frame(height: 1)
         }
-    }
-
-    private func mdCount() -> Int {
-        var count = 0
-        func walk(_ ns: [FileNode]) {
-            for n in ns {
-                if n.isDirectory { if let c = n.children { walk(c) } }
-                else if n.kind == .markdown { count += 1 }
-            }
-        }
-        walk(state.fileTree)
-        return count
     }
 }
 
@@ -67,6 +55,15 @@ private struct TreeView: View {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // 빈 공간 우클릭 → 루트에 생성. 행 위 우클릭은 각 행의 contextMenu가 우선.
+        .background(
+            Color.clear
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("새 노트") { state.createNote(in: nil) }
+                    Button("새 폴더") { state.createFolder(in: nil) }
+                }
+        )
     }
 }
 
@@ -75,38 +72,43 @@ private struct NodeBranch: View {
     let node: FileNode
     let depth: Int
 
-    @State private var expanded: Bool = false
     @State private var hovering = false
-    @State private var isRenaming = false
     @State private var renameText = ""
     @State private var showingDelete = false
     @State private var dropTargeted = false
     @FocusState private var renameFocused: Bool
 
+    // 펼침/이름변경은 AppState가 소유 — 프로그램적 펼침 + 생성 직후 rename 진입을 위해.
+    private var expanded: Bool { state.expandedFolders.contains(node.url) }
+    private var isRenaming: Bool { state.renamingURL == node.url }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             row
-                .padding(.leading, CGFloat(depth) * 14 + 8)
-                .padding(.trailing, 8)
-                .padding(.vertical, 2)
+                .padding(.leading, CGFloat(depth) * 14 + 6)
+                .padding(.trailing, 6)
+                .padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .background(rowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
                 .overlay(alignment: .leading) {
                     if isCurrentFile {
-                        Rectangle().fill(state.theme.accentColor).frame(width: 2)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(state.theme.accentColor)
+                            .frame(width: 2.5)
+                            .padding(.vertical, 5)
                     }
                 }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(dropTargeted ? Color.accentColor : Color.clear, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(borderColor, lineWidth: 1)
                 )
                 .onHover { hovering = $0 }
                 .onTapGesture {
                     if isRenaming { return }
                     if node.isDirectory {
-                        withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+                        withAnimation(.easeInOut(duration: 0.15)) { state.toggleExpanded(node.url) }
                         return
                     }
                     let mods = NSEvent.modifierFlags
@@ -137,16 +139,15 @@ private struct NodeBranch: View {
                     return true
                 }
                 .contextMenu {
-                    if !node.isDirectory {
-                        if node.kind == .markdown {
-                            Button("열기") { state.selectFile(node.url) }
-                            Button("새 창에서 열기") {
-                                AppDelegate.shared?.openNewWindow(with: node.url)
-                            }
-                        }
-                        Divider()
-                    } else {
+                    if node.isDirectory {
+                        Button("새 노트") { state.createNote(in: node.url) }
                         Button("새 폴더") { state.createFolder(in: node.url) }
+                        Divider()
+                    } else if node.kind == .markdown {
+                        Button("열기") { state.selectFile(node.url) }
+                        Button("새 창에서 열기") {
+                            AppDelegate.shared?.openNewWindow(with: node.url)
+                        }
                         Divider()
                     }
                     Button("이름 변경") { startRename() }
@@ -184,25 +185,26 @@ private struct NodeBranch: View {
         }
         .background(
             (node.isDirectory && dropTargeted)
-                ? Color.accentColor.opacity(0.08)
+                ? state.theme.accentColor.opacity(0.08)
                 : Color.clear
         )
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 
     @ViewBuilder
     private var row: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Group {
                 if node.isDirectory {
-                    Text(expanded ? "▾" : "▸")
-                        .font(.system(size: 10))
-                        .foregroundColor(state.theme.subColor)
+                    Text("▶")
+                        .font(.system(size: 8))
+                        .foregroundColor(state.theme.accentColor)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
                 } else {
                     Color.clear
                 }
             }
-            .frame(width: 12)
+            .frame(width: 11)
 
             iconView
                 .foregroundStyle(iconColor)
@@ -211,7 +213,7 @@ private struct NodeBranch: View {
             if isRenaming {
                 TextField("", text: $renameText)
                     .textFieldStyle(.plain)
-                    .font(.system(.callout))
+                    .font(.system(size: 13))
                     .focused($renameFocused)
                     .onSubmit { commitRename() }
                     .onExitCommand { cancelRename() }
@@ -219,19 +221,29 @@ private struct NodeBranch: View {
                         if !focused && isRenaming { commitRename() }
                     }
                     .task {
+                        // rename 진입(컨텍스트 메뉴 또는 생성 직후) 시 현재 이름으로 seed + focus.
+                        renameText = node.isDirectory
+                            ? node.name
+                            : node.url.deletingPathExtension().lastPathComponent
                         try? await Task.sleep(nanoseconds: 30_000_000)
                         renameFocused = true
                     }
             } else {
                 Text(displayName)
                     .font(.system(size: 13))
-                    .fontWeight(isCurrentFile ? .semibold : nameWeight)
-                    .foregroundColor(state.theme.inkColor)
+                    .fontWeight(nameWeight)
+                    .foregroundColor(nameColor)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
 
             Spacer(minLength: 0)
+
+            if node.isDirectory {
+                Text("\(fileCount)")
+                    .font(.system(size: 12))
+                    .foregroundColor(state.theme.subColor.opacity(0.7))
+            }
         }
     }
 
@@ -239,35 +251,63 @@ private struct NodeBranch: View {
         !node.isDirectory && node.url == state.selectedFile
     }
 
+    /// active 행 hairline 보더(테라코타 40%) / 드롭 타겟 보더(테라코타).
+    private var borderColor: Color {
+        if isCurrentFile { return state.theme.accentColor.opacity(0.4) }
+        if dropTargeted { return state.theme.accentColor }
+        return .clear
+    }
+
+    /// 이름 색 — active=ink, 폴더 #3b362e, 파일 #4a443b (달필 프로토타입 값).
+    private var nameColor: Color {
+        if isCurrentFile { return state.theme.inkColor }
+        return node.isDirectory
+            ? Color(.sRGB, red: 59 / 255, green: 54 / 255, blue: 46 / 255, opacity: 1)
+            : Color(.sRGB, red: 74 / 255, green: 68 / 255, blue: 59 / 255, opacity: 1)
+    }
+
+    /// 폴더 행 우측 자식 수 — 하위 markdown 파일 재귀 카운트.
+    private var fileCount: Int {
+        func walk(_ ns: [FileNode]) -> Int {
+            ns.reduce(0) { acc, n in
+                acc + (n.isDirectory ? walk(n.children ?? []) : (n.kind == .markdown ? 1 : 0))
+            }
+        }
+        return walk(node.children ?? [])
+    }
+
     private var rowBackground: some View {
-        if dropTargeted {
-            return AnyView(Color.accentColor.opacity(0.30))
-        } else if isCurrentFile {
-            return AnyView(state.theme.activeColor)
+        if isCurrentFile {
+            return AnyView(Color.white)
+        } else if dropTargeted {
+            return AnyView(state.theme.accentColor.opacity(0.12))
         } else if state.selectedFiles.contains(node.url) {
             return AnyView(state.theme.activeColor.opacity(2.5))
         } else if hovering && !isRenaming {
-            return AnyView(Color.primary.opacity(0.06))
+            return AnyView(Color.white.opacity(0.5))
         } else {
             return AnyView(Color.clear)
         }
     }
 
     private func startRename() {
-        renameText = node.url.deletingPathExtension().lastPathComponent
-        isRenaming = true
+        state.beginRename(node.url)
     }
 
     private func commitRename() {
+        guard isRenaming else { return }
         let target = renameText
-        isRenaming = false
-        if target != node.url.deletingPathExtension().lastPathComponent {
+        state.endRename()
+        let current = node.isDirectory
+            ? node.name
+            : node.url.deletingPathExtension().lastPathComponent
+        if target != current {
             state.renameFile(node.url, to: target)
         }
     }
 
     private func cancelRename() {
-        isRenaming = false
+        state.endRename()
     }
 
     private var nodeIsDirectory: Bool { node.isDirectory }
@@ -304,7 +344,7 @@ private struct NodeBranch: View {
 
     private var nameWeight: Font.Weight {
         if state.selectedFiles.contains(node.url) { return .semibold }
-        return node.isDirectory ? .semibold : .regular
+        return node.isDirectory ? .bold : .regular
     }
 
     @ViewBuilder

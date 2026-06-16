@@ -25,6 +25,11 @@ final class AppState: ObservableObject {
     @Published var documentResetTick: Int = 0
     /// 사이드바 다중 선택. selectedFile은 anchor(마지막 단일 클릭).
     @Published var selectedFiles: Set<URL> = []
+    /// 펼쳐진 폴더 URL 집합. 트리 펼침 상태를 중앙화 — 폴더 안에 생성 시
+    /// 프로그램적으로 펼칠 수 있게(각 행 로컬 @State로는 불가능).
+    @Published var expandedFolders: Set<URL> = []
+    /// 인라인 이름변경 중인 노드 URL. 생성 직후 바로 rename에 진입시키는 신호로도 쓴다.
+    @Published var renamingURL: URL?
 
     struct Heading: Identifiable, Equatable {
         let id = UUID()
@@ -255,7 +260,40 @@ final class AppState: ObservableObject {
         selectFile(url)
     }
 
-    /// parent 안에 "새 폴더" / "새 폴더 2" 형태로 빈 폴더 생성. parent nil이면 root.
+    // MARK: - Tree UI state (펼침 / 인라인 이름변경)
+
+    func toggleExpanded(_ url: URL) {
+        if expandedFolders.contains(url) { expandedFolders.remove(url) }
+        else { expandedFolders.insert(url) }
+    }
+
+    func beginRename(_ url: URL) { renamingURL = url }
+    func endRename() { renamingURL = nil }
+
+    /// folder 안에 "새 노트.md"(유니크) 생성 → 폴더 펼침 → 열기 → 인라인 이름변경 진입.
+    /// folder nil이면 root에 생성.
+    func createNote(in folder: URL? = nil) {
+        guard let p = folder ?? rootFolder else { pickFolder(); return }
+        var idx = 1
+        var url = p.appendingPathComponent("새 노트.md")
+        while FileManager.default.fileExists(atPath: url.path) {
+            idx += 1
+            url = p.appendingPathComponent("새 노트 \(idx).md")
+        }
+        do {
+            try "# 새 노트\n\n".write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            reportError("노트 생성 실패", detail: error.localizedDescription)
+            return
+        }
+        if let folder { expandedFolders.insert(folder) }
+        refreshTree()
+        selectFile(url)        // 에디터에 연다 (selectedFiles = [url])
+        renamingURL = url      // 새 행이 트리에 나타나면 바로 rename 진입
+    }
+
+    /// parent 안에 "새 폴더" / "새 폴더 2" 형태로 빈 폴더 생성 → 부모 펼침 → 인라인 이름변경.
+    /// parent nil이면 root.
     func createFolder(in parent: URL? = nil) {
         guard let p = parent ?? rootFolder else { pickFolder(); return }
         var idx = 1
@@ -268,7 +306,9 @@ final class AppState: ObservableObject {
         }
         do {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+            if let parent { expandedFolders.insert(parent) }
             refreshTree()
+            renamingURL = url
         } catch {
             reportError("폴더 생성 실패", detail: error.localizedDescription)
         }

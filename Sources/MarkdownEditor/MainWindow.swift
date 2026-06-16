@@ -98,11 +98,8 @@ final class MainWindowController: NSWindowController {
         splitVC.addSplitViewItem(sidebarItem)
         splitVC.addSplitViewItem(editorItem)
         splitVC.splitView.dividerStyle = .thin
-        // Refract spec: "no file sidebar" — 폴더 선택 상태면 collapsed로 시작.
-        // addSplitViewItem 이전에 set하면 무시되므로 여기서.
-        if state.rootFolder != nil {
-            sidebarItem.isCollapsed = true
-        }
+        // 달필 라이브러리 모델: 노트 트리가 주 네비게이션 → 기본 펼침.
+        // (집중 모드는 ⌘\\ / ⌘⇧D로 토글.)
         // NSSplitViewController 내부 setup을 깨지 않고 divider 색만 바꾸려면
         // 인스턴스 클래스를 런타임에 swap (KVO와 동일한 메커니즘)
         object_setClass(splitVC.splitView, TonedSplitView.self)
